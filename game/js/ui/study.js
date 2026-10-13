@@ -100,9 +100,10 @@ function ask(app) {
 function interferenceBanner(app, q) {
   const m = interferingMonster(app.state, q, app.ctx);
   view.interferingId = m ? m.id : null;
-  if (!m) return el('div', { id: 'interfere', hidden: true });
+  // 干渉が無いときも同じ高さの枠を置く（出たり消えたりしても解答ボタンの位置を変えない）
+  if (!m) return el('div', { class: 'interfere off', id: 'interfere', 'aria-hidden': 'true' });
   const sp = (app.monsterSprites[m.id] || {}).idle || null;
-  return el('div', { class: 'interfere', id: 'interfere' }, spriteCanvas(sp, 2, app.palette), `${m.name}が口を挟んでいる`);
+  return el('div', { class: 'interfere', id: 'interfere' }, spriteCanvas(sp, 2, app.palette), el('span', {}, `${m.name}が口を挟んでいる`));
 }
 
 function renderQuestion(app) {

@@ -121,6 +121,7 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .study-top { display: flex; gap: 10px; padding: 10px 12px 0; align-items: flex-start; }
 .study-info { flex: 1; font-size: 14px; line-height: 1.7; }
 .study-info b { color: var(--accent); font-weight: normal; }
+.study-info div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #mini { width: 90px; height: 160px; border: 2px solid var(--line); flex-shrink: 0; }
 #study-body { padding: 10px 12px 24px; }
 .modes { display: flex; flex-direction: column; gap: 8px; }
@@ -130,10 +131,15 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .modes small { display: block; color: var(--muted); font-size: 12px; }
 .prof-list { margin-top: 14px; font-size: 13px; display: grid; grid-template-columns: 1fr auto auto; gap: 2px 10px; }
 .prof-list .head { color: var(--muted); }
+/* 干渉の枠は、干渉が無いときも同じ高さで空けておく（敵が入れ替わっても解答ボタンの位置がずれないように） */
 .interfere {
-  display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 8px; padding: 0 8px; margin-bottom: 8px;
+  height: 46px; white-space: nowrap; overflow: hidden;
   background: #3a2152; border: 2px solid #a26cc8; font-size: 14px;
 }
+.interfere canvas { flex-shrink: 0; }
+.interfere span { overflow: hidden; text-overflow: ellipsis; }
+.interfere.off { visibility: hidden; }
 .qmeta { color: var(--muted); font-size: 13px; }
 .qtext { font-size: 17px; margin: 6px 0 10px; line-height: 1.6; }
 .timebar { height: 8px; background: var(--panel2); border: 2px solid var(--line); margin-bottom: 12px; }
