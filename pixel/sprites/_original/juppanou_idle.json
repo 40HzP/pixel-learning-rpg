@@ -1,0 +1,47 @@
+{
+  "name": "juppanou_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      "................",
+      ".....00000......",
+      "....0mmmmn0000..",
+      "...0mmmmmmmnnm0.",
+      "..044444444440g0",
+      ".0ttrrtsttrrst00",
+      "0tssstrrsssttrs0",
+      "0ts00ssrs00srss0",
+      "0srsssrsssrrssr0",
+      "0ssrrsss00ssrsr0",
+      ".0rssrrssrrsrr0.",
+      "..00rrrrrrrr00..",
+      "....00000000....",
+      "....0s0..0s0....",
+      "...0ss0.0ss0....",
+      "...0000.0000...."
+    ],
+    [
+      "................",
+      "................",
+      ".....00000......",
+      "....0mmmmn0000..",
+      "...0mmmmmmmnnm0.",
+      "..044444444440g0",
+      ".0ttrrtsttrrst00",
+      "0tssstrrsssttrs0",
+      "0ts00ssrs00srss0",
+      "0srsssrsssrrssr0",
+      "0ssrrsss00ssrsr0",
+      "..00rrrrrrrr00..",
+      "....00000000....",
+      "....0s0..0s0....",
+      "...0ss0.0ss0....",
+      "...0000.0000...."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

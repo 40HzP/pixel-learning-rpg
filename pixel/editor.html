@@ -1,0 +1,1648 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ドット絵エディタ</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #1d1e23;
+    --panel: #26282f;
+    --panel2: #30333b;
+    --line: #41454f;
+    --text: #e7e7ec;
+    --muted: #9b9eaa;
+    --accent: #5aa9ff;
+    --accent-text: #0d1b2a;
+    --warn: #ffb547;
+    --danger: #ff6b6b;
+    --ok: #6bd68f;
+    --mark: #ff3df5;
+    --checker-a: #c9c9cf;
+    --checker-b: #e9e9ee;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 system-ui, -apple-system, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  }
+  [hidden] { display: none !important; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  button {
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+  button.big { font-size: 16px; padding: 10px 22px; }
+  button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  button.active kbd { color: inherit; border-color: currentColor; }
+  select, input[type=number], input[type=text], textarea {
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 4px 6px;
+  }
+  textarea { width: 100%; resize: vertical; min-height: 70px; }
+  kbd {
+    font: 11px/1 ui-monospace, monospace;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 1px 4px;
+    margin-left: 4px;
+  }
+  .muted { color: var(--muted); }
+  .warn { color: var(--warn); }
+  .spacer { flex: 1; }
+  .pixel { image-rendering: pixelated; image-rendering: crisp-edges; }
+  .checker {
+    background-color: var(--checker-b);
+    background-image: conic-gradient(var(--checker-a) 0 25%, transparent 0 50%, var(--checker-a) 0 75%, transparent 0);
+    background-size: 8px 8px;
+  }
+
+  .screen { height: 100%; display: flex; flex-direction: column; }
+  .bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .bar strong { font-size: 16px; }
+
+  /* ---------- start ---------- */
+  #start { align-items: center; justify-content: center; }
+  .start-box { text-align: center; max-width: 520px; padding: 24px; }
+  .start-box h1 { font-size: 24px; margin: 0 0 8px; }
+  .start-box p { color: var(--muted); }
+  .start-box .btns { display: flex; flex-direction: column; gap: 10px; align-items: center; margin-top: 20px; }
+
+  /* ---------- list ---------- */
+  .filters { display: flex; gap: 16px; align-items: center; padding: 10px 12px; flex-wrap: wrap; }
+  .cards {
+    flex: 1; overflow: auto;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px; padding: 4px 12px 24px; align-content: start;
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px; cursor: pointer; display: flex; flex-direction: column; gap: 6px;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card.error { border-color: var(--danger); cursor: default; }
+  .card .thumb { height: 104px; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
+  .card .name { font-weight: 600; word-break: break-all; }
+  .card .meta { font-size: 12px; color: var(--muted); }
+  .badges { display: flex; gap: 4px; flex-wrap: wrap; }
+  .badge { font-size: 11px; border-radius: 10px; padding: 1px 8px; background: var(--panel2); border: 1px solid var(--line); color: var(--muted); }
+  .badge.edited { background: #1f4a32; border-color: #2f7a4f; color: #bff0cf; }
+  .badge.note { background: #4a3a1f; border-color: #7a5f2f; color: #ffe3b0; }
+  .badge.warn { background: #4a2f1f; border-color: #7a4a2f; color: #ffd0a8; }
+  .empty { color: var(--muted); padding: 24px 12px; }
+
+  /* ---------- editor ---------- */
+  .ed-body { flex: 1; display: flex; min-height: 0; }
+  .ed-left, .ed-right { background: var(--panel); overflow: auto; padding: 10px; }
+  .ed-left { width: 200px; border-right: 1px solid var(--line); flex-shrink: 0; }
+  .ed-right { width: 320px; border-left: 1px solid var(--line); flex-shrink: 0; }
+  .ed-center { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .section-title { font-size: 12px; color: var(--muted); margin: 12px 0 6px; font-weight: 600; letter-spacing: .05em; }
+  .section-title:first-child { margin-top: 0; }
+  .tools { display: flex; flex-direction: column; gap: 4px; }
+  .tools button { text-align: left; display: flex; align-items: center; }
+  .tools button kbd { margin-left: auto; }
+  .toggle { display: flex; align-items: center; gap: 6px; margin-top: 6px; cursor: pointer; user-select: none; }
+  .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .swatch {
+    position: relative; height: 34px; border-radius: 4px; border: 2px solid transparent; padding: 0;
+    outline: 1px solid rgba(0,0,0,.4);
+  }
+  .swatch span {
+    position: absolute; left: 2px; bottom: 0;
+    font: 10px/1.2 ui-monospace, monospace;
+    color: #fff; text-shadow: 0 0 2px #000, 0 0 2px #000;
+  }
+  .swatch.sel { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
+  .cur-color { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; }
+  .cur-color .chip { width: 28px; height: 28px; border-radius: 4px; outline: 1px solid rgba(0,0,0,.4); flex-shrink: 0; }
+
+  .view-bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .view-bar .zoom-val { min-width: 48px; text-align: center; }
+  .canvas-wrap { flex: 1; overflow: auto; display: flex; min-height: 0; background: #3a3c44; position: relative; }
+  .canvas-wrap > .inner { margin: auto; padding: 16px; position: relative; }
+  #cv { display: block; cursor: crosshair; touch-action: none; }
+  #peek-label {
+    position: absolute; left: 16px; top: 16px; background: var(--warn); color: #000;
+    font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 0 0 6px 0;
+  }
+  .pos { padding: 2px 10px; font-size: 12px; color: var(--muted); min-height: 22px; border-top: 1px solid var(--line); background: var(--panel); }
+  .frames-bar { border-top: 1px solid var(--line); background: var(--panel); padding: 8px 10px; }
+  .frame-btns { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+  .frames { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; min-height: 76px; align-items: flex-start; }
+  .frame {
+    border: 2px solid var(--line); border-radius: 6px; padding: 3px; cursor: pointer; flex-shrink: 0;
+    display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--panel2);
+  }
+  .frame.sel { border-color: var(--accent); }
+  .frame .num { font-size: 11px; color: var(--muted); }
+  .frame canvas { display: block; }
+
+  .ed-right section { border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 12px; }
+  .ed-right section:last-child { border-bottom: 0; }
+  .previews { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; padding: 8px; border-radius: 6px; }
+  .previews figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .previews figcaption { font-size: 11px; color: #fff; background: rgba(0,0,0,.65); padding: 0 6px; border-radius: 8px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+  .row input[type=number] { width: 64px; }
+  .compare { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .compare figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .compare figcaption { font-size: 11px; color: var(--muted); }
+  .compare canvas { display: block; }
+  .diff-summary { font-size: 12px; color: var(--muted); margin-top: 6px; white-space: pre-line; }
+  .warn-list { font-size: 12px; color: var(--warn); margin: 0; padding-left: 18px; }
+  .dirty { color: var(--warn); font-size: 13px; }
+
+  /* ---------- dialogs, toast ---------- */
+  dialog {
+    background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 20px; max-width: min(640px, 92vw);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.55); }
+  dialog .msg { white-space: pre-line; margin: 0 0 16px; }
+  dialog .btns { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  .pal-table { border-collapse: collapse; margin-bottom: 14px; font-size: 13px; }
+  .pal-table td { padding: 2px 6px; }
+  .pal-table input[type=color] { width: 40px; height: 26px; padding: 0; border: 1px solid var(--line); background: none; }
+  .pal-table input[type=text] { width: 150px; }
+  .pal-table code { font-family: ui-monospace, monospace; }
+  .pal-scroll { max-height: 60vh; overflow: auto; }
+  .help h3 { margin: 12px 0 4px; font-size: 14px; }
+  .help ul { margin: 0; padding-left: 20px; }
+  #toast { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
+  .toast-item {
+    background: var(--panel2); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    padding: 8px 12px; border-radius: 6px; max-width: 420px; box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  }
+  .toast-item.ok { border-left-color: var(--ok); }
+  .toast-item.err { border-left-color: var(--danger); }
+</style>
+</head>
+<body>
+
+<!-- ================= 最初の画面 ================= -->
+<div id="start" class="screen">
+  <div class="start-box">
+    <h1>ドット絵エディタ</h1>
+    <p>pixel フォルダ（palette.json と sprites フォルダが入っているフォルダ）を選ぶと、スプライトの一覧が表示されます。</p>
+    <div class="btns">
+      <button id="btn-open" class="primary big">pixel フォルダを開く</button>
+      <button id="btn-reopen" class="big" hidden>前回のフォルダを開く</button>
+    </div>
+    <p id="unsupported" class="warn" hidden>このブラウザではフォルダを読み書きできません。<br>デスクトップ版の Google Chrome で開いてください。</p>
+  </div>
+</div>
+
+<!-- ================= 一覧画面 ================= -->
+<div id="list" class="screen" hidden>
+  <header class="bar">
+    <strong id="list-title">pixel</strong>
+    <span class="spacer"></span>
+    <button id="btn-reload" title="フォルダの中身を読み直します">再読み込み</button>
+    <button id="btn-palette">パレット</button>
+    <label>書き出し倍率
+      <select id="export-scale">
+        <option value="1">1倍</option>
+        <option value="2">2倍</option>
+        <option value="4">4倍</option>
+        <option value="8">8倍</option>
+      </select>
+    </label>
+    <button id="btn-export-all" title="全スプライトの各フレームとスプライトシートを export フォルダに書き出します">全スプライトをPNG書き出し</button>
+    <button id="btn-change-folder">フォルダを変える</button>
+    <button id="btn-help-list">使い方</button>
+  </header>
+  <div class="filters">
+    <label>カテゴリ <select id="f-cat"></select></label>
+    <label>手直し
+      <select id="f-edited">
+        <option value="all">すべて</option>
+        <option value="edited">手直し済み</option>
+        <option value="unedited">未手直し</option>
+      </select>
+    </label>
+    <span id="list-count" class="muted"></span>
+  </div>
+  <div id="cards" class="cards"></div>
+</div>
+
+<!-- ================= 編集画面 ================= -->
+<div id="editor" class="screen" hidden>
+  <header class="bar">
+    <button id="btn-back">← 一覧</button>
+    <strong id="ed-name"></strong>
+    <span id="ed-meta" class="muted"></span>
+    <span id="ed-edited" class="badge edited" hidden>手直し済み</span>
+    <span id="ed-dirty" class="dirty" hidden>● 未保存</span>
+    <span class="spacer"></span>
+    <button id="btn-undo" title="元に戻す（Ctrl+Z）">↶ 元に戻す</button>
+    <button id="btn-redo" title="やり直す（Ctrl+Y）">↷ やり直す</button>
+    <button id="btn-export-frame" title="表示中のフレームを export フォルダにPNGで書き出します">このフレームをPNG</button>
+    <button id="btn-export-sheet" title="全フレームを横に並べたPNGを export フォルダに書き出します">スプライトシートPNG</button>
+    <button id="btn-save" class="primary" title="sprites フォルダのJSONに上書き保存します（Ctrl+S）">上書き保存</button>
+    <button id="btn-help">使い方</button>
+  </header>
+  <div class="ed-body">
+    <aside class="ed-left">
+      <div class="section-title">道具</div>
+      <div class="tools">
+        <button data-tool="pen" title="クリックした所を選んだ色で塗ります。右クリックで消します">✎ ペン<kbd>B</kbd></button>
+        <button data-tool="eraser" title="透明にします">⌫ 消しゴム<kbd>E</kbd></button>
+        <button data-tool="fill" title="同じ色でつながっている範囲をまとめて塗ります">▧ 塗りつぶし<kbd>F</kbd></button>
+        <button data-tool="picker" title="クリックした所の色を選びます（Altを押しながらクリックでも同じ）">◉ スポイト<kbd>I</kbd></button>
+      </div>
+      <label class="toggle" title="左右の同じ位置にも同時に描きます"><input type="checkbox" id="opt-mirror"> 左右対称<kbd>M</kbd></label>
+      <div class="section-title">パレット</div>
+      <div id="swatches" class="swatches"></div>
+      <div id="cur-color" class="cur-color"></div>
+    </aside>
+
+    <main class="ed-center">
+      <div class="view-bar">
+        <button id="zoom-out" title="縮小（-）">−</button>
+        <span id="zoom-val" class="zoom-val"></span>
+        <button id="zoom-in" title="拡大（+）">＋</button>
+        <button id="zoom-fit" title="画面に合わせる（0）">全体</button>
+        <label class="toggle" style="margin:0"><input type="checkbox" id="opt-grid"> グリッド<kbd>G</kbd></label>
+        <label class="toggle" style="margin:0" title="前後のフレームを薄く重ねて表示します"><input type="checkbox" id="opt-onion"> 前後のフレームを透かす<kbd>T</kbd></label>
+        <span class="spacer"></span>
+        <button id="btn-peek" title="押している間だけ、生成時の版（_original）を表示します。Oキーでも同じ">押している間 元の版を表示<kbd>O</kbd></button>
+      </div>
+      <div id="canvas-wrap" class="canvas-wrap">
+        <div class="inner">
+          <canvas id="cv" class="pixel"></canvas>
+          <div id="peek-label" hidden>元の版を表示中</div>
+        </div>
+      </div>
+      <div id="pos" class="pos"></div>
+      <div class="frames-bar">
+        <div class="frame-btns">
+          <span class="muted">フレーム</span>
+          <button id="fr-add" title="空のフレームを今のフレームの後ろに追加">追加</button>
+          <button id="fr-dup" title="今のフレームを複製して後ろに追加">複製</button>
+          <button id="fr-del" title="今のフレームを削除">削除</button>
+          <button id="fr-left" title="今のフレームを1つ前へ移動">◀ 前へ移動</button>
+          <button id="fr-right" title="今のフレームを1つ後ろへ移動">後ろへ移動 ▶</button>
+          <span class="muted" style="font-size:12px">← → キーでフレームを切り替え</span>
+        </div>
+        <div id="frames" class="frames"></div>
+      </div>
+    </main>
+
+    <aside class="ed-right">
+      <section>
+        <div class="section-title">アニメーションのプレビュー</div>
+        <div id="previews" class="previews checker"></div>
+        <div class="row">
+          <button id="btn-play" title="再生・停止（スペース）">■ 停止</button>
+          <label>fps <input type="number" id="fps" min="1" max="60" step="1"></label>
+          <label>背景
+            <select id="preview-bg">
+              <option value="checker">市松</option>
+              <option value="#1a1626">黒</option>
+              <option value="#f2efe6">白</option>
+              <option value="#6fb042">草</option>
+              <option value="#a6d8f2">空</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-title">メモ（note）</div>
+        <textarea id="note" placeholder="例：顔をもっと幼く&#10;Claude Code への指示を書いておけます"></textarea>
+      </section>
+
+      <section>
+        <div class="section-title">生成時の版（_original）との比較</div>
+        <label class="toggle"><input type="checkbox" id="opt-compare"> 比較を表示する</label>
+        <div id="compare-body" hidden>
+          <div id="compare" class="compare"></div>
+          <label class="toggle"><input type="checkbox" id="opt-diffmark"> 編集画面の変わった所に印を付ける</label>
+          <div id="diff-summary" class="diff-summary"></div>
+        </div>
+      </section>
+
+      <section id="ed-warn-sec" hidden>
+        <div class="section-title">読み込み時の注意</div>
+        <ul id="ed-warn" class="warn-list"></ul>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<dialog id="dlg"></dialog>
+<dialog id="ask"></dialog>
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   小さな道具
+   ===================================================================== */
+const $ = (sel) => document.querySelector(sel);
+
+function el(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') e.className = v;
+    else if (k === 'style' && typeof v === 'object') Object.assign(e.style, v);
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (k in e) e[k] = v;
+    else e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids.flat()) {
+    if (k == null || k === false) continue;
+    e.append(k instanceof Node ? k : String(k));
+  }
+  return e;
+}
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+function toast(msg, kind) {
+  const t = el('div', { class: 'toast-item ' + (kind || '') }, msg);
+  $('#toast').append(t);
+  setTimeout(() => t.remove(), kind === 'err' ? 7000 : 3500);
+}
+
+/** 確認ダイアログ。buttons: [{label, value, primary}]。押したボタンの value を返す（Escは null） */
+function ask(message, buttons) {
+  const d = $('#ask');
+  d.replaceChildren();
+  return new Promise((resolve) => {
+    const done = (v) => { d.close(); resolve(v); };
+    d.append(
+      el('p', { class: 'msg' }, message),
+      el('div', { class: 'btns' }, buttons.map((b) =>
+        el('button', { class: b.primary ? 'primary' : '', onclick: () => done(b.value) }, b.label)))
+    );
+    d.oncancel = (e) => { e.preventDefault(); done(null); };
+    d.showModal();
+  });
+}
+const info = (message) => ask(message, [{ label: 'OK', value: true, primary: true }]);
+
+const prefs = (() => {
+  const def = { tool: 'pen', color: '0', mirror: false, grid: true, onion: false, exportScale: 1, previewBg: 'checker', diffMark: false };
+  try { return Object.assign(def, JSON.parse(localStorage.getItem('pixel-editor-prefs') || '{}')); } catch { return def; }
+})();
+function savePrefs() { try { localStorage.setItem('pixel-editor-prefs', JSON.stringify(prefs)); } catch { /* 保存できなくても動く */ } }
+
+/* 前回開いたフォルダを覚えておく（IndexedDB） */
+const idb = {
+  open() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('pixel-editor', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+  },
+  async get(key) {
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const q = db.transaction('kv').objectStore('kv').get(key);
+      q.onsuccess = () => res(q.result);
+      q.onerror = () => rej(q.error);
+    });
+  },
+  async set(key, val) {
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const tx = db.transaction('kv', 'readwrite');
+      tx.objectStore('kv').put(val, key);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+  },
+};
+
+/* =====================================================================
+   ファイルの読み書き（File System Access API）
+   ===================================================================== */
+async function getDir(dir, name, create) {
+  try { return await dir.getDirectoryHandle(name, { create: !!create }); } catch { return null; }
+}
+async function getFile(dir, name) {
+  try { return await dir.getFileHandle(name); } catch { return null; }
+}
+async function writeFile(fileHandle, data) {
+  const w = await fileHandle.createWritable();
+  await w.write(data);
+  await w.close();
+}
+async function writeNamed(dir, name, data) {
+  await writeFile(await dir.getFileHandle(name, { create: true }), data);
+}
+async function ensurePermission(handle) {
+  const opt = { mode: 'readwrite' };
+  if ((await handle.queryPermission(opt)) === 'granted') return true;
+  return (await handle.requestPermission(opt)) === 'granted';
+}
+
+/* =====================================================================
+   データ
+   ===================================================================== */
+const app = {
+  root: null,        // pixel フォルダ
+  spritesDir: null,
+  originalDir: null,
+  palette: null,     // palette.json の中身
+  rgb: new Map(),    // キー → [r,g,b]
+  sprites: [],       // { file, handle, lastModified, data, original, warnings, error }
+};
+const TRANSPARENT = '.';
+const UNKNOWN_RGB = [255, 0, 255];
+
+function hexToRgb(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function setPalette(p) {
+  const problems = [];
+  if (!p || !Array.isArray(p.colors)) throw new Error('"colors" の一覧がありません');
+  const rgb = new Map();
+  for (const c of p.colors) {
+    const key = c && typeof c.key === 'string' ? c.key : '';
+    const v = c ? hexToRgb(c.hex) : null;
+    if (key.length !== 1 || key === TRANSPARENT) { problems.push(`キー "${key}" は1文字にしてください（"." は透明用）`); continue; }
+    if (rgb.has(key)) { problems.push(`キー "${key}" が重複しています`); continue; }
+    if (!v) { problems.push(`キー "${key}" の色 "${c.hex}" が読めません`); continue; }
+    rgb.set(key, v);
+  }
+  app.palette = p;
+  app.rgb = rgb;
+  return problems;
+}
+const colorName = (key) => {
+  if (key === TRANSPARENT) return '透明';
+  const c = app.palette.colors.find((c) => c.key === key);
+  return c ? (c.name || '') : 'パレット外';
+};
+
+/** スプライトJSONを読み込み用に整える。おかしな所は直して warnings に書く */
+function normalizeSprite(raw, file) {
+  const warnings = [];
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('中身がオブジェクト（{ }）ではありません');
+  const s = Object.assign({}, raw);
+  const base = file.replace(/\.json$/i, '');
+  s.name = typeof raw.name === 'string' && raw.name ? raw.name : base;
+  s.category = typeof raw.category === 'string' ? raw.category : '';
+  let frames = Array.isArray(raw.frames) ? raw.frames.filter(Array.isArray) : [];
+  let w = Number.isInteger(raw.w) && raw.w > 0 ? raw.w : 0;
+  let h = Number.isInteger(raw.h) && raw.h > 0 ? raw.h : 0;
+  if (!w) { w = Math.max(1, ...frames.flat().map((r) => (typeof r === 'string' ? r.length : 0))); warnings.push(`w（幅）が無いので ${w} にしました`); }
+  if (!h) { h = Math.max(1, ...frames.map((f) => f.length)); warnings.push(`h（高さ）が無いので ${h} にしました`); }
+  if (!frames.length) { frames = [[]]; warnings.push('フレームが無いので空のフレームを1枚作りました'); }
+  s.w = w; s.h = h;
+  s.frames = frames.map((f, i) => {
+    if (f.length !== h) warnings.push(`フレーム${i + 1}の行数が ${f.length} です（${h} に合わせました）`);
+    const rows = [];
+    let badLen = false;
+    for (let y = 0; y < h; y++) {
+      let r = typeof f[y] === 'string' ? f[y] : '';
+      if (y < f.length && r.length !== w) badLen = true;
+      r = r.length < w ? r + TRANSPARENT.repeat(w - r.length) : r.slice(0, w);
+      rows.push(r);
+    }
+    if (badLen) warnings.push(`フレーム${i + 1}に幅が ${w} でない行があります（${w} に合わせました）`);
+    return rows;
+  });
+  s.fps = Number.isFinite(raw.fps) ? clamp(Math.round(raw.fps), 1, 60) : 4;
+  s.edited = raw.edited === true;
+  s.note = typeof raw.note === 'string' ? raw.note : '';
+  const bad = new Set();
+  for (const f of s.frames) for (const r of f) for (const ch of r) if (ch !== TRANSPARENT && !app.rgb.has(ch)) bad.add(ch);
+  if (bad.size) warnings.push(`パレットに無い文字があります：${[...bad].join(' ')}（赤紫で表示します）`);
+  return { sprite: s, warnings };
+}
+
+const KNOWN_KEYS = ['name', 'category', 'w', 'h', 'fps', 'frames', 'edited', 'note'];
+
+/** 1行＝1ピクセル行の読みやすい形でJSONにする */
+function serializeSprite(s) {
+  const kv = (k, v) => `  ${JSON.stringify(k)}: ${JSON.stringify(v)}`;
+  const out = [kv('name', s.name), kv('category', s.category), kv('w', s.w), kv('h', s.h), kv('fps', s.fps)];
+  const frames = s.frames.map((f) => '    [\n' + f.map((r) => '      ' + JSON.stringify(r)).join(',\n') + '\n    ]').join(',\n');
+  out.push('  "frames": [\n' + frames + '\n  ]');
+  out.push(kv('edited', s.edited), kv('note', s.note));
+  for (const k of Object.keys(s)) {
+    if (!KNOWN_KEYS.includes(k)) out.push(`  ${JSON.stringify(k)}: ` + JSON.stringify(s[k], null, 2).replace(/\n/g, '\n  '));
+  }
+  return '{\n' + out.join(',\n') + '\n}\n';
+}
+
+function serializePalette(p) {
+  const out = [`  "confirmed": ${p.confirmed === true}`, `  "transparent": ${JSON.stringify(p.transparent || TRANSPARENT)}`];
+  const colors = p.colors.map((c) => `    { "key": ${JSON.stringify(c.key)}, "hex": ${JSON.stringify(c.hex)}, "name": ${JSON.stringify(c.name || '')} }`);
+  out.push('  "colors": [\n' + colors.join(',\n') + '\n  ]');
+  for (const k of Object.keys(p)) {
+    if (!['confirmed', 'transparent', 'colors'].includes(k)) out.push(`  ${JSON.stringify(k)}: ` + JSON.stringify(p[k], null, 2).replace(/\n/g, '\n  '));
+  }
+  return '{\n' + out.join(',\n') + '\n}\n';
+}
+
+const rowsToChars = (rows) => rows.join('').split('');
+function charsToRows(chars, w, h) {
+  const rows = [];
+  for (let y = 0; y < h; y++) rows.push(chars.slice(y * w, (y + 1) * w).join(''));
+  return rows;
+}
+
+/* =====================================================================
+   描画
+   ===================================================================== */
+/** chars（1文字＝1ピクセルの配列）を実寸のキャンバスにする */
+function charsToCanvas(chars, w, h, canvas) {
+  const c = canvas || document.createElement('canvas');
+  if (c.width !== w) c.width = w;
+  if (c.height !== h) c.height = h;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(w, h);
+  const d = img.data;
+  for (let i = 0; i < w * h; i++) {
+    const ch = chars[i];
+    if (ch === TRANSPARENT || ch === undefined) continue;
+    const v = app.rgb.get(ch) || UNKNOWN_RGB;
+    d[i * 4] = v[0]; d[i * 4 + 1] = v[1]; d[i * 4 + 2] = v[2]; d[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+/** 実寸キャンバスを表示用に拡大した見た目にする（CSSで拡大） */
+function scaledView(chars, w, h, scale, canvas) {
+  const c = charsToCanvas(chars, w, h, canvas);
+  c.classList.add('pixel');
+  c.style.width = Math.round(w * scale) + 'px';
+  c.style.height = Math.round(h * scale) + 'px';
+  return c;
+}
+
+/** 実寸×scale の PNG Blob を作る */
+function framesToPngBlob(framesChars, w, h, scale) {
+  const c = document.createElement('canvas');
+  c.width = w * scale * framesChars.length;
+  c.height = h * scale;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  framesChars.forEach((chars, i) => ctx.drawImage(charsToCanvas(chars, w, h), i * w * scale, 0, w * scale, h * scale));
+  return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('PNGを作れませんでした'))), 'image/png'));
+}
+
+/* =====================================================================
+   画面の切り替え
+   ===================================================================== */
+function show(id) {
+  for (const s of ['start', 'list', 'editor']) $('#' + s).hidden = s !== id;
+}
+
+/* =====================================================================
+   フォルダを開く
+   ===================================================================== */
+async function pickFolder() {
+  if (ed && !(await confirmLeave())) return;
+  let dir;
+  try {
+    dir = await window.showDirectoryPicker({ id: 'pixel', mode: 'readwrite' });
+  } catch (e) {
+    if (e.name !== 'AbortError') info('フォルダを開けませんでした。\n' + e.message);
+    return;
+  }
+  await openFolder(dir);
+}
+
+async function openFolder(dir) {
+  let root = dir;
+  if (!(await getFile(dir, 'palette.json'))) {
+    const sub = await getDir(dir, 'pixel');
+    if (sub && (await getFile(sub, 'palette.json'))) root = sub;
+    else {
+      info(`「${dir.name}」の中に palette.json が見つかりません。\npalette.json と sprites フォルダが入っている pixel フォルダを選んでください。`);
+      return;
+    }
+  }
+  if (!(await ensurePermission(root))) { info('フォルダの読み書きが許可されませんでした。'); return; }
+  app.root = root;
+  if (!(await loadAll())) return;
+  try { await idb.set('root', root); } catch { /* 覚えられなくても動く */ }
+  closeEditor();
+  show('list');
+  renderList();
+}
+
+async function loadAll() {
+  try {
+    const f = await (await app.root.getFileHandle('palette.json')).getFile();
+    const problems = setPalette(JSON.parse(await f.text()));
+    if (problems.length) toast('palette.json の注意：\n' + problems.join('\n'), 'err');
+  } catch (e) {
+    info('palette.json を読めませんでした。\n' + e.message);
+    return false;
+  }
+  const list = [];
+  try {
+    app.spritesDir = await app.root.getDirectoryHandle('sprites', { create: true });
+    app.originalDir = await getDir(app.spritesDir, '_original');
+    for await (const [name, handle] of app.spritesDir.entries()) {
+      if (handle.kind !== 'file' || !/\.json$/i.test(name)) continue;
+      list.push(await loadEntry(name, handle));
+    }
+  } catch (e) {
+    info('sprites フォルダを読めませんでした。\n' + e.message);
+    return false;
+  }
+  list.sort((a, b) => {
+    const ca = a.data ? a.data.category : '', cb = b.data ? b.data.category : '';
+    return ca.localeCompare(cb) || a.file.localeCompare(b.file);
+  });
+  app.sprites = list;
+  $('#list-title').textContent = app.root.name + ' フォルダ';
+  return true;
+}
+
+async function loadEntry(file, handle) {
+  const entry = { file, handle, lastModified: 0, data: null, original: null, warnings: [], error: null };
+  try {
+    const f = await handle.getFile();
+    entry.lastModified = f.lastModified;
+    const { sprite, warnings } = normalizeSprite(JSON.parse(await f.text()), file);
+    entry.data = sprite;
+    entry.warnings = warnings;
+  } catch (e) {
+    entry.error = e.message;
+  }
+  if (app.originalDir) {
+    const oh = await getFile(app.originalDir, file);
+    if (oh) {
+      try { entry.original = normalizeSprite(JSON.parse(await (await oh.getFile()).text()), file).sprite; } catch { /* 比較できないだけ */ }
+    }
+  }
+  return entry;
+}
+
+const baseName = (entry) => entry.file.replace(/\.json$/i, '');
+
+/* =====================================================================
+   一覧画面
+   ===================================================================== */
+let hoverAnim = null;
+
+function renderList() {
+  const cats = [...new Set(app.sprites.filter((s) => s.data).map((s) => s.data.category))].sort();
+  const fc = $('#f-cat');
+  const curCat = fc.value;
+  fc.replaceChildren(el('option', { value: '' }, `すべて（${app.sprites.length}）`),
+    ...cats.map((c) => el('option', { value: c }, `${c || '（なし）'}（${app.sprites.filter((s) => s.data && s.data.category === c).length}）`)));
+  fc.value = cats.includes(curCat) ? curCat : '';
+
+  const cat = fc.value, edited = $('#f-edited').value;
+  const shown = app.sprites.filter((s) => {
+    if (!s.data) return cat === '' && edited === 'all';
+    if (cat !== '' && s.data.category !== cat) return false;
+    if (edited === 'edited' && !s.data.edited) return false;
+    if (edited === 'unedited' && s.data.edited) return false;
+    return true;
+  });
+  $('#list-count').textContent = `${shown.length} 件表示`;
+  const cards = $('#cards');
+  cards.replaceChildren();
+  if (!app.sprites.length) {
+    cards.append(el('div', { class: 'empty' }, 'sprites フォルダにスプライトJSONがありません。'));
+    return;
+  }
+  if (!shown.length) cards.append(el('div', { class: 'empty' }, '条件に合うスプライトがありません。'));
+  for (const s of shown) cards.append(s.data ? spriteCard(s) : errorCard(s));
+}
+
+function spriteCard(entry) {
+  const s = entry.data;
+  const scale = Math.min(96 / Math.max(s.w, s.h), 8);
+  const frames = s.frames.map(rowsToChars);
+  const cv = scaledView(frames[0], s.w, s.h, scale >= 1 ? Math.floor(scale) : scale);
+  const thumb = el('div', { class: 'thumb checker' }, cv);
+  const badges = el('div', { class: 'badges' },
+    s.edited ? el('span', { class: 'badge edited' }, '手直し済み') : null,
+    s.note ? el('span', { class: 'badge note', title: s.note }, 'メモあり') : null,
+    entry.warnings.length ? el('span', { class: 'badge warn', title: entry.warnings.join('\n') }, '⚠ 注意') : null,
+    entry.original ? null : el('span', { class: 'badge', title: 'sprites/_original に同じ名前のファイルがありません' }, '元の版なし'));
+  const card = el('div', {
+    class: 'card', title: s.note ? 'メモ：' + s.note : '',
+    onclick: () => openEditor(entry),
+    onmouseenter: () => {
+      if (frames.length < 2) return;
+      let i = 0;
+      clearInterval(hoverAnim);
+      hoverAnim = setInterval(() => { i = (i + 1) % frames.length; charsToCanvas(frames[i], s.w, s.h, cv); }, 1000 / s.fps);
+    },
+    onmouseleave: () => { clearInterval(hoverAnim); charsToCanvas(frames[0], s.w, s.h, cv); },
+  },
+  thumb,
+  el('div', { class: 'name' }, baseName(entry)),
+  el('div', { class: 'meta' }, `${s.category || '（カテゴリなし）'} ・ ${s.w}×${s.h} ・ ${s.frames.length}枚`),
+  badges);
+  return card;
+}
+
+function errorCard(entry) {
+  return el('div', { class: 'card error' },
+    el('div', { class: 'name' }, entry.file),
+    el('div', { class: 'meta warn' }, '読み込めません：' + entry.error),
+    el('div', { class: 'meta' }, 'Claude Code に「' + entry.file + ' を直して」と頼んでください。'));
+}
+
+/* =====================================================================
+   書き出し
+   ===================================================================== */
+async function exportDir() { return app.root.getDirectoryHandle('export', { create: true }); }
+const scaleSuffix = (scale) => (scale > 1 ? `@${scale}x` : '');
+
+async function exportFrames(name, framesChars, w, h, scale, indexes) {
+  const dir = await exportDir();
+  const written = [];
+  for (const i of indexes) {
+    const fname = `${name}_${i + 1}${scaleSuffix(scale)}.png`;
+    await writeNamed(dir, fname, await framesToPngBlob([framesChars[i]], w, h, scale));
+    written.push(fname);
+  }
+  return written;
+}
+async function exportSheet(name, framesChars, w, h, scale) {
+  const fname = `${name}_sheet${scaleSuffix(scale)}.png`;
+  await writeNamed(await exportDir(), fname, await framesToPngBlob(framesChars, w, h, scale));
+  return fname;
+}
+
+async function exportAll() {
+  const scale = prefs.exportScale;
+  const targets = app.sprites.filter((s) => s.data);
+  if (!targets.length) { toast('書き出すスプライトがありません'); return; }
+  const btn = $('#btn-export-all');
+  btn.disabled = true;
+  let count = 0;
+  try {
+    for (const [n, e] of targets.entries()) {
+      btn.textContent = `書き出し中 ${n + 1}/${targets.length}`;
+      const frames = e.data.frames.map(rowsToChars);
+      count += (await exportFrames(baseName(e), frames, e.data.w, e.data.h, scale, frames.map((_, i) => i))).length;
+      await exportSheet(baseName(e), frames, e.data.w, e.data.h, scale);
+      count++;
+    }
+    toast(`export フォルダに ${targets.length} 体分、${count} 個のPNGを書き出しました`, 'ok');
+  } catch (e) {
+    toast('書き出しに失敗しました：' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '全スプライトをPNG書き出し';
+  }
+}
+
+/* =====================================================================
+   パレットの確認・確定
+   ===================================================================== */
+function openPaletteDialog() {
+  const p = app.palette;
+  const editable = p.confirmed !== true;
+  const draft = p.colors.map((c) => Object.assign({}, c));
+  const d = $('#dlg');
+  d.replaceChildren();
+  const rows = draft.map((c) => {
+    const hexCell = el('code', {}, c.hex);
+    return el('tr', {},
+      el('td', {}, el('input', {
+        type: 'color', value: /^#[0-9a-f]{6}$/i.test(c.hex) ? c.hex.toLowerCase() : '#000000', disabled: !editable,
+        oninput: (e) => { c.hex = e.target.value; hexCell.textContent = c.hex; },
+      })),
+      el('td', {}, el('code', {}, c.key)),
+      el('td', {}, hexCell),
+      el('td', {}, editable
+        ? el('input', { type: 'text', value: c.name || '', oninput: (e) => { c.name = e.target.value; } })
+        : (c.name || '')));
+  });
+  const save = async (confirm) => {
+    if (confirm && !(await ask('このパレットで確定しますか？\n確定すると、このエディタではパレットを変えられなくなります（変えたいときは Claude Code に頼みます）。',
+      [{ label: 'やめる', value: false }, { label: '確定する', value: true, primary: true }]))) { openPaletteDialog(); return; }
+    const next = Object.assign({}, p, { colors: draft, confirmed: confirm ? true : p.confirmed === true });
+    try {
+      await writeNamed(app.root, 'palette.json', serializePalette(next));
+      setPalette(next);
+      d.close();
+      renderList();
+      toast(confirm ? 'パレットを確定しました' : 'palette.json を保存しました', 'ok');
+    } catch (e) {
+      toast('palette.json を保存できませんでした：' + e.message, 'err');
+    }
+  };
+  d.append(
+    el('h3', { style: { marginTop: 0 } }, 'パレット（palette.json）'),
+    el('p', { class: 'muted', style: { marginTop: 0 } }, editable
+      ? 'まだ確定していません。色をクリックすると変えられます。色を変えると、その文字を使っている全スプライトの色が変わります。'
+      : '確定済みです。変えたいときは Claude Code に頼んでください。'),
+    el('div', { class: 'pal-scroll' }, el('table', { class: 'pal-table' },
+      el('tr', {}, el('td', { class: 'muted' }, '色'), el('td', { class: 'muted' }, '文字'), el('td', { class: 'muted' }, 'コード'), el('td', { class: 'muted' }, '名前')),
+      rows)),
+    el('div', { class: 'btns' },
+      editable ? el('button', { onclick: () => save(false) }, '保存') : null,
+      editable ? el('button', { class: 'primary', onclick: () => save(true) }, 'このパレットで確定') : null,
+      el('button', { onclick: () => d.close() }, '閉じる')));
+  d.oncancel = null;
+  d.showModal();
+}
+
+/* =====================================================================
+   使い方
+   ===================================================================== */
+function openHelp() {
+  const d = $('#dlg');
+  d.replaceChildren(el('div', { class: 'help' },
+    el('h3', { style: { marginTop: 0 } }, '流れ'),
+    el('ul', {},
+      el('li', {}, '一覧でスプライトをクリックすると編集画面が開きます'),
+      el('li', {}, '「上書き保存」で sprites フォルダのJSONに書き戻し、手直し済み（edited: true）になります'),
+      el('li', {}, 'メモ欄に書いたことは JSON の note に入り、Claude Code が読みます'),
+      el('li', {}, '手直しが終わったら Claude Code に「手直しを反映して」と頼んでください')),
+    el('h3', {}, '描き方'),
+    el('ul', {},
+      el('li', {}, '左クリック：選んだ道具で描く ／ 右クリック：消す ／ Alt＋クリック：スポイト'),
+      el('li', {}, 'Ctrl＋マウスホイール：拡大・縮小'),
+      el('li', {}, '左右対称：中心線をはさんだ反対側にも同時に描きます')),
+    el('h3', {}, 'キー'),
+    el('ul', {},
+      el('li', {}, 'B ペン ／ E 消しゴム ／ F 塗りつぶし ／ I スポイト ／ M 左右対称'),
+      el('li', {}, 'G グリッド ／ T 前後のフレームを透かす ／ O（押している間）元の版を表示'),
+      el('li', {}, '← → フレーム切り替え ／ スペース 再生・停止 ／ + − 0 拡大・縮小・全体'),
+      el('li', {}, 'Ctrl+Z 元に戻す ／ Ctrl+Y（Ctrl+Shift+Z）やり直す ／ Ctrl+S 上書き保存')),
+    el('h3', {}, '書き出し'),
+    el('ul', {},
+      el('li', {}, 'PNG は pixel/export フォルダに書き出されます（名前_1.png、名前_sheet.png）'),
+      el('li', {}, '倍率は一覧画面の「書き出し倍率」で選べます（2倍以上は名前の後ろに @2x などが付きます）'))),
+  el('div', { class: 'btns' }, el('button', { class: 'primary', onclick: () => d.close() }, '閉じる')));
+  d.oncancel = null;
+  d.showModal();
+}
+
+/* =====================================================================
+   編集画面
+   ===================================================================== */
+let ed = null;          // 編集中の状態
+let drag = null;        // ドラッグ中の線
+let animTimer = null;
+let animIndex = 0;
+const MAX_UNDO = 300;
+
+function openEditor(entry) {
+  clearInterval(hoverAnim);
+  const s = entry.data;
+  ed = {
+    entry,
+    w: s.w, h: s.h,
+    fps: s.fps,
+    note: s.note,
+    frames: s.frames.map(rowsToChars),
+    cur: 0,
+    zoom: 1,
+    undo: [], redo: [],
+    hover: null,
+    peek: false,
+    playing: true,
+    savedKey: '',
+  };
+  if (!app.rgb.has(prefs.color) && prefs.color !== TRANSPARENT) prefs.color = app.palette.colors[0] ? app.palette.colors[0].key : TRANSPARENT;
+  ed.savedKey = stateKey();
+
+  $('#ed-name').textContent = baseName(entry);
+  $('#ed-meta').textContent = `${s.category || '（カテゴリなし）'} ・ ${s.w}×${s.h}`;
+  $('#ed-edited').hidden = !s.edited;
+  $('#note').value = ed.note;
+  $('#fps').value = ed.fps;
+  $('#opt-mirror').checked = prefs.mirror;
+  $('#opt-grid').checked = prefs.grid;
+  $('#opt-onion').checked = prefs.onion;
+  $('#opt-diffmark').checked = prefs.diffMark;
+  $('#preview-bg').value = prefs.previewBg;
+  const warnSec = $('#ed-warn-sec');
+  warnSec.hidden = !entry.warnings.length;
+  $('#ed-warn').replaceChildren(...entry.warnings.map((w) => el('li', {}, w)));
+
+  buildSwatches();
+  selectTool(prefs.tool);
+  show('editor');
+  renderAll();
+  fitZoom();   // フレーム一覧などが描かれた後の大きさに合わせる
+  startAnim();
+}
+
+function closeEditor() {
+  stopAnim();
+  ed = null;
+  drag = null;
+}
+
+async function confirmLeave() {
+  if (!ed || !isDirty()) return true;
+  const r = await ask('保存していない変更があります。', [
+    { label: 'キャンセル', value: 'cancel' },
+    { label: '保存しないで進む', value: 'discard' },
+    { label: '保存して進む', value: 'save', primary: true },
+  ]);
+  if (r === 'save') return save();
+  return r === 'discard';
+}
+
+async function backToList() {
+  if (!(await confirmLeave())) return;
+  closeEditor();
+  show('list');
+  renderList();
+}
+
+/* ---------- 状態 ---------- */
+const stateKey = () => JSON.stringify([ed.frames.map((f) => f.join('')), ed.fps, ed.note]);
+const isDirty = () => ed && stateKey() !== ed.savedKey;
+function updateDirty() {
+  const dirty = isDirty();
+  $('#ed-dirty').hidden = !dirty;
+  $('#btn-save').disabled = !dirty;
+  $('#btn-undo').disabled = !ed.undo.length;
+  $('#btn-redo').disabled = !ed.redo.length;
+}
+const snapshot = () => ({ frames: ed.frames.map((f) => f.slice()), cur: ed.cur });
+function pushUndo(before) {
+  ed.undo.push(before);
+  if (ed.undo.length > MAX_UNDO) ed.undo.shift();
+  ed.redo = [];
+}
+function restore(snap) {
+  ed.frames = snap.frames;
+  ed.cur = clamp(snap.cur, 0, ed.frames.length - 1);
+  renderAll();
+}
+function undo() {
+  if (!ed.undo.length) return;
+  ed.redo.push(snapshot());
+  restore(ed.undo.pop());
+}
+function redo() {
+  if (!ed.redo.length) return;
+  ed.undo.push(snapshot());
+  restore(ed.redo.pop());
+}
+
+function buildData() {
+  const base = ed.entry.data;
+  const out = Object.assign({}, base, {
+    name: base.name,
+    category: base.category,
+    w: ed.w, h: ed.h,
+    fps: ed.fps,
+    frames: ed.frames.map((f) => charsToRows(f, ed.w, ed.h)),
+    edited: true,
+    note: ed.note,
+  });
+  return out;
+}
+
+async function save() {
+  if (!ed) return false;
+  const entry = ed.entry;
+  try {
+    const now = await entry.handle.getFile();
+    if (entry.lastModified && now.lastModified !== entry.lastModified) {
+      const r = await ask(`${entry.file} は、このエディタで開いた後に別の所で書き換えられています。\n上書きすると、その変更は消えます。`, [
+        { label: 'やめる', value: false },
+        { label: '上書きする', value: true, primary: true },
+      ]);
+      if (!r) return false;
+    }
+    const data = buildData();
+    await writeFile(entry.handle, serializeSprite(data));
+    entry.data = data;
+    entry.lastModified = (await entry.handle.getFile()).lastModified;
+    entry.warnings = [];
+    ed.savedKey = stateKey();
+    $('#ed-edited').hidden = false;
+    $('#ed-warn-sec').hidden = true;
+    updateDirty();
+    toast(`sprites/${entry.file} に保存しました`, 'ok');
+    return true;
+  } catch (e) {
+    toast('保存できませんでした：' + e.message, 'err');
+    return false;
+  }
+}
+
+/* ---------- 道具・色 ---------- */
+function selectTool(tool) {
+  prefs.tool = tool;
+  savePrefs();
+  for (const b of document.querySelectorAll('[data-tool]')) b.classList.toggle('active', b.dataset.tool === tool);
+}
+
+function buildSwatches() {
+  const box = $('#swatches');
+  box.replaceChildren();
+  const add = (key, style, title) => box.append(el('button', {
+    class: 'swatch' + (key === TRANSPARENT ? ' checker' : ''), style, title,
+    onclick: () => selectColor(key),
+  }, el('span', {}, key)));
+  add(TRANSPARENT, {}, '. 透明');
+  for (const c of app.palette.colors) {
+    if (!app.rgb.has(c.key)) continue;
+    add(c.key, { background: c.hex }, `${c.key}  ${c.name || ''}  ${c.hex}`);
+  }
+  updateSwatchSel();
+}
+
+function selectColor(key) {
+  prefs.color = key;
+  savePrefs();
+  if (prefs.tool === 'eraser' || prefs.tool === 'picker') selectTool('pen');
+  updateSwatchSel();
+}
+
+function updateSwatchSel() {
+  for (const b of document.querySelectorAll('.swatch')) b.classList.toggle('sel', b.querySelector('span').textContent === prefs.color);
+  const key = prefs.color;
+  const c = app.palette.colors.find((c) => c.key === key);
+  $('#cur-color').replaceChildren(
+    el('div', { class: 'chip' + (key === TRANSPARENT ? ' checker' : ''), style: c ? { background: c.hex } : {} }),
+    el('div', {}, el('code', {}, key), ' ', colorName(key), el('br'), el('span', { class: 'muted' }, c ? c.hex : '')));
+}
+
+/* ---------- ピクセル操作 ---------- */
+function setPx(x, y, ch) {
+  const f = ed.frames[ed.cur];
+  const pts = prefs.mirror ? [[x, y], [ed.w - 1 - x, y]] : [[x, y]];
+  let changed = false;
+  for (const [px, py] of pts) {
+    if (px < 0 || py < 0 || px >= ed.w || py >= ed.h) continue;
+    const i = py * ed.w + px;
+    if (f[i] !== ch) { f[i] = ch; changed = true; }
+  }
+  return changed;
+}
+
+function drawLine(x0, y0, x1, y1, ch) {
+  let changed = false;
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  for (;;) {
+    changed = setPx(x0, y0, ch) || changed;
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+  return changed;
+}
+
+function floodFill(x, y, ch) {
+  const { w, h } = ed;
+  const f = ed.frames[ed.cur];
+  const target = f[y * w + x];
+  if (target === ch) return false;
+  const stack = [[x, y]];
+  while (stack.length) {
+    const [px, py] = stack.pop();
+    if (px < 0 || py < 0 || px >= w || py >= h) continue;
+    const i = py * w + px;
+    if (f[i] !== target) continue;
+    f[i] = ch;
+    stack.push([px + 1, py], [px - 1, py], [px, py + 1], [px, py - 1]);
+  }
+  return true;
+}
+
+function pickColor(x, y) {
+  const ch = ed.frames[ed.cur][y * ed.w + x];
+  if (ch !== TRANSPARENT && !app.rgb.has(ch)) { toast(`"${ch}" はパレットに無い色なので選べません`); return; }
+  selectColor(ch);
+  selectTool(ch === TRANSPARENT ? 'eraser' : 'pen');
+}
+
+/* ---------- マウス ---------- */
+const cv = $('#cv');
+
+function cellAt(e) {
+  const r = cv.getBoundingClientRect();
+  return {
+    x: Math.floor(((e.clientX - r.left) / r.width) * ed.w),
+    y: Math.floor(((e.clientY - r.top) / r.height) * ed.h),
+  };
+}
+const inside = (p) => p.x >= 0 && p.y >= 0 && p.x < ed.w && p.y < ed.h;
+
+cv.addEventListener('pointerdown', (e) => {
+  if (!ed || ed.peek) return;
+  e.preventDefault();
+  const p = cellAt(e);
+  if (!inside(p)) return;
+  let tool = prefs.tool;
+  if (e.button === 2) tool = 'eraser';
+  else if (e.button !== 0) return;
+  if (e.altKey) tool = 'picker';
+
+  if (tool === 'picker') { pickColor(p.x, p.y); return; }
+  const before = snapshot();
+  const ch = tool === 'eraser' ? TRANSPARENT : prefs.color;
+  if (tool === 'fill') {
+    let changed = floodFill(p.x, p.y, ch);
+    if (prefs.mirror) changed = floodFill(ed.w - 1 - p.x, p.y, ch) || changed;
+    if (changed) { pushUndo(before); afterEdit(); }
+    return;
+  }
+  drag = { ch, last: p, before, changed: setPx(p.x, p.y, ch) };
+  cv.setPointerCapture(e.pointerId);
+  renderMain();
+});
+
+cv.addEventListener('pointermove', (e) => {
+  if (!ed) return;
+  const p = cellAt(e);
+  ed.hover = inside(p) ? p : null;
+  if (drag) {
+    if (p.x !== drag.last.x || p.y !== drag.last.y) {
+      drag.changed = drawLine(drag.last.x, drag.last.y, p.x, p.y, drag.ch) || drag.changed;
+      drag.last = p;
+    }
+  }
+  renderMain();
+  updatePos();
+});
+
+function endDrag() {
+  if (!drag) return;
+  const d = drag;
+  drag = null;
+  if (d.changed) { pushUndo(d.before); afterEdit(); }
+}
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+cv.addEventListener('pointerleave', () => { if (ed) { ed.hover = null; renderMain(); updatePos(); } });
+cv.addEventListener('contextmenu', (e) => e.preventDefault());
+
+$('#canvas-wrap').addEventListener('wheel', (e) => {
+  if (!ed || !e.ctrlKey) return;
+  e.preventDefault();
+  setZoom(ed.zoom + (e.deltaY < 0 ? 1 : -1));
+}, { passive: false });
+
+function afterEdit() {
+  renderAll();
+}
+
+function updatePos() {
+  if (!ed || !ed.hover) { $('#pos').textContent = ed ? `${ed.w}×${ed.h} ・ フレーム ${ed.cur + 1}/${ed.frames.length}` : ''; return; }
+  const { x, y } = ed.hover;
+  const ch = ed.frames[ed.cur][y * ed.w + x];
+  $('#pos').textContent = `x ${x}, y ${y} ・ 色 ${ch} ${colorName(ch)} ・ フレーム ${ed.cur + 1}/${ed.frames.length}`;
+}
+
+/* ---------- 拡大 ---------- */
+function maxZoom() { return Math.max(1, Math.min(64, Math.floor(4096 / Math.max(ed.w, ed.h)))); }
+function setZoom(z) {
+  ed.zoom = clamp(Math.round(z), 1, maxZoom());
+  $('#zoom-val').textContent = ed.zoom + '倍';
+  renderMain();
+}
+function fitZoom() {
+  const wrap = $('#canvas-wrap');
+  const aw = wrap.clientWidth - 40, ah = wrap.clientHeight - 40;
+  setZoom(Math.max(1, Math.floor(Math.min(aw / ed.w, ah / ed.h))));
+}
+
+/* ---------- 比較 ---------- */
+function originalFrame(i) {
+  const o = ed.entry.original;
+  if (!o || o.w !== ed.w || o.h !== ed.h || !o.frames[i]) return null;
+  return rowsToChars(o.frames[i]);
+}
+function diffMask(a, b) {
+  const m = new Array(a.length);
+  for (let i = 0; i < a.length; i++) m[i] = a[i] !== b[i];
+  return m;
+}
+
+/* ---------- 描画 ---------- */
+function renderAll() {
+  if (!ed) return;
+  renderMain();
+  renderFrames();
+  renderPreviewStill();
+  renderCompare();
+  updatePos();
+  updateDirty();
+}
+
+function renderMain() {
+  if (!ed) return;
+  const { w, h, zoom } = ed;
+  const dpr = window.devicePixelRatio || 1;
+  const cw = w * zoom, ch = h * zoom;
+  if (cv.width !== Math.round(cw * dpr) || cv.height !== Math.round(ch * dpr)) {
+    cv.width = Math.round(cw * dpr);
+    cv.height = Math.round(ch * dpr);
+    cv.style.width = cw + 'px';
+    cv.style.height = ch + 'px';
+  }
+  // 市松の1マスをピクセルの半分にして、透明を「塗った灰色・白」と見分けられるようにする
+  cv.style.backgroundSize = zoom >= 4 ? `${zoom}px ${zoom}px` : '8px 8px';
+  cv.classList.add('checker');
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, cw, ch);
+
+  const n = ed.frames.length;
+  const orig = ed.peek ? originalFrame(ed.cur) : null;
+  $('#peek-label').hidden = !ed.peek;
+  if (ed.peek && !orig) $('#peek-label').textContent = '元の版にこのフレームはありません';
+  else $('#peek-label').textContent = '元の版を表示中';
+
+  if (!ed.peek && prefs.onion && n > 1) {
+    const idx = new Set([(ed.cur - 1 + n) % n, (ed.cur + 1) % n]);
+    idx.delete(ed.cur);
+    ctx.globalAlpha = 0.28;
+    for (const i of idx) ctx.drawImage(charsToCanvas(ed.frames[i], w, h), 0, 0, cw, ch);
+    ctx.globalAlpha = 1;
+  }
+  const shown = ed.peek ? orig : ed.frames[ed.cur];
+  if (shown) ctx.drawImage(charsToCanvas(shown, w, h), 0, 0, cw, ch);
+
+  // グリッド
+  if (prefs.grid && zoom >= 4) {
+    const lw = 1 / dpr;
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    for (let x = 1; x < w; x++) ctx.fillRect(x * zoom, 0, lw, ch);
+    for (let y = 1; y < h; y++) ctx.fillRect(0, y * zoom, cw, lw);
+    ctx.fillStyle = 'rgba(90,169,255,0.6)';
+    for (let x = 8; x < w; x += 8) ctx.fillRect(x * zoom, 0, lw, ch);
+    for (let y = 8; y < h; y += 8) ctx.fillRect(0, y * zoom, cw, lw);
+  }
+  // 左右対称の中心線
+  if (prefs.mirror) {
+    ctx.fillStyle = 'rgba(90,169,255,0.9)';
+    ctx.fillRect((w / 2) * zoom - 1, 0, 2, ch);
+  }
+  // 元の版から変わった所の印
+  if (!ed.peek && prefs.diffMark && $('#opt-compare').checked) {
+    const o = originalFrame(ed.cur);
+    if (o) {
+      const m = diffMask(o, ed.frames[ed.cur]);
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--mark').trim() || '#ff3df5';
+      ctx.lineWidth = Math.max(1, zoom / 8);
+      const inset = ctx.lineWidth / 2;
+      for (let i = 0; i < m.length; i++) {
+        if (!m[i]) continue;
+        const x = i % w, y = (i / w) | 0;
+        ctx.strokeRect(x * zoom + inset, y * zoom + inset, zoom - inset * 2, zoom - inset * 2);
+      }
+    }
+  }
+  // カーソル
+  if (ed.hover && !ed.peek) {
+    const pts = prefs.mirror ? [ed.hover, { x: w - 1 - ed.hover.x, y: ed.hover.y }] : [ed.hover];
+    ctx.lineWidth = Math.max(1, Math.min(2, zoom / 6));
+    for (const p of pts) {
+      ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+      ctx.strokeRect(p.x * zoom + 0.5, p.y * zoom + 0.5, zoom - 1, zoom - 1);
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.strokeRect(p.x * zoom + 1.5, p.y * zoom + 1.5, zoom - 3, zoom - 3);
+    }
+  }
+}
+
+function renderFrames() {
+  const box = $('#frames');
+  const scale = Math.min(4, 48 / Math.max(ed.w, ed.h));
+  box.replaceChildren(...ed.frames.map((f, i) => el('div', {
+    class: 'frame' + (i === ed.cur ? ' sel' : ''),
+    onclick: () => { ed.cur = i; renderAll(); },
+  },
+  el('div', { class: 'checker' }, scaledView(f, ed.w, ed.h, scale >= 1 ? Math.floor(scale) : scale)),
+  el('div', { class: 'num' }, String(i + 1)))));
+  const sel = box.children[ed.cur];
+  if (sel) sel.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  $('#fr-del').disabled = ed.frames.length <= 1;
+  $('#fr-left').disabled = ed.cur === 0;
+  $('#fr-right').disabled = ed.cur === ed.frames.length - 1;
+}
+
+/* ---------- プレビュー ---------- */
+function previewScales() { return ed.w > 48 || ed.h > 96 ? [1, 2] : [1, 2, 4]; }
+
+function buildPreviews() {
+  const box = $('#previews');
+  box.replaceChildren(...previewScales().map((s) => el('figure', {},
+    el('canvas', { class: 'pixel' }),
+    el('figcaption', {}, s === 1 ? '実寸' : s + '倍'))));
+  if (previewScales().length < 3) box.append(el('div', { class: 'muted', style: { fontSize: '11px' } }, '大きい画像なので4倍は省略'));
+  applyPreviewBg();
+}
+function applyPreviewBg() {
+  const box = $('#previews');
+  const bg = prefs.previewBg;
+  box.classList.toggle('checker', bg === 'checker');
+  box.style.background = bg === 'checker' ? '' : bg;
+}
+function drawPreview(i) {
+  const box = $('#previews');
+  if (box.querySelectorAll('canvas').length !== previewScales().length) buildPreviews();
+  const scales = previewScales();
+  const f = ed.frames[i] || ed.frames[0];
+  box.querySelectorAll('canvas').forEach((c, k) => scaledView(f, ed.w, ed.h, scales[k], c));
+}
+function renderPreviewStill() {
+  if (!ed.playing) drawPreview(ed.cur);
+  else drawPreview(animIndex % ed.frames.length);
+}
+function startAnim() {
+  stopAnim();
+  buildPreviews();
+  ed.playing = true;
+  $('#btn-play').textContent = '■ 停止';
+  animIndex = 0;
+  const tick = () => {
+    if (!ed || !ed.playing) return;
+    animIndex = (animIndex + 1) % ed.frames.length;
+    drawPreview(animIndex);
+    animTimer = setTimeout(tick, 1000 / ed.fps);
+  };
+  drawPreview(0);
+  animTimer = setTimeout(tick, 1000 / ed.fps);
+}
+function stopAnim() {
+  clearTimeout(animTimer);
+  animTimer = null;
+}
+function togglePlay() {
+  if (ed.playing) {
+    ed.playing = false;
+    stopAnim();
+    $('#btn-play').textContent = '▶ 再生';
+    drawPreview(ed.cur);
+  } else {
+    startAnim();
+  }
+}
+
+/* ---------- 比較の表示 ---------- */
+function renderCompare() {
+  const on = $('#opt-compare').checked;
+  $('#compare-body').hidden = !on;
+  if (!on) return;
+  const box = $('#compare');
+  const sum = $('#diff-summary');
+  const o = ed.entry.original;
+  if (!o) {
+    box.replaceChildren(el('div', { class: 'warn' }, `sprites/_original/${ed.entry.file} がありません。`));
+    sum.textContent = '';
+    return;
+  }
+  if (o.w !== ed.w || o.h !== ed.h) {
+    box.replaceChildren(el('div', { class: 'warn' }, `元の版とサイズが違うので比べられません（元 ${o.w}×${o.h}、今 ${ed.w}×${ed.h}）。`));
+    sum.textContent = '';
+    return;
+  }
+  const scale = Math.max(1, Math.floor(88 / Math.max(ed.w, ed.h)));
+  const cur = ed.frames[ed.cur];
+  const orig = originalFrame(ed.cur);
+  const figs = [];
+  figs.push(el('figure', {}, orig
+    ? el('div', { class: 'checker' }, scaledView(orig, ed.w, ed.h, scale))
+    : el('div', { class: 'muted', style: { width: ed.w * scale + 'px', fontSize: '11px' } }, 'このフレームは元の版にありません'),
+  el('figcaption', {}, '元の版')));
+  figs.push(el('figure', {}, el('div', { class: 'checker' }, scaledView(cur, ed.w, ed.h, scale)), el('figcaption', {}, '今')));
+  if (orig) {
+    const c = document.createElement('canvas');
+    c.width = ed.w * scale; c.height = ed.h * scale;
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalAlpha = 0.35;
+    ctx.drawImage(charsToCanvas(cur, ed.w, ed.h), 0, 0, c.width, c.height);
+    ctx.globalAlpha = 1;
+    const m = diffMask(orig, cur);
+    for (let i = 0; i < m.length; i++) {
+      if (!m[i]) continue;
+      const x = i % ed.w, y = (i / ed.w) | 0;
+      const v = cur[i] === TRANSPARENT ? null : (app.rgb.get(cur[i]) || UNKNOWN_RGB);
+      ctx.fillStyle = v ? `rgb(${v[0]},${v[1]},${v[2]})` : '#ffffff';
+      ctx.fillRect(x * scale, y * scale, scale, scale);
+      ctx.strokeStyle = '#ff3df5';
+      ctx.lineWidth = 1;
+      if (scale >= 3) ctx.strokeRect(x * scale + 0.5, y * scale + 0.5, scale - 1, scale - 1);
+    }
+    figs.push(el('figure', {}, el('div', { class: 'checker' }, c), el('figcaption', {}, '変わった所')));
+  }
+  box.replaceChildren(...figs);
+
+  const lines = [];
+  const n = Math.max(o.frames.length, ed.frames.length);
+  if (o.frames.length !== ed.frames.length) lines.push(`フレーム数：元 ${o.frames.length}枚 → 今 ${ed.frames.length}枚`);
+  for (let i = 0; i < n; i++) {
+    const a = originalFrame(i), b = ed.frames[i];
+    if (!a) { lines.push(`フレーム${i + 1}：元の版になし（追加したフレーム）`); continue; }
+    if (!b) { lines.push(`フレーム${i + 1}：削除済み`); continue; }
+    const cnt = diffMask(a, b).filter(Boolean).length;
+    lines.push(`フレーム${i + 1}：${cnt ? cnt + 'ピクセル変更' : '変更なし'}`);
+  }
+  sum.textContent = lines.join('\n');
+}
+
+/* ---------- フレーム操作 ---------- */
+function frameOp(fn) {
+  const before = snapshot();
+  fn();
+  pushUndo(before);
+  renderAll();
+}
+$('#fr-add').onclick = () => frameOp(() => {
+  ed.frames.splice(ed.cur + 1, 0, new Array(ed.w * ed.h).fill(TRANSPARENT));
+  ed.cur++;
+});
+$('#fr-dup').onclick = () => frameOp(() => {
+  ed.frames.splice(ed.cur + 1, 0, ed.frames[ed.cur].slice());
+  ed.cur++;
+});
+$('#fr-del').onclick = () => {
+  if (ed.frames.length <= 1) return;
+  frameOp(() => {
+    ed.frames.splice(ed.cur, 1);
+    ed.cur = Math.min(ed.cur, ed.frames.length - 1);
+  });
+};
+function moveFrame(d) {
+  const j = ed.cur + d;
+  if (j < 0 || j >= ed.frames.length) return;
+  frameOp(() => {
+    [ed.frames[ed.cur], ed.frames[j]] = [ed.frames[j], ed.frames[ed.cur]];
+    ed.cur = j;
+  });
+}
+$('#fr-left').onclick = () => moveFrame(-1);
+$('#fr-right').onclick = () => moveFrame(1);
+
+/* ---------- 書き出し（編集画面） ---------- */
+$('#btn-export-frame').onclick = async () => {
+  try {
+    const names = await exportFrames(baseName(ed.entry), ed.frames, ed.w, ed.h, prefs.exportScale, [ed.cur]);
+    toast(`export/${names[0]} を書き出しました`, 'ok');
+  } catch (e) { toast('書き出しに失敗しました：' + e.message, 'err'); }
+};
+$('#btn-export-sheet').onclick = async () => {
+  try {
+    const name = await exportSheet(baseName(ed.entry), ed.frames, ed.w, ed.h, prefs.exportScale);
+    toast(`export/${name} を書き出しました（${ed.frames.length}枚を横に並べたもの）`, 'ok');
+  } catch (e) { toast('書き出しに失敗しました：' + e.message, 'err'); }
+};
+
+/* ---------- 元の版を押している間だけ表示 ---------- */
+function setPeek(on) {
+  if (!ed || ed.peek === on) return;
+  if (on && !ed.entry.original) { toast('元の版（_original）がありません'); return; }
+  ed.peek = on;
+  renderMain();
+}
+const peekBtn = $('#btn-peek');
+peekBtn.addEventListener('pointerdown', () => setPeek(true));
+peekBtn.addEventListener('pointerup', () => setPeek(false));
+peekBtn.addEventListener('pointerleave', () => setPeek(false));
+
+/* =====================================================================
+   ボタン・キー
+   ===================================================================== */
+$('#btn-open').onclick = pickFolder;
+$('#btn-change-folder').onclick = pickFolder;
+$('#btn-reload').onclick = async () => {
+  if (await loadAll()) { renderList(); toast('読み直しました'); }
+};
+$('#btn-palette').onclick = openPaletteDialog;
+$('#btn-export-all').onclick = exportAll;
+$('#btn-help').onclick = openHelp;
+$('#btn-help-list').onclick = openHelp;
+$('#f-cat').onchange = renderList;
+$('#f-edited').onchange = renderList;
+$('#export-scale').value = String(prefs.exportScale);
+$('#export-scale').onchange = (e) => { prefs.exportScale = Number(e.target.value) || 1; savePrefs(); };
+
+$('#btn-back').onclick = backToList;
+$('#btn-save').onclick = save;
+$('#btn-undo').onclick = undo;
+$('#btn-redo').onclick = redo;
+for (const b of document.querySelectorAll('[data-tool]')) b.onclick = () => selectTool(b.dataset.tool);
+$('#opt-mirror').onchange = (e) => { prefs.mirror = e.target.checked; savePrefs(); renderMain(); };
+$('#opt-grid').onchange = (e) => { prefs.grid = e.target.checked; savePrefs(); renderMain(); };
+$('#opt-onion').onchange = (e) => { prefs.onion = e.target.checked; savePrefs(); renderMain(); };
+$('#opt-compare').onchange = () => { renderCompare(); renderMain(); };
+$('#opt-diffmark').onchange = (e) => { prefs.diffMark = e.target.checked; savePrefs(); renderMain(); };
+$('#zoom-in').onclick = () => setZoom(ed.zoom + 1);
+$('#zoom-out').onclick = () => setZoom(ed.zoom - 1);
+$('#zoom-fit').onclick = fitZoom;
+$('#btn-play').onclick = togglePlay;
+$('#fps').oninput = (e) => {
+  const v = Math.round(Number(e.target.value));
+  if (!Number.isFinite(v) || v < 1 || v > 60) return;
+  ed.fps = v;
+  updateDirty();
+  if (ed.playing) startAnim();
+};
+$('#preview-bg').onchange = (e) => { prefs.previewBg = e.target.value; savePrefs(); applyPreviewBg(); };
+$('#note').oninput = (e) => { ed.note = e.target.value; updateDirty(); };
+
+function setToggle(id, key) {
+  prefs[key] = !prefs[key];
+  $(id).checked = prefs[key];
+  savePrefs();
+  renderMain();
+}
+
+document.addEventListener('keydown', (e) => {
+  if (!ed || $('#editor').hidden || $('#dlg').open || $('#ask').open) return;
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && e.target.type !== 'checkbox';
+  const ctrl = e.ctrlKey || e.metaKey;
+  const k = e.key.toLowerCase();
+  // フォーカスのあるボタン・チェックボックスはスペースとEnterをそのまま使う
+  if ((k === ' ' || k === 'enter') && (e.target.tagName === 'BUTTON' || e.target.type === 'checkbox')) return;
+  if (ctrl && k === 's') { e.preventDefault(); if (isDirty()) save(); else toast('変更はありません'); return; }
+  if (typing) return;
+  if (ctrl && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
+  if (ctrl && k === 'y') { e.preventDefault(); redo(); return; }
+  if (ctrl || e.altKey) return;
+  switch (k) {
+    case 'b': case 'p': selectTool('pen'); break;
+    case 'e': selectTool('eraser'); break;
+    case 'f': selectTool('fill'); break;
+    case 'i': selectTool('picker'); break;
+    case 'm': setToggle('#opt-mirror', 'mirror'); break;
+    case 'g': setToggle('#opt-grid', 'grid'); break;
+    case 't': setToggle('#opt-onion', 'onion'); break;
+    case 'o': if (!e.repeat) setPeek(true); break;
+    case 'arrowleft': ed.cur = (ed.cur - 1 + ed.frames.length) % ed.frames.length; renderAll(); break;
+    case 'arrowright': ed.cur = (ed.cur + 1) % ed.frames.length; renderAll(); break;
+    case ' ': togglePlay(); break;
+    case '+': case ';': setZoom(ed.zoom + 1); break;
+    case '-': setZoom(ed.zoom - 1); break;
+    case '0': fitZoom(); break;
+    default: return;
+  }
+  e.preventDefault();
+});
+document.addEventListener('keyup', (e) => { if (e.key.toLowerCase() === 'o') setPeek(false); });
+window.addEventListener('blur', () => setPeek(false));
+window.addEventListener('beforeunload', (e) => { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+
+/* =====================================================================
+   起動
+   ===================================================================== */
+(async function init() {
+  if (!('showDirectoryPicker' in window)) {
+    $('#unsupported').hidden = false;
+    $('#btn-open').disabled = true;
+    return;
+  }
+  try {
+    const h = await idb.get('root');
+    if (h && h.kind === 'directory') {
+      const b = $('#btn-reopen');
+      b.textContent = `前回のフォルダ「${h.name}」を開く`;
+      b.hidden = false;
+      b.onclick = async () => {
+        try {
+          if (!(await ensurePermission(h))) { info('フォルダの読み書きが許可されませんでした。'); return; }
+          await openFolder(h);
+        } catch (e) {
+          info('前回のフォルダを開けませんでした（移動・削除された可能性があります）。\n「pixel フォルダを開く」から選び直してください。\n\n' + e.message);
+        }
+      };
+    }
+  } catch { /* 前回のフォルダを覚えていなくても動く */ }
+})();
+</script>
+</body>
+</html>
