@@ -1,11 +1,14 @@
-# pixel-art-tool
+# pixel-learning-rpg
 
-ゲーム（起動中だけ主人公が強くなる暇つぶし系ローグライク＋勉強機能）用のドット絵を、Claude Code がテキストデータとして生成し、40HzP がブラウザのエディタで手直しする。手直しの傾向を Claude Code が読み取って次の生成に反映する。
+起動中だけ主人公が強くなる暇つぶし系ローグライク＋勉強機能のゲーム。このリポジトリには2つのものがある。
 
-- 設計ページ：https://app.notion.com/p/3e9bafd061fe8020af5cd7e51d08c4ab
-- 仕様書：`docs/spec.md`
+1. **ドット絵ツール**（`pixel/`）：ドット絵を Claude Code がテキストデータとして生成し、40HzP がブラウザのエディタで手直しする。手直しの傾向を Claude Code が読み取って次の生成に反映する。仕様書：`docs/spec.md`
+2. **ゲーム本体**（`game/`）：第1段階（試作）。設計書：`docs/game-spec.md`（下の「ゲーム本体」の章）
 
-## 守ること
+- 設計ページ（正本）：https://app.notion.com/p/3e9bafd061fe8020af5cd7e51d08c4ab
+- 問題リスト（正本）：https://app.notion.com/p/3f0bafd061fe80aa94a6d38dc9a6e41a
+
+## 守ること（ドット絵ツール）
 
 - 40HzP はプログラミングをしない。**継続的な保守やデバッグが要る構成にしない**
 - エディタは `pixel/editor.html` の単一ファイル。サーバー・ビルド工程・アカウント・外部ライブラリは使わない
@@ -124,3 +127,101 @@ EOF
 - 保存形式（`serializeSprite` / `serializePalette`）を変えない。変えると全ファイルに差分が出る
 - `_original/` には書き込まない（読むだけ）
 - 直したら Chrome で動作を確かめる（フォルダを開く → 編集 → 保存 → JSON に反映され `edited: true` → PNG 書き出し → 比較表示）
+
+---
+
+# ゲーム本体（game/）
+
+設計書は `docs/game-spec.md`。設計ページと食い違うときは設計ページを優先し、食い違いを 40HzP に報告する。
+
+## ゲームの決まり
+
+- 40HzP はプログラミングをしない。**継続的な保守やデバッグが要る構成にしない**
+- **ビルド工程なし・npm パッケージなし**。素の HTML / CSS / JavaScript（ES モジュール）で書く。テストは Node.js 組み込みのテストランナー（`node --test`）だけ
+- 外部への通信をしない（CDN も使わない）。フォントは `game/fonts/`（DotGothic16。SIL Open Font License 1.1。ライセンス文 `OFL.txt` を必ず一緒に置く）
+- ドット絵ツールの決まりは変えない
+  - `pixel/editor.html` とスプライトJSONの形式（`serializeSprite`）を変更しない
+  - ゲームは `pixel/sprites/*.json` と `pixel/palette.json` を **読むだけ**。`_original/` と `export/` は読まない
+  - スプライトをゲーム用にコピー・変換して置かない（手直しした瞬間にゲームへ反映されるようにする）
+  - ゲームが読むスプライトは `monsters.json` の `sprites` に書いた名前と `hero_idle` / `hero_attack` / `bg_floor01` だけ（ブラウザはフォルダの中身を一覧できないため）
+- 計算（`sim.js`・`quiz.js`・`save.js`・`genres.js`）はブラウザの機能（DOM・localStorage）に触らない。乱数は `ctx.rng` で渡す（テストで固定するため）
+- 対象はスマホのブラウザ（縦画面）とデスクトップ版 Chrome。将来ストアアプリ化するので、ブラウザ固有の機能に頼りすぎない
+
+## フォルダ
+
+```
+game/
+  index.html             … 入口
+  css/style.css
+  js/
+    main.js              … 起動・画面切り替え・ループ・セーブ（localStorage）
+    sim.js               … ゲームの計算（時間・戦闘・階層・睡眠・店・中ボス）
+    quiz.js              … 出題・判定・熟練・干渉
+    save.js              … セーブの文字列化・読み込み・版の移行
+    genres.js            … 29ジャンル
+    sprites.js           … スプライトJSONの読み込みと描画
+    render.js            … 冒険画面の描画（90×160）
+    ui/                  … 画面ごとの表示（adventure / study / facility / zukan / debug / dom）
+  data/
+    balance.json         … 数値（ここを書き換えるだけで調整できる）
+    monsters.json        … 魔物・中ボス
+    items.json           … 店の品物
+    questions.json       … 問題（Notion から生成。手で編集しない）
+  fonts/                 … DotGothic16 と OFL.txt
+  tests/                 … node --test 用
+tools/check-questions.mjs … questions.json の検査
+.github/workflows/pages.yml … テストを通してから GitHub Pages に公開
+```
+
+## 数値の調整
+
+- 数値はすべて `game/data/balance.json` に置いてある。40HzP に「◯◯を△△にして」と頼まれたらここを直す（各項目の意味は設計書8章。設計書に無い項目：`floor.spawnDelaySec` 次の敵が出るまでの秒数、`quiz.testQuestions` テストの問題数、`midboss.expMultiplier`・`goldMultiplier` 中ボスの経験値・ゴールドの倍率、`ally.hpFromBoss` 仲間になったときのHPの倍率）
+- 品物は `items.json`、魔物は `monsters.json`
+
+## 「問題を同期して」と頼まれたとき（`questions.json` は手で編集しない）
+
+1. Notion の問題リストを読む（Notion に接続できるなら直接。できなければ、40HzP に「問題リストを CSV で書き出して `game/data/notion-export/` に置いて」と頼む）
+2. `questions.json` を書き出す。Notion のプロパティとの対応：
+
+   | Notion | JSON |
+   |---|---|
+   | ページID（URL末尾の32文字を 8-4-4-4-12 に区切る） | `id` |
+   | ` メインジャンル`（先頭に空白あり） | `genre` |
+   | サブジャンル | `subgenres`（空なら `[]`） |
+   | 難易度（☆の数） | `difficulty`（1〜5） |
+   | 問題 | `question` |
+   | ` 解答`（先頭に空白あり） | `answer` |
+   | 誤答1・誤答2・誤答3 | `wrong`（**誤答1を必ず先頭**。誤答1が俗説の枠） |
+   | 解説 | `explanation` |
+   | 関連する魔物 | `monster`（空なら `null`） |
+
+   - 問題・解答・誤答が欠けているページは書き出さない
+   - `generatedAt` に書き出した日時（日本時間）を入れる。インデント2、日本語はエスケープしない
+3. `node tools/check-questions.mjs` で検査する
+4. 増えた問題・外した問題・警告を 40HzP に短く報告する
+- 新しい「関連する魔物」が出てきたら `monsters.json` にも足す（設計ページの魔物系の節から。スプライトが無ければ `null`）
+
+## 変更したら必ず実行する
+
+```bash
+node --test "game/tests/*.test.js"
+node tools/check-questions.mjs
+```
+
+（Node 22 では `node --test game/tests/` のようにフォルダを渡すと動かないので、ファイルの並びを渡す）
+
+## 手元で動かす
+
+ES モジュールと `fetch` はファイルを直接開く（`file://`）と動かない。リポジトリの一番上で簡易サーバーを立てる。
+
+```bash
+python3 -m http.server 8000
+```
+
+→ http://localhost:8000/game/ （デバッグ画面は http://localhost:8000/game/?debug=1 ）。画面の崩れは Playwright（スマホ縦画面の大きさ）でスクリーンショットを撮って確かめる。
+
+## 公開（GitHub Pages）
+
+- `.github/workflows/pages.yml`：どのブランチでもテストと問題の検査を行い、**既定のブランチ**に push したときだけ公開する
+- 公開物：`game/` 全部、`pixel/palette.json`、`pixel/sprites/*.json`（`_original/`・`export/`・`editor.html` は入れない）、一番上の `index.html`（`game/` へ移動するだけ）
+- 公開の設定（Settings → Pages → Source を「GitHub Actions」）は 40HzP が行う。勝手に変えない

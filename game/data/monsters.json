@@ -1,0 +1,145 @@
+{
+  "monsters": [
+    {
+      "id": "sanbyoukingyo",
+      "name": "サンビョウキンギョ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "金魚の記憶は3秒",
+      "truth": "数ヶ月覚えていたという実験がある",
+      "debated": false,
+      "sprites": { "idle": "sanbyoukingyo_idle", "attack": null }
+    },
+    {
+      "id": "juppanou",
+      "name": "ジュッパーノウ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "脳は10%しか使っていない",
+      "truth": "ほぼ全域を使っている",
+      "debated": false,
+      "sprites": { "idle": "juppanou_idle", "attack": null }
+    },
+    {
+      "id": "mienaikoumori",
+      "name": "ミエナイコウモリ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "コウモリは目が見えない",
+      "truth": "見える",
+      "debated": false,
+      "sprites": { "idle": "mienaikoumori_idle", "attack": null }
+    },
+    {
+      "id": "tsugihakuro",
+      "name": "ツギハクロ",
+      "kind": "monster",
+      "genres": ["統計学", "数学"],
+      "myth": "赤が続いたら次は黒が出やすい",
+      "truth": "毎回独立している（ギャンブラーの誤謬）",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "nidoochizu",
+      "name": "ニドオチズ",
+      "kind": "monster",
+      "genres": ["物理"],
+      "myth": "雷は同じ場所に二度落ちない",
+      "truth": "何度でも落ちる",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "atatamemoufu",
+      "name": "アタタメモウフ",
+      "kind": "monster",
+      "genres": ["熱力学"],
+      "myth": "毛布が体を温める",
+      "truth": "毛布は熱を生まず、体温が逃げるのを遅らせるだけ",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "kinjitsunatsu",
+      "name": "キンジツナツ",
+      "kind": "monster",
+      "genres": ["地学", "天体力学"],
+      "myth": "夏は太陽に近いから暑い",
+      "truth": "原因は地軸の傾き。北半球の夏、地球はむしろ太陽から遠い",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "reitenkyuu",
+      "name": "レイテンキュウ",
+      "kind": "monster",
+      "genres": ["数学"],
+      "myth": "0.999…は1より小さい",
+      "truth": "等しい",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "heikinsan",
+      "name": "ヘイキンサン",
+      "kind": "monster",
+      "genres": ["統計学"],
+      "myth": "平均年収の人が真ん中",
+      "truth": "真ん中は中央値。平均は高所得者に引っ張られる",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "yakubusoku",
+      "name": "ヤクブソク",
+      "kind": "monster",
+      "genres": ["現代文"],
+      "myth": "役不足＝力不足",
+      "truth": "本来は、役のほうが軽すぎること",
+      "debated": false,
+      "wordType": true,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "odoroku",
+      "name": "オドロク",
+      "kind": "monster",
+      "genres": ["古文漢文"],
+      "myth": "古文の「おどろく」＝びっくりする",
+      "truth": "本来は、目を覚ます、はっと気づく",
+      "debated": false,
+      "wordType": true,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "ichiwari",
+      "name": "イチワリ",
+      "kind": "monster",
+      "genres": ["法学"],
+      "myth": "落とし物を届けたら1割もらえる",
+      "truth": "法律上の報労金は5〜20%",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "mujuuryoku",
+      "name": "ムジュウリョク",
+      "kind": "monster",
+      "genres": ["物理", "天体力学"],
+      "myth": "宇宙飛行士が浮くのは重力が無いから",
+      "truth": "ISSの高度でも地上の約9割の重力がある。落ち続けているから浮いて見える",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "teacher_elementary",
+      "name": "小学校教師",
+      "kind": "midboss",
+      "appearAge": 7,
+      "unlockCorrect": 5,
+      "intro": "7歳で現れる最初の壁。勉強で5問正解するまで、攻撃が効かない。",
+      "sprites": { "idle": "teacher_elementary_idle", "attack": "teacher_elementary_attack" }
+    }
+  ]
+}

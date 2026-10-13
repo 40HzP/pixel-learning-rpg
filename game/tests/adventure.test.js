@@ -1,0 +1,87 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { tick, spawnEnemy, heroStats, genreState, buyItem, shopList, monsterStats } from '../js/sim.js';
+import { balance, makeCtx, newGame, seededRng, constRng } from './helpers.js';
+
+test('冒険が自動で進み、5体倒すと次の階層。9階層を越えたら9階層を繰り返す', () => {
+  const s = newGame(0);
+  const ctx = makeCtx(seededRng(42));
+  s.hero.level = 60; // 負けないくらい強くする
+  s.hero.hp = heroStats(s, ctx).maxHp;
+  const events = [];
+  for (let i = 0; i < 2000 && s.adventure.floor < 9; i++) events.push(...tick(s, 1, ctx));
+  assert.equal(s.adventure.floor, 9);
+  assert.equal(events.filter((e) => e.type === 'floorUp').length, 8);
+  for (let i = 0; i < 200; i++) events.push(...tick(s, 1, ctx));
+  assert.equal(s.adventure.floor, 9);
+  assert.ok(events.some((e) => e.type === 'floorRepeat'));
+  assert.ok(s.gold > 0 && s.hero.totalExp > 0);
+});
+
+test('倒すと経験値とゴールドが入り、レベルが上がるとステータスが伸びる', () => {
+  const s = newGame(0);
+  const ctx = makeCtx(constRng(0.5));
+  const before = heroStats(s, ctx);
+  const events = [];
+  for (let i = 0; i < 300 && s.hero.level < 3; i++) events.push(...tick(s, 1, ctx));
+  assert.ok(s.hero.level >= 3, 'レベルが上がる');
+  const after = heroStats(s, ctx);
+  assert.ok(after.maxHp > before.maxHp && after.atk > before.atk);
+  assert.ok(events.some((e) => e.type === 'levelUp'));
+  assert.ok(events.some((e) => e.type === 'defeat' && e.exp > 0 && e.gold > 0));
+});
+
+test('やられたら階層だけ1に戻る。Lv・装備・仲間はそのまま。睡眠の処理が走る', () => {
+  const s = newGame(0);
+  const ctx = makeCtx(constRng(0.01));
+  Object.assign(s.adventure, { floor: 4, kills: 3 });
+  s.hero.level = 6;
+  s.equipment.weapon = 'wood_sword';
+  s.allies.push({ id: 'teacher_elementary', name: '小学校教師', atk: 3, maxHp: 30, hp: 5, cd: 99 });
+  Object.assign(genreState(s, '生物'), { level: 1, studied: true });
+  const e = spawnEnemy(s, ctx, []);
+  e.cd = 0.05;
+  s.adventure.heroCd = 99;
+  s.allies[0].cd = 99;
+  s.hero.hp = 1;
+  const hoursBefore = s.life.gameHours;
+  const events = tick(s, 0.1, ctx);
+  const dead = events.find((x) => x.type === 'heroDefeated');
+  assert.ok(dead, 'やられた');
+  assert.equal(s.adventure.floor, 1);
+  assert.equal(s.adventure.kills, 0);
+  assert.equal(s.adventure.enemy, null);
+  assert.equal(s.hero.level, 6);
+  assert.equal(s.equipment.weapon, 'wood_sword');
+  assert.equal(s.allies.length, 1);
+  assert.equal(s.hero.hp, heroStats(s, ctx).maxHp, '全回復');
+  assert.equal(s.allies[0].hp, 30, '仲間も全回復');
+  assert.ok(s.life.gameHours - hoursBefore >= balance.sleep.gameHours, '10時間進む');
+  assert.deepEqual(dead.sleep.up, ['生物'], '熟練の判定が走る');
+  assert.equal(s.lastSleep.reason, 'defeated');
+});
+
+test('階層が上がるほど魔物が強くなる', () => {
+  const f1 = monsterStats(1, balance), f5 = monsterStats(5, balance);
+  assert.deepEqual(f1, { maxHp: 12, atk: 3, def: 1, exp: 4, gold: 3 });
+  assert.ok(f5.maxHp > f1.maxHp && f5.atk > f1.atk && f5.gold > f1.gold);
+});
+
+test('店：正解数で品揃えが増え、ゴールドで買うと強ければ自動で装備する', () => {
+  const s = newGame(0);
+  const ctx = makeCtx();
+  const unlocked = () => shopList(s, ctx).filter((i) => i.unlocked).map((i) => i.id);
+  assert.deepEqual(unlocked(), ['wood_sword', 'cloth']);
+  s.knowledge.totalCorrect = 5;
+  assert.deepEqual(unlocked(), ['wood_sword', 'cloth', 'copper_sword', 'leather']);
+  assert.equal(buyItem(s, 'wood_sword', ctx).reason, 'ゴールドが足りません');
+  s.gold = 1000;
+  const atk0 = heroStats(s, ctx).atk;
+  assert.deepEqual(buyItem(s, 'copper_sword', ctx), { ok: true, equipped: true });
+  assert.equal(heroStats(s, ctx).atk, atk0 + 5);
+  assert.deepEqual(buyItem(s, 'wood_sword', ctx), { ok: true, equipped: false }, '弱い剣は装備しない');
+  assert.equal(s.equipment.weapon, 'copper_sword');
+  assert.equal(s.gold, 1000 - 150 - 30);
+  assert.equal(buyItem(s, 'iron_sword', ctx).reason, 'まだ入荷していません');
+  assert.equal(buyItem(s, 'copper_sword', ctx).reason, 'もう持っています');
+});

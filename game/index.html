@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a1626">
+<title>ドット絵勉強RPG（試作）</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="css/style.css">
+<script type="module" src="js/main.js"></script>
+</head>
+<body>
+<div id="app">
+  <main id="screens">
+    <!-- 冒険 -->
+    <section id="screen-adventure" class="screen">
+      <div id="stage">
+        <canvas id="scene" class="pixel" width="90" height="160"></canvas>
+        <div id="hud"></div>
+      </div>
+    </section>
+
+    <!-- 勉強 -->
+    <section id="screen-study" class="screen" hidden>
+      <div class="study-top">
+        <div class="study-info" id="study-info"></div>
+        <canvas id="mini" class="pixel" width="90" height="160" title="冒険の様子"></canvas>
+      </div>
+      <div id="study-body"></div>
+    </section>
+
+    <!-- 施設 -->
+    <section id="screen-facility" class="screen" hidden></section>
+
+    <!-- 図鑑 -->
+    <section id="screen-zukan" class="screen" hidden></section>
+
+    <!-- デバッグ（?debug=1 のときだけ） -->
+    <section id="screen-debug" class="screen" hidden></section>
+  </main>
+
+  <nav id="tabs">
+    <button data-tab="adventure" class="active">冒険</button>
+    <button data-tab="study">勉強</button>
+    <button data-tab="facility">施設</button>
+    <button data-tab="zukan">図鑑</button>
+    <button data-tab="debug" hidden>デバッグ</button>
+  </nav>
+
+  <div id="notices" aria-live="polite"></div>
+
+  <div id="intro" class="overlay" hidden>
+    <div class="dialog">
+      <p class="intro-goal">最初の目的は、7歳で遭遇する<br>小学校教師をボコボコに倒すことだ。</p>
+      <div class="intro-choices">
+        <button data-age="0" class="big">0歳から始める<small>準備期間が長い（7歳まで、遊んでいる時間で約7時間）</small></button>
+        <button data-age="7" class="big">7歳から始める<small>すぐ戦えるが弱い</small></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading" class="overlay"><div class="dialog">読み込み中…</div></div>
+</div>
+</body>
+</html>

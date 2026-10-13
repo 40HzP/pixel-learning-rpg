@@ -1,0 +1,38 @@
+{
+  "time": { "gameHoursPerRealSecond": 2.4333, "maxFrameSeconds": 1 },
+  "hero": {
+    "base": { "hp": 30, "atk": 5, "def": 2 },
+    "perLevel": { "hp": 6, "atk": 1.5, "def": 0.8 },
+    "attackIntervalSec": 1.0
+  },
+  "levelExp": { "base": 10, "growth": 1.18 },
+  "floor": { "monstersPerFloor": 5, "maxFloorPhase1": 9, "spawnDelaySec": 0.8 },
+  "monster": {
+    "base": { "hp": 12, "atk": 3, "def": 1, "exp": 4, "gold": 3 },
+    "growthPerFloor": 1.2,
+    "hpGrowthPerFloor": 1.25,
+    "attackIntervalSec": 1.2
+  },
+  "damage": { "defFactor": 0.5, "variance": 0.1 },
+  "quiz": {
+    "timeLimitSec": [10, 20, 30, 45, 60],
+    "correctPerProficiencyLevel": 10,
+    "recentAvoid": 5,
+    "correctDamageRatio": 0.5,
+    "interferedCorrectDamageRatio": 1.0,
+    "mythHealRatio": 0.3,
+    "testQuestions": 5,
+    "difficultyMixByLevel": [
+      [70, 30, 0, 0, 0],
+      [50, 35, 15, 0, 0],
+      [30, 35, 25, 10, 0],
+      [15, 25, 35, 20, 5],
+      [5, 15, 30, 35, 15],
+      [0, 10, 25, 35, 30]
+    ]
+  },
+  "sleep": { "gameHours": 10, "upChance": 0.15, "downChance": 0.05 },
+  "midboss": { "hpMultiplier": 5, "atkMultiplier": 1.5, "expMultiplier": 5, "goldMultiplier": 5 },
+  "ally": { "attackIntervalSec": 1.5, "atkFromBoss": 0.6, "hpFromBoss": 0.6 },
+  "rateWindowSec": 60
+}
