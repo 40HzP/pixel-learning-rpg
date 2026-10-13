@@ -111,7 +111,7 @@ test('干渉：関連する魔物と戦っているときに正解すると撃�
   const r = answer(s, sess, answerIndex(cur), ctx);
   assert.equal(r.interfered, true);
   assert.equal(r.defeated, true);
-  assert.equal(s.adventure.enemy, null);
+  assert.deepEqual(s.adventure.enemies, []);
   assert.equal(s.knowledge.zukan.tsugihakuro.stage, 2);
 });
 

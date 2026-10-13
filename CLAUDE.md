@@ -175,7 +175,15 @@ tools/check-questions.mjs … questions.json の検査
 
 ## 数値の調整
 
-- 数値はすべて `game/data/balance.json` に置いてある。40HzP に「◯◯を△△にして」と頼まれたらここを直す（各項目の意味は設計書8章。設計書に無い項目：`floor.spawnDelaySec` 次の敵が出るまでの秒数、`quiz.testQuestions` テストの問題数、`midboss.expMultiplier`・`goldMultiplier` 中ボスの経験値・ゴールドの倍率、`ally.hpFromBoss` 仲間になったときのHPの倍率）
+- 数値はすべて `game/data/balance.json` に置いてある。40HzP に「◯◯を△△にして」と頼まれたらここを直す。各項目の意味は設計書8章。設計書に無い項目：
+  - `floor.spawnDelaySec` 群れを倒してから次の群れが出るまでの秒数。ザコは1階層分（`monstersPerFloor` 体）がまとめて出る
+  - `quiz.testQuestions` テストの問題数
+  - `midboss.expMultiplier`・`goldMultiplier` 中ボスの経験値・ゴールドの倍率、`ally.hpFromBoss` 仲間になったときのHPの倍率
+  - `hero.base`・`hero.perLevel` の `mp`（MP）・`wis`（賢さ）・`agi`（すばやさ）・`luck`（運の良さ）。`hero.wisPerCorrect` 正解1回で増える賢さ
+  - `stats.agiSpeedPerPoint` すばやさ1あたり攻撃が速くなる割合（間隔＝attackIntervalSec÷(1＋すばやさ×この値)）
+  - `stats.critChancePerLuck`・`critChanceMax`・`critMultiplier` 運の良さによる会心の一撃、`stats.goldBonusPerLuck` 運の良さ1あたりゴールドが増える割合
+  - `spell` 主人公の全体攻撃「ひらめき」：敵が `minTargets` 体以上でMPが `mpCost` 以上あると使う。ダメージ＝賢さ×`power`（防御は効かない）。MPは毎秒 `mpRegenPerSec` 回復し、眠ると全回復
+- 主人公の名前は `hero.name`（8文字まで。最初の案内と施設で決める）
 - 品物は `items.json`、魔物は `monsters.json`
 
 ## 「問題を同期して」と頼まれたとき（`questions.json` は手で編集しない）
@@ -225,3 +233,6 @@ python3 -m http.server 8000
 - `.github/workflows/pages.yml`：どのブランチでもテストと問題の検査を行い、**既定のブランチ**に push したときだけ公開する
 - 公開物：`game/` 全部、`pixel/palette.json`、`pixel/sprites/*.json`（`_original/`・`export/`・`editor.html` は入れない）、一番上の `index.html`（`game/` へ移動するだけ）
 - 公開の設定（Settings → Pages → Source を「GitHub Actions」）は 40HzP が行う。勝手に変えない
+- 既定のブランチの最新のコミットでなければ公開しない（古い実行をやり直しても、新しい版を古い版で上書きしない）
+- 公開するとき `index.html` の `app-version` とスクリプト・スタイルの URL（`?v=`）にコミットの番号を入れ、`game/version.json` を書く。ゲームは数分ごとに `version.json` を見て、新しい版があれば「読み込み直す」を出す。施設画面の一番下に今の版が出る
+- セーブの形を変えたら `save.js` の `SAVE_VERSION` を上げて移行を足す（40HzP の進み具合を消さないため）。版1→2 は敵1体→群れの移行

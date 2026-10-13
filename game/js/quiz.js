@@ -101,12 +101,18 @@ export function presentQuestion(session, q, ctx) {
   return session.current;
 }
 
-/** この問題に口を挟んでいる魔物（今戦っている敵が関連する魔物のとき）。無ければ null */
-export function interferingMonster(state, question, ctx) {
-  const e = state.adventure.enemy;
-  if (!e || !question.monster) return null;
+/** この問題に口を挟んでいる敵（今の群れの中に関連する魔物がいるとき）。いなければ null */
+export function interferingEnemy(state, question, ctx) {
+  if (!question.monster) return null;
   const m = ctx.monsters.find((x) => x.name === question.monster);
-  return m && m.id === e.monsterId ? m : null;
+  if (!m) return null;
+  return state.adventure.enemies.find((e) => e.monsterId === m.id) || null;
+}
+
+/** この問題に口を挟んでいる魔物（monsters.json の定義）。いなければ null */
+export function interferingMonster(state, question, ctx) {
+  const e = interferingEnemy(state, question, ctx);
+  return e ? ctx.monsters.find((m) => m.id === e.monsterId) || null : null;
 }
 
 function pushRecent(state, id, ctx) {
@@ -119,7 +125,9 @@ function pushRecent(state, id, ctx) {
 
 /**
  * 答える。choiceIndex が null なら時間切れ（不正解）。
- * 干渉の判定は答えた瞬間の敵で行う。
+ * 干渉の判定は答えた瞬間の敵の群れで行う。
+ * 正解：干渉していればその魔物に大ダメージ、そうでなければ群れの先頭にダメージ。
+ * 俗説（誤答1）を選んだ：干渉している魔物が回復する。
  * 返り値の events は sim.tick と同じ形（描画・通知用）
  */
 export function answer(state, session, choiceIndex, ctx) {
@@ -131,12 +139,14 @@ export function answer(state, session, choiceIndex, ctx) {
   const k = state.knowledge;
   const g = genreState(state, q.genre);
   const relatedMonster = q.monster ? ctx.monsters.find((m) => m.name === q.monster) || null : null;
-  const interfering = interferingMonster(state, q, ctx);
-  const enemy = state.adventure.enemy;
+  const interferer = interferingEnemy(state, q, ctx);
+  const target = interferer || state.adventure.enemies[0] || null;
   const events = [];
   const res = {
     correct, timeout: choiceIndex == null, chose: choice ? choice.kind : null,
-    interfered: !!interfering, monsterId: relatedMonster ? relatedMonster.id : null,
+    interfered: !!interferer, monsterId: relatedMonster ? relatedMonster.id : null,
+    targetName: target ? target.name : null,
+    targetMidboss: target && target.kind === 'midboss' ? target.monsterId : null,
     levelUp: null, fooled: false, damage: 0, healed: 0, defeated: false, midbossBroken: false,
     zukan: [], events,
   };
@@ -159,29 +169,31 @@ export function answer(state, session, choiceIndex, ctx) {
     if (ri >= 0) k.review.splice(ri, 1);
     if (relatedMonster && raiseZukan(state, relatedMonster.id, 2, events)) res.zukan.push({ monsterId: relatedMonster.id, stage: 2 });
 
-    if (enemy) {
-      if (enemy.kind === 'midboss') {
-        const st = midbossState(state, enemy.monsterId);
-        const mb = ctx.monsters.find((m) => m.id === enemy.monsterId);
-        if (st.status === 'appeared') {
-          st.correct++;
-          if (st.correct >= mb.unlockCorrect) {
-            st.status = 'broken';
-            res.midbossBroken = true;
-            events.push({ type: 'midbossBroken', monsterId: enemy.monsterId });
-          }
+    // 中ボスが出ている間の正解は、防御を崩すための回数に数える
+    const boss = state.adventure.enemies.find((e) => e.kind === 'midboss');
+    if (boss) {
+      const st = midbossState(state, boss.monsterId);
+      const mb = ctx.monsters.find((m) => m.id === boss.monsterId);
+      if (st.status === 'appeared') {
+        st.correct++;
+        if (st.correct >= mb.unlockCorrect) {
+          st.status = 'broken';
+          res.midbossBroken = true;
+          events.push({ type: 'midbossBroken', monsterId: boss.monsterId });
         }
       }
-      const ratio = interfering ? qb.interferedCorrectDamageRatio : qb.correctDamageRatio;
-      res.damage = damageEnemy(state, Math.ceil(enemy.maxHp * ratio), ctx, events, 'quiz');
-      res.defeated = !state.adventure.enemy || state.adventure.enemy !== enemy;
+    }
+    if (target) {
+      const ratio = interferer ? qb.interferedCorrectDamageRatio : qb.correctDamageRatio;
+      res.damage = damageEnemy(state, Math.ceil(target.maxHp * ratio), ctx, events, 'quiz', target);
+      res.defeated = !state.adventure.enemies.includes(target);
     }
   } else {
     if (!k.review.includes(q.id)) k.review.push(q.id);
-    if (interfering && choice && choice.kind === 'myth') {
+    if (interferer && choice && choice.kind === 'myth') {
       res.fooled = true;
-      zukanEntry(state, interfering.id).fooled++;
-      res.healed = healEnemy(state, enemy.maxHp * qb.mythHealRatio, events);
+      zukanEntry(state, interferer.monsterId).fooled++;
+      res.healed = healEnemy(state, interferer.maxHp * qb.mythHealRatio, events, interferer);
     }
   }
 

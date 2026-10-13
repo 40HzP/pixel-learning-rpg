@@ -4,7 +4,7 @@
 import { createState } from './sim.js';
 
 export const SAVE_KEY = 'plrpg.save';
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 /**
  * 版の移行。MIGRATIONS[n] は「版 n のセーブ」を受け取り「版 n+1 のセーブ」を返す。
@@ -12,7 +12,18 @@ export const SAVE_VERSION = 1;
  *   例）2: (save) => { save.state.newField = 0; save.version = 3; return save; }
  * 足りない項目は読み込み時に fillDefaults が既定値で埋めるので、項目を足すだけなら移行は要らない。
  */
-export const MIGRATIONS = {};
+export const MIGRATIONS = {
+  // 版1→2：ザコが群れで出るようになり、敵が1体（adventure.enemy）から群れ（adventure.enemies）になった。
+  // 主人公の名前・MPなどの新しい項目は fillDefaults が既定値で埋める
+  1: (save) => {
+    const adv = save.state.adventure || (save.state.adventure = {});
+    adv.enemies = adv.enemy ? [{ ...adv.enemy, uid: 1, slot: 0 }] : [];
+    adv.nextUid = 2;
+    delete adv.enemy;
+    save.version = 2;
+    return save;
+  },
+};
 
 export function serialize(state, savedAt = 0) {
   return JSON.stringify({ version: SAVE_VERSION, savedAt, state });

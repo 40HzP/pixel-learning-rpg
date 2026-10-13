@@ -27,7 +27,7 @@ test('中ボス：正解5回まではダメージ0、その後は自動攻撃も
   const e = spawnEnemy(s, ctx, again); // やられた後にまた出てきたとき
   assert.equal(again.find((x) => x.type === 'spawn').first, false);
   assert.equal(e.kind, 'midboss');
-  assert.equal(s.adventure.enemy, e);
+  assert.deepEqual(s.adventure.enemies, [e], '中ボスは1体で出る');
   assert.equal(midbossState(s, e.monsterId).status, 'appeared');
 
   const hits = tick(s, 3, ctx).filter((x) => x.type === 'attack' && x.by === 'hero');
@@ -48,7 +48,7 @@ test('中ボス：正解5回まではダメージ0、その後は自動攻撃も
   const hp = e.hp;
   const after = tick(s, 2, ctx).filter((x) => x.type === 'attack' && x.by === 'hero');
   assert.ok(after.length && after.every((x) => x.dmg > 0), '自動攻撃が効く');
-  assert.ok(e.hp < hp || s.adventure.enemy !== e);
+  assert.ok(e.hp < hp || !s.adventure.enemies.includes(e));
 });
 
 test('中ボスを倒すと仲間になり、以後は出てこない', () => {

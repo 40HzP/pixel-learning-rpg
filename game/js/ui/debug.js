@@ -1,5 +1,5 @@
 // デバッグ画面（URL に ?debug=1 を付けたときだけ出る）
-import { HOURS_PER_YEAR, genreState, spawnEnemy } from '../sim.js';
+import { HOURS_PER_YEAR, genreState, spawnGroup } from '../sim.js';
 import { SAVE_KEY, serialize, deserialize } from '../save.js';
 import { GENRES, MAX_PROFICIENCY } from '../genres.js';
 import { el } from './dom.js';
@@ -36,11 +36,18 @@ export function init(app) {
       el('div', {}, genre, level, el('button', {
         onclick: () => { genreState(app.state, genre.value).level = Number(level.value); app.notify(`${genre.value}を Lv ${level.value} にした`); },
       }, '設定'))),
-    el('div', { class: 'section' }, el('h2', {}, '敵を出す（干渉の確認用）'),
+    el('div', { class: 'section' }, el('h2', {}, '敵の群れを出す（選んだ魔物が先頭。干渉の確認用）'),
       el('div', {}, monster, el('button', {
         onclick: () => {
           const ev = [];
-          spawnEnemy(app.state, ctx, ev, monster.value);
+          const picked = ctx.monsters.find((m) => m.id === monster.value);
+          const ids = [picked.id];
+          if (picked.kind === 'monster') {
+            const pool = ctx.monsters.filter((m) => m.kind === 'monster');
+            const n = Math.max(1, ctx.balance.floor.monstersPerFloor - app.state.adventure.kills);
+            while (ids.length < n) ids.push(pool[Math.floor(Math.random() * pool.length)].id);
+          }
+          spawnGroup(app.state, ctx, ev, ids);
           app.handleEvents(ev);
         },
       }, '出す'))),

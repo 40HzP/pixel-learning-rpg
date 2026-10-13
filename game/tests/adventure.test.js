@@ -41,6 +41,7 @@ test('やられたら階層だけ1に戻る。Lv・装備・仲間はそのま�
   Object.assign(genreState(s, '生物'), { level: 1, studied: true });
   const e = spawnEnemy(s, ctx, []);
   e.cd = 0.05;
+  assert.equal(s.adventure.enemies.length, 1);
   s.adventure.heroCd = 99;
   s.allies[0].cd = 99;
   s.hero.hp = 1;
@@ -50,7 +51,7 @@ test('やられたら階層だけ1に戻る。Lv・装備・仲間はそのま�
   assert.ok(dead, 'やられた');
   assert.equal(s.adventure.floor, 1);
   assert.equal(s.adventure.kills, 0);
-  assert.equal(s.adventure.enemy, null);
+  assert.deepEqual(s.adventure.enemies, []);
   assert.equal(s.hero.level, 6);
   assert.equal(s.equipment.weapon, 'wood_sword');
   assert.equal(s.allies.length, 1);
@@ -63,7 +64,8 @@ test('やられたら階層だけ1に戻る。Lv・装備・仲間はそのま�
 
 test('階層が上がるほど魔物が強くなる', () => {
   const f1 = monsterStats(1, balance), f5 = monsterStats(5, balance);
-  assert.deepEqual(f1, { maxHp: 12, atk: 3, def: 1, exp: 4, gold: 3 });
+  const b = balance.monster.base;
+  assert.deepEqual(f1, { maxHp: b.hp, atk: b.atk, def: b.def, exp: b.exp, gold: b.gold });
   assert.ok(f5.maxHp > f1.maxHp && f5.atk > f1.atk && f5.gold > f1.gold);
 });
 

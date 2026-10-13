@@ -2,7 +2,7 @@
 # 公開するのは game/ 全部と pixel/palette.json・pixel/sprites/*.json だけ
 # （pixel/sprites/_original/・pixel/export/・pixel/editor.html は入れない）。
 # 公開はリポジトリの既定のブランチに push したときと、手動で実行したときだけ。
-# 使う前に、リポジトリの Settings → Pages → Source を「GitHub Actions」にしておく。
+# 古い実行をやり直しても古い版で上書きしないよう、既定のブランチの最新のコミットでなければ公開しない。
 name: GitHub Pages
 
 on:
@@ -41,12 +41,31 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: 公開するファイルを集める（フォルダの並びはリポジトリと同じ）
+      - name: 最新のコミットか確かめる（古い実行のやり直しでは公開しない）
+        id: latest
         run: |
+          head=$(git ls-remote origin "refs/heads/${{ github.event.repository.default_branch }}" | cut -f1)
+          if [ "$head" = "$GITHUB_SHA" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::このコミット（$GITHUB_SHA）は最新（$head）ではないので公開しません"
+          fi
+      - name: 公開するファイルを集める（フォルダの並びはリポジトリと同じ）
+        if: steps.latest.outputs.ok == 'true'
+        run: |
+          v="${GITHUB_SHA::7}"
           mkdir -p _site/pixel/sprites
           cp -r game _site/game
           cp pixel/palette.json _site/pixel/
           cp pixel/sprites/*.json _site/pixel/sprites/
+          # 版の番号を入れる。スクリプトとスタイルの URL に ?v=版 を付けて、ブラウザに残った古い版を使わせない
+          sed -i "s|<meta name=\"app-version\" content=\"dev\">|<meta name=\"app-version\" content=\"$v\">|" _site/game/index.html
+          sed -i -E "s#(src=\"js/main\.js)\"#\1?v=$v\"#; s#(href=\"css/style\.css)\"#\1?v=$v\"#" _site/game/index.html
+          find _site/game/js -name '*.js' -exec sed -i -E "s#(from '\.{1,2}/[^']+\.js)'#\1?v=$v'#g" {} +
+          echo "{\"version\":\"$v\"}" > _site/game/version.json
+          grep -q "content=\"$v\"" _site/game/index.html
+          grep -q "main.js?v=$v" _site/game/index.html
           cat > _site/index.html <<'HTML'
           <!doctype html>
           <meta charset="utf-8">
@@ -56,8 +75,11 @@ jobs:
           <a href="game/">ゲームへ</a>
           HTML
       - uses: actions/configure-pages@v5
+        if: steps.latest.outputs.ok == 'true'
       - uses: actions/upload-pages-artifact@v3
+        if: steps.latest.outputs.ok == 'true'
         with:
           path: _site
       - id: deployment
+        if: steps.latest.outputs.ok == 'true'
         uses: actions/deploy-pages@v4

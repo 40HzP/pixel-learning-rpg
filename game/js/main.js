@@ -17,6 +17,8 @@ const PIXEL = '../pixel/';
 const SPRITES = PIXEL + 'sprites/';
 const AUTOSAVE_MS = 10_000;
 const UI_MS = 200;
+const UPDATE_CHECK_MS = 3 * 60_000;
+const FONT_WAIT_MS = 3000;
 
 const screens = { adventure, study, facility, zukan, debug };
 
@@ -77,6 +79,8 @@ async function boot() {
     rate: createRateTracker(),
     tab: 'adventure',
     noSave: false,
+    // 公開した版（GitHub Actions が index.html に書き込む。手元で動かしているときは dev）
+    version: (document.querySelector('meta[name="app-version"]') || {}).content || 'dev',
     notify,
     handleEvents,
     save: saveNow,
@@ -104,7 +108,8 @@ async function boot() {
     setTimeout(() => n.remove(), kind === 'bad' ? 6000 : 3500);
   }
   function notifySleep(r) {
-    const lines = [r.reason === 'defeated' ? 'やられた…　1階層に戻って眠った' : `${r.hours}時間眠った。HPが全回復した`];
+    const name = app.state.hero.name;
+    const lines = [r.reason === 'defeated' ? `${name}はやられた…　1階層に戻って眠った` : `${name}は${r.hours}時間眠った。HPとMPが全回復した`];
     lines.push(r.up.length ? `熟練が上がった：${r.up.join('・')}` : '熟練が上がったジャンルはなかった');
     if (r.down.length) lines.push(`熟練が下がった：${r.down.join('・')}`);
     notify(lines.join('\n'), r.reason === 'defeated' ? 'bad' : 'good');
@@ -112,9 +117,10 @@ async function boot() {
 
   function handleEvents(events) {
     app.renderer.onEvents(events, performance.now() / 1000);
+    const met = [];
     for (const e of events) {
       if (e.type === 'defeat') trackGain(app.rate, e.exp, e.gold);
-      else if (e.type === 'levelUp') notify(`レベルが上がった！　Lv ${e.level}`, 'good');
+      else if (e.type === 'levelUp') notify(`${app.state.hero.name}のレベルが上がった！　Lv ${e.level}`, 'good');
       else if (e.type === 'floorUp') notify(`${e.floor}階層に進んだ`);
       else if (e.type === 'heroDefeated') notifySleep(e.sleep);
       else if (e.type === 'spawn' && e.kind === 'midboss' && e.first) notify('小学校教師が現れた！\n勉強で5問正解するまで攻撃が効かない', 'bad');
@@ -122,9 +128,11 @@ async function boot() {
       else if (e.type === 'allyJoined') notify(`${e.name}が仲間になった！`, 'good');
       else if (e.type === 'zukan' && e.stage === 1) {
         const m = monsters.find((x) => x.id === e.monsterId);
-        if (m) notify(`図鑑に${m.name}が載った`);
+        if (m && !met.includes(m.name)) met.push(m.name);
       }
     }
+    // 群れで初めて会った魔物は1つの知らせにまとめる
+    if (met.length) notify(`図鑑に載った：${met.join('・')}`);
   }
 
   /* ---------- セーブ ---------- */
@@ -143,6 +151,18 @@ async function boot() {
     for (const [k] of Object.entries(screens)) document.getElementById('screen-' + k).hidden = k !== name;
     refreshActive(true);
     if (name === 'adventure') layoutStage();
+    placeNotices();
+  }
+  /** 知らせの位置：冒険では空と地面の間（山の辺り）、ほかの画面では上。解答ボタンやキャラクターに重ねない */
+  function placeNotices() {
+    const box = document.getElementById('notices');
+    const cv = document.getElementById('scene');
+    if (app.tab === 'adventure' && cv.clientHeight) {
+      const r = cv.getBoundingClientRect();
+      box.style.top = Math.round(r.top + r.height * (64 / SCENE_H)) + 'px';
+    } else {
+      box.style.top = '';
+    }
   }
   function refreshActive(force) {
     const s = screens[app.tab];
@@ -159,6 +179,7 @@ async function boot() {
     cv.style.width = SCENE_W * scale + 'px';
     cv.style.height = SCENE_H * scale + 'px';
     adventure.setScale(app, scale);
+    placeNotices();
   }
   window.addEventListener('resize', layoutStage);
   layoutStage();
@@ -168,13 +189,32 @@ async function boot() {
   if (app.state.meta.startAge == null) intro.hidden = false;
   for (const b of intro.querySelectorAll('[data-age]')) {
     b.addEventListener('click', () => {
-      startGame(app.state, Number(b.dataset.age));
+      startGame(app.state, Number(b.dataset.age), document.getElementById('hero-name').value);
       intro.hidden = true;
       saveNow();
       refreshActive(true);
     });
   }
+  // ドット文字のフォントが届くまで少し待つ（後から届いて文字の幅が変わり、ボタンが動くのを防ぐ）
+  try {
+    await Promise.race([document.fonts.load('16px "DotGothic16"'), new Promise((ok) => setTimeout(ok, FONT_WAIT_MS))]);
+  } catch { /* 標準のフォントで続ける */ }
   document.getElementById('loading').hidden = true;
+
+  /* ---------- 新しい版が公開されたら知らせる ---------- */
+  // 開きっぱなしのタブや、ブラウザに残った古い版のままにならないように
+  async function checkUpdate() {
+    if (app.version === 'dev') return;
+    try {
+      const res = await fetch('version.json', { cache: 'no-store' });
+      if (!res.ok) return;
+      const { version } = await res.json();
+      if (version && version !== app.version) document.getElementById('update-bar').hidden = false;
+    } catch { /* 通信できないときは何もしない */ }
+  }
+  document.getElementById('update-reload').addEventListener('click', () => { saveNow(); app.noSave = true; location.reload(); });
+  setInterval(checkUpdate, UPDATE_CHECK_MS);
+  checkUpdate();
 
   /* ---------- ループ ---------- */
   const clock = createClock();
@@ -183,6 +223,8 @@ async function boot() {
     if (document.visibilityState !== 'visible') {
       clockFrame(clock, performance.now(), false);   // 戻っても止まっていた分を取り戻さない
       saveNow();
+    } else {
+      checkUpdate();
     }
   });
   window.addEventListener('pagehide', saveNow);

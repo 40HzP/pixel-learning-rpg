@@ -4,8 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1a1626">
+<meta name="app-version" content="dev"><!-- 公開するときに GitHub Actions がコミットの番号に書き換える -->
 <title>ドット絵勉強RPG（試作）</title>
 <link rel="icon" href="data:,">
+<link rel="preload" href="fonts/DotGothic16-Regular.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="css/style.css">
 <script type="module" src="js/main.js"></script>
 </head>
@@ -48,10 +50,15 @@
   </nav>
 
   <div id="notices" aria-live="polite"></div>
+  <div id="update-bar" hidden>新しい版が公開されました<button id="update-reload" class="primary">読み込み直す</button></div>
 
   <div id="intro" class="overlay" hidden>
     <div class="dialog">
       <p class="intro-goal">最初の目的は、7歳で遭遇する<br>小学校教師をボコボコに倒すことだ。</p>
+      <label class="intro-name">主人公の名前
+        <input id="hero-name" type="text" maxlength="8" placeholder="主人公" autocomplete="off" enterkeyhint="done">
+        <small>8文字まで。あとで施設から変えられます</small>
+      </label>
       <div class="intro-choices">
         <button data-age="0" class="big">0歳から始める<small>準備期間が長い（7歳まで、遊んでいる時間で約7時間）</small></button>
         <button data-age="7" class="big">7歳から始める<small>すぐ戦えるが弱い</small></button>

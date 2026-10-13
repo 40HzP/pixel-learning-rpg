@@ -83,6 +83,8 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 #hud .row { display: flex; justify-content: space-between; gap: 6px; white-space: nowrap; }
 #hud .hpbar { height: 6px; background: #1a1626; border: 1px solid #1a1626; margin: 1px 0 2px; }
 #hud .hpbar i { display: block; height: 100%; background: var(--good); }
+#hud .hpbar.mp i { background: var(--info); }
+#hud .gauges { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 #hud .boss {
   margin-top: 4px; padding: 3px 6px; background: rgba(26, 22, 38, .85); border: 2px solid var(--accent);
   text-shadow: none; pointer-events: auto; cursor: pointer; white-space: normal;
@@ -91,13 +93,13 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 
 /* ---------- 通知 ---------- */
 #notices {
-  position: fixed; left: 0; right: 0; bottom: calc(var(--tabs-h) + env(safe-area-inset-bottom) + 8px);
+  position: fixed; left: 0; right: 0; top: calc(env(safe-area-inset-top) + 8px); /* 冒険画面では main.js が山の辺りに動かす */
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   pointer-events: none; z-index: 20; padding: 0 12px;
 }
 .notice {
   background: rgba(38, 33, 57, .95); border: 2px solid var(--accent); padding: 6px 12px;
-  max-width: 420px; width: max-content; font-size: 14px; white-space: pre-line;
+  max-width: min(420px, 100%); width: fit-content; font-size: 14px; white-space: pre-line;
   animation: pop .15s ease-out;
 }
 .notice.bad { border-color: var(--bad); }
@@ -112,6 +114,9 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 }
 .dialog { background: var(--panel); border: 2px solid var(--line); padding: 20px; max-width: 420px; width: 100%; }
 .intro-goal { font-size: 18px; text-align: center; margin: 0 0 20px; line-height: 1.7; }
+.intro-name { display: flex; flex-direction: column; gap: 4px; margin: 0 0 16px; font-size: 14px; }
+.intro-name input { width: 100%; font-size: 18px; }
+.intro-name small { color: var(--muted); font-size: 12px; }
 .intro-choices { display: flex; flex-direction: column; gap: 12px; }
 .intro-choices button { display: flex; flex-direction: column; align-items: center; padding: 12px; }
 .intro-choices small { color: var(--muted); font-size: 12px; margin-top: 4px; }
@@ -163,6 +168,18 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .item .name { flex: 1; }
 .item small { display: block; color: var(--muted); font-size: 12px; }
 .item.locked { opacity: .6; }
+.rename { display: flex; gap: 8px; margin-bottom: 10px; }
+.rename input { flex: 1; min-width: 0; font-size: 16px; }
+.stats { display: flex; flex-direction: column; gap: 2px; }
+.stat { display: grid; grid-template-columns: 5.5em 4.5em 1fr; align-items: baseline; gap: 6px; background: var(--panel); padding: 4px 8px; }
+.stat b { font-weight: normal; color: var(--accent); }
+.stat small { color: var(--muted); font-size: 12px; }
+.version { font-size: 12px; text-align: right; }
+#update-bar {
+  position: fixed; left: 0; right: 0; top: env(safe-area-inset-top); z-index: 25;
+  display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;
+  padding: 6px 12px; background: var(--panel); border-bottom: 2px solid var(--accent); font-size: 14px;
+}
 .soon { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .soon div { background: var(--panel); border: 2px dashed var(--line); padding: 8px; color: var(--muted); font-size: 14px; }
 

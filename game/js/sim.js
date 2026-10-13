@@ -11,6 +11,8 @@ import { GENRES, MAX_PROFICIENCY } from './genres.js';
 export const HOURS_PER_YEAR = 8760;
 const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const STEP_SEC = 0.1; // 戦闘を細かく刻む幅（速さ×600でも攻撃の順番が崩れないように）
+export const DEFAULT_HERO_NAME = '主人公';
+export const HERO_NAME_MAX = 8;
 
 /* ================= 状態 ================= */
 
@@ -18,12 +20,12 @@ export function createState(balance) {
   return {
     meta: { startAge: null },                       // 開始年齢の選択（null＝まだ選んでいない）
     life: { generation: 1, gameHours: 0 },          // 何回目の人生か・0歳1月1日0時からの経過時間
-    hero: { level: 1, exp: 0, totalExp: 0, hp: balance.hero.base.hp },
+    hero: { name: DEFAULT_HERO_NAME, level: 1, exp: 0, totalExp: 0, hp: balance.hero.base.hp, mp: balance.hero.base.mp },
     gold: 0,
     equipment: { weapon: null, armor: null },
     owned: [],                                      // 買った品物のid
     allies: [],                                     // { id, name, atk, maxHp, hp, cd }
-    adventure: { floor: 1, kills: 0, enemy: null, spawnTimer: 0, heroCd: 0 },
+    adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1 }, // enemies：今出ている群れ（先頭が狙う相手）
     knowledge: {                                    // 転生で引き継ぐ前提のもの（第2段階）
       genres: {},                                   // ジャンル名 → { level, progress, correct, studied }
       totalCorrect: 0,
@@ -36,10 +38,22 @@ export function createState(balance) {
   };
 }
 
-/** 開始年齢を決めてゲームを始める（0歳 or 7歳） */
-export function startGame(state, startAge) {
+/** 主人公の名前を整える（制御文字を除き、前後の空白を取り、8文字まで。空なら「主人公」） */
+export function sanitizeName(name) {
+  const s = String(name == null ? '' : name).replace(/[\u0000-\u001f\u007f]/g, '').trim();
+  return Array.from(s).slice(0, HERO_NAME_MAX).join('') || DEFAULT_HERO_NAME;
+}
+
+export function renameHero(state, name) {
+  state.hero.name = sanitizeName(name);
+  return state.hero.name;
+}
+
+/** 開始年齢（0歳 or 7歳）と名前を決めてゲームを始める */
+export function startGame(state, startAge, name) {
   state.meta.startAge = startAge;
   state.life.gameHours = startAge * HOURS_PER_YEAR;
+  if (name !== undefined) renameHero(state, name);
 }
 
 export function genreState(state, genre) {
@@ -117,17 +131,41 @@ export function trackRates(tr, windowSec) {
 
 const itemById = (items, id) => (id ? items.find((i) => i.id === id) || null : null);
 
+/**
+ * 主人公のステータス。レベルで伸び、装備で足される。
+ * 賢さは勉強の正解数でも伸びる（balance.hero.wisPerCorrect）
+ */
 export function heroStats(state, ctx) {
   const { hero } = ctx.balance;
   const L = state.hero.level;
   const w = itemById(ctx.items, state.equipment.weapon);
   const a = itemById(ctx.items, state.equipment.armor);
   const gear = (k) => (w ? w[k] || 0 : 0) + (a ? a[k] || 0 : 0);
+  const grow = (k) => Math.floor((hero.base[k] || 0) + (hero.perLevel[k] || 0) * (L - 1));
   return {
-    maxHp: Math.floor(hero.base.hp + hero.perLevel.hp * (L - 1)),
-    atk: Math.floor(hero.base.atk + hero.perLevel.atk * (L - 1)) + gear('atk'),
-    def: Math.floor(hero.base.def + hero.perLevel.def * (L - 1)) + gear('def'),
+    maxHp: grow('hp') + gear('hp'),
+    maxMp: grow('mp') + gear('mp'),
+    atk: grow('atk') + gear('atk'),
+    def: grow('def') + gear('def'),
+    wis: grow('wis') + Math.floor((hero.wisPerCorrect || 0) * state.knowledge.totalCorrect) + gear('wis'),
+    agi: grow('agi') + gear('agi'),
+    luck: grow('luck') + gear('luck'),
   };
+}
+
+/** すばやさ：攻撃の間隔 ＝ attackIntervalSec ÷（1 ＋ すばやさ × agiSpeedPerPoint） */
+export const heroAttackInterval = (stats, balance) => balance.hero.attackIntervalSec / (1 + stats.agi * balance.stats.agiSpeedPerPoint);
+
+/** 運の良さ：会心の一撃の出やすさ（上限あり） */
+export const critChance = (stats, balance) => Math.min(balance.stats.critChanceMax, stats.luck * balance.stats.critChancePerLuck);
+
+/** 運の良さ：もらえるゴールドが増える */
+export const goldWithLuck = (gold, stats, balance) => Math.round(gold * (1 + stats.luck * balance.stats.goldBonusPerLuck));
+
+/** 賢さ：ひらめき（敵全体への攻撃）のダメージ。防御は効かない */
+export function spellDamage(wis, balance, rng) {
+  const v = balance.damage.variance;
+  return Math.max(1, Math.round(wis * balance.spell.power * (1 + (rng() * 2 - 1) * v)));
 }
 
 export const expToNext = (level, balance) => Math.floor(balance.levelExp.base * balance.levelExp.growth ** (level - 1));
@@ -159,9 +197,10 @@ export function isInvulnerable(state, enemy) {
 
 /* ================= 冒険 ================= */
 
-function makeEnemy(monster, state, ctx) {
+function makeEnemy(monster, state, ctx, slot) {
   const s = monsterStats(state.adventure.floor, ctx.balance);
   const e = {
+    uid: state.adventure.nextUid++, slot,
     monsterId: monster.id, name: monster.name, kind: monster.kind,
     maxHp: s.maxHp, hp: s.maxHp, atk: s.atk, def: s.def, exp: s.exp, gold: s.gold,
     cd: ctx.balance.monster.attackIntervalSec,
@@ -176,33 +215,68 @@ function makeEnemy(monster, state, ctx) {
   return e;
 }
 
-/** 次に出る敵を決める。年齢を満たした未撃破の中ボスが最優先 */
-export function chooseNextMonster(state, ctx) {
+/** 年齢を満たした未撃破の中ボス（いなければ null） */
+export function pendingMidboss(state, ctx) {
   const age = ageYears(state);
   for (const m of ctx.monsters) {
     if (m.kind !== 'midboss') continue;
     if (midbossState(state, m.id).status !== 'defeated' && age >= m.appearAge) return m;
   }
+  return null;
+}
+
+/** 次に出る敵を1体決める。年齢を満たした未撃破の中ボスが最優先 */
+export function chooseNextMonster(state, ctx) {
+  const mb = pendingMidboss(state, ctx);
+  if (mb) return mb;
   const pool = ctx.monsters.filter((m) => m.kind === 'monster');
   return pool[Math.floor(ctx.rng() * pool.length)] || null;
 }
 
-/** 敵を出す。monsterId を渡すとその魔物を出す（テスト・デバッグ用） */
+/** 今狙っている敵（群れの先頭） */
+export const frontEnemy = (state) => state.adventure.enemies[0] || null;
+
+/**
+ * 敵の群れを出す。ザコはその階層の残りの数だけまとめて出る（中ボスは1体で出る）。
+ * monsterIds を渡すとその魔物を出す（テスト・デバッグ用）
+ */
+export function spawnGroup(state, ctx, events, monsterIds = null) {
+  const adv = state.adventure;
+  const b = ctx.balance;
+  let list;
+  if (monsterIds) list = monsterIds.map((id) => ctx.monsters.find((m) => m.id === id)).filter(Boolean);
+  else {
+    const mb = pendingMidboss(state, ctx);
+    if (mb) list = [mb];
+    else {
+      const pool = ctx.monsters.filter((m) => m.kind === 'monster');
+      const n = Math.max(1, b.floor.monstersPerFloor - adv.kills);
+      list = [];
+      for (let i = 0; i < n && pool.length; i++) list.push(pool[Math.floor(ctx.rng() * pool.length)]);
+    }
+  }
+  if (!list.length) return [];
+  adv.enemies = list.map((m, i) => makeEnemy(m, state, ctx, i));
+  // 全員が同時に殴らないよう、最初の攻撃をずらす
+  adv.enemies.forEach((e, i) => { e.cd = b.monster.attackIntervalSec * (0.5 + i / adv.enemies.length); });
+  adv.heroCd = heroAttackInterval(heroStats(state, ctx), b) / 2;
+  for (const e of adv.enemies) {
+    raiseZukan(state, e.monsterId, 1, events);
+    let first = false;
+    if (e.kind === 'midboss') {
+      const st = midbossState(state, e.monsterId);
+      first = st.status === 'waiting';
+      if (first) st.status = 'appeared';
+    }
+    events.push({ type: 'spawn', monsterId: e.monsterId, kind: e.kind, uid: e.uid, slot: e.slot, first });
+  }
+  return adv.enemies;
+}
+
+/** 1体だけ出す（テスト・デバッグ用）。出した敵を返す */
 export function spawnEnemy(state, ctx, events, monsterId = null) {
   const m = monsterId ? ctx.monsters.find((x) => x.id === monsterId) : chooseNextMonster(state, ctx);
-  if (!m) return null;
-  const adv = state.adventure;
-  adv.enemy = makeEnemy(m, state, ctx);
-  adv.heroCd = ctx.balance.hero.attackIntervalSec / 2;
-  raiseZukan(state, m.id, 1, events);
-  let first = false;
-  if (m.kind === 'midboss') {
-    const st = midbossState(state, m.id);
-    first = st.status === 'waiting';
-    if (first) st.status = 'appeared';
-  }
-  events.push({ type: 'spawn', monsterId: m.id, kind: m.kind, first });
-  return adv.enemy;
+  return m ? spawnGroup(state, ctx, events, [m.id])[0] : null;
 }
 
 /** 経過時間 dt 秒（速さ倍率をかけた後）だけゲームを進める。起きたことを events で返す */
@@ -222,73 +296,92 @@ export function tick(state, dt, ctx) {
 function combatStep(state, dt, ctx, events) {
   const adv = state.adventure;
   const b = ctx.balance;
-  if (!adv.enemy) {
+  if (!adv.enemies.length) {
     adv.spawnTimer -= dt;
-    if (adv.spawnTimer <= 0) spawnEnemy(state, ctx, events);
+    if (adv.spawnTimer <= 0) spawnGroup(state, ctx, events);
     return;
   }
+  const hs = heroStats(state, ctx);
+  state.hero.mp = Math.min(hs.maxMp, state.hero.mp + b.spell.mpRegenPerSec * dt);
   adv.heroCd -= dt;
   if (adv.heroCd <= 0) {
-    adv.heroCd += b.hero.attackIntervalSec;
-    const e = adv.enemy;
-    const dmg = isInvulnerable(state, e) ? 0 : calcDamage(heroStats(state, ctx).atk, e.def, b, ctx.rng);
-    hitEnemy(state, dmg, 'hero', ctx, events);
-    if (!adv.enemy) return;
+    adv.heroCd += heroAttackInterval(hs, b);
+    heroAct(state, hs, ctx, events);
+    if (!adv.enemies.length) return;
   }
   for (const ally of state.allies) {
     ally.cd -= dt;
     if (ally.cd > 0) continue;
     ally.cd += b.ally.attackIntervalSec;
-    const e = adv.enemy;
+    const e = adv.enemies[0];
     const dmg = isInvulnerable(state, e) ? 0 : calcDamage(ally.atk, e.def, b, ctx.rng);
-    hitEnemy(state, dmg, 'ally', ctx, events, ally.id);
-    if (!adv.enemy) return;
+    hitEnemy(state, e, dmg, 'ally', ctx, events, { allyId: ally.id });
+    if (!adv.enemies.length) return;
   }
-  const e = adv.enemy;
-  e.cd -= dt;
-  if (e.cd <= 0) {
+  for (const e of [...adv.enemies]) {
+    e.cd -= dt;
+    if (e.cd > 0) continue;
     e.cd += b.monster.attackIntervalSec;
-    const dmg = calcDamage(e.atk, heroStats(state, ctx).def, b, ctx.rng);
+    const dmg = calcDamage(e.atk, hs.def, b, ctx.rng);
     state.hero.hp = Math.max(0, state.hero.hp - dmg);
-    events.push({ type: 'attack', by: 'enemy', target: 'hero', dmg });
-    if (state.hero.hp <= 0) heroDefeated(state, ctx, events);
+    events.push({ type: 'attack', by: 'enemy', target: 'hero', uid: e.uid, slot: e.slot, dmg });
+    if (state.hero.hp <= 0) { heroDefeated(state, ctx, events); return; }
   }
 }
 
-function hitEnemy(state, dmg, by, ctx, events, allyId) {
-  const e = state.adventure.enemy;
-  e.hp = Math.max(0, e.hp - dmg);
-  events.push({ type: 'attack', by, target: 'enemy', dmg, allyId });
-  if (e.hp <= 0) defeatEnemy(state, ctx, events);
+/** 主人公の番：敵が2体以上いてMPが足りれば「ひらめき」で全体攻撃、そうでなければ先頭を攻撃（会心あり） */
+function heroAct(state, hs, ctx, events) {
+  const adv = state.adventure;
+  const b = ctx.balance;
+  const sp = b.spell;
+  const hittable = adv.enemies.filter((e) => !isInvulnerable(state, e));
+  if (hittable.length >= sp.minTargets && state.hero.mp >= sp.mpCost) {
+    state.hero.mp -= sp.mpCost;
+    events.push({ type: 'spell', name: sp.name, count: hittable.length });
+    for (const e of hittable) hitEnemy(state, e, spellDamage(hs.wis, b, ctx.rng), 'spell', ctx, events);
+    return;
+  }
+  const e = adv.enemies[0];
+  if (isInvulnerable(state, e)) { hitEnemy(state, e, 0, 'hero', ctx, events); return; }
+  let dmg = calcDamage(hs.atk, e.def, b, ctx.rng);
+  const crit = ctx.rng() < critChance(hs, b);
+  if (crit) dmg = Math.round(dmg * b.stats.critMultiplier);
+  hitEnemy(state, e, dmg, 'hero', ctx, events, { crit });
 }
 
-/** 勉強の正解などで今の敵にダメージを与える（中ボスの防御が崩れる前は0） */
-export function damageEnemy(state, amount, ctx, events, by = 'quiz') {
-  const e = state.adventure.enemy;
-  if (!e) return 0;
+function hitEnemy(state, e, dmg, by, ctx, events, extra = {}) {
+  if (!state.adventure.enemies.includes(e)) return;
+  e.hp = Math.max(0, e.hp - dmg);
+  events.push({ type: 'attack', by, target: 'enemy', uid: e.uid, slot: e.slot, monsterId: e.monsterId, dmg, ...extra });
+  if (e.hp <= 0) defeatEnemy(state, e, ctx, events);
+}
+
+/** 勉強の正解などで敵にダメージを与える（既定は群れの先頭。中ボスの防御が崩れる前は0） */
+export function damageEnemy(state, amount, ctx, events, by = 'quiz', target = null) {
+  const e = target || frontEnemy(state);
+  if (!e || !state.adventure.enemies.includes(e)) return 0;
   const dmg = isInvulnerable(state, e) ? 0 : Math.max(0, Math.round(amount));
-  hitEnemy(state, dmg, by, ctx, events);
+  hitEnemy(state, e, dmg, by, ctx, events);
   return dmg;
 }
 
-export function healEnemy(state, amount, events) {
-  const e = state.adventure.enemy;
-  if (!e) return 0;
+export function healEnemy(state, amount, events, target = null) {
+  const e = target || frontEnemy(state);
+  if (!e || !state.adventure.enemies.includes(e)) return 0;
   const before = e.hp;
   e.hp = Math.min(e.maxHp, e.hp + Math.round(amount));
   const healed = e.hp - before;
-  events.push({ type: 'heal', target: 'enemy', amount: healed });
+  events.push({ type: 'heal', target: 'enemy', uid: e.uid, slot: e.slot, amount: healed });
   return healed;
 }
 
-function defeatEnemy(state, ctx, events) {
+function defeatEnemy(state, e, ctx, events) {
   const adv = state.adventure;
-  const e = adv.enemy;
   const b = ctx.balance;
-  adv.enemy = null;
-  adv.spawnTimer = b.floor.spawnDelaySec;
-  state.gold += e.gold;
-  events.push({ type: 'defeat', monsterId: e.monsterId, kind: e.kind, exp: e.exp, gold: e.gold });
+  adv.enemies = adv.enemies.filter((x) => x !== e);
+  const gold = goldWithLuck(e.gold, heroStats(state, ctx), b);
+  state.gold += gold;
+  events.push({ type: 'defeat', uid: e.uid, slot: e.slot, monsterId: e.monsterId, kind: e.kind, exp: e.exp, gold });
   gainExp(state, e.exp, ctx, events);
   raiseZukan(state, e.monsterId, 2, events);
   if (e.kind === 'midboss') {
@@ -302,9 +395,12 @@ function defeatEnemy(state, ctx, events) {
       });
       events.push({ type: 'allyJoined', id: e.monsterId, name: e.name });
     }
-    return;
+  } else {
+    adv.kills++;
   }
-  adv.kills++;
+  if (adv.enemies.length) return;
+  // 群れを全部倒した
+  adv.spawnTimer = b.floor.spawnDelaySec;
   if (adv.kills >= b.floor.monstersPerFloor) {
     adv.kills = 0;
     if (adv.floor < b.floor.maxFloorPhase1) {
@@ -322,10 +418,12 @@ export function gainExp(state, amount, ctx, events) {
   h.totalExp += amount;
   let need = expToNext(h.level, ctx.balance);
   while (h.exp >= need) {
-    const before = heroStats(state, ctx).maxHp;
+    const before = heroStats(state, ctx);
     h.exp -= need;
     h.level++;
-    h.hp += heroStats(state, ctx).maxHp - before;
+    const after = heroStats(state, ctx);
+    h.hp += after.maxHp - before.maxHp;
+    h.mp += after.maxMp - before.maxMp;
     events.push({ type: 'levelUp', level: h.level });
     need = expToNext(h.level, ctx.balance);
   }
@@ -336,7 +434,7 @@ function heroDefeated(state, ctx, events) {
   const adv = state.adventure;
   adv.floor = 1;
   adv.kills = 0;
-  adv.enemy = null;
+  adv.enemies = [];
   adv.spawnTimer = ctx.balance.floor.spawnDelaySec;
   const summary = sleep(state, ctx, 'defeated');
   events.push({ type: 'heroDefeated', sleep: summary });
@@ -345,14 +443,16 @@ function heroDefeated(state, ctx, events) {
 /* ================= 睡眠 ================= */
 
 /**
- * ゲーム内時間を進めてHPを全回復し、ジャンルごとに熟練を判定する。
+ * ゲーム内時間を進めてHP・MPを全回復し、ジャンルごとに熟練を判定する。
  * 前回の睡眠以降に解いたジャンル：upChance で+1。解いていないジャンル（Lv1以上）：downChance で−1。
  * 乱数はジャンルの並び順（GENRES）に、判定するジャンルごとに1回ずつ使う。
  */
 export function sleep(state, ctx, reason = 'bed') {
   const s = ctx.balance.sleep;
   state.life.gameHours += s.gameHours;
-  state.hero.hp = heroStats(state, ctx).maxHp;
+  const hs = heroStats(state, ctx);
+  state.hero.hp = hs.maxHp;
+  state.hero.mp = hs.maxMp;
   for (const a of state.allies) a.hp = a.maxHp;
   const up = [], down = [];
   for (const genre of GENRES) {

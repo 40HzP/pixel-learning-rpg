@@ -124,12 +124,9 @@ function submit(app, index) {
   if (view.phase !== 'question') return;
   const s = view.session;
   const cur = s.current;
-  const enemyBefore = app.state.adventure.enemy;
   const res = answer(app.state, s, index, app.ctx);
   res.question = cur.question;
   res.choices = cur.choices;
-  res.enemyName = enemyBefore ? enemyBefore.name : null;
-  res.enemyMidboss = enemyBefore && enemyBefore.kind === 'midboss' ? enemyBefore.monsterId : null;
   view.result = res;
   view.chosen = index;
   view.phase = 'result';
@@ -145,19 +142,19 @@ function effectLines(app, r) {
   const g = app.state.knowledge.genres[r.question.genre];
   const per = app.ctx.balance.quiz.correctPerProficiencyLevel;
   if (r.correct) {
-    if (r.midbossBroken) lines.push(['good', `${r.enemyName}の防御が崩れた！`]);
-    if (r.enemyName && r.damage > 0) lines.push(['good', r.interfered ? `口を挟んでいた${r.enemyName}に大ダメージ（${r.damage}）` : `${r.enemyName}に${r.damage}ダメージ`]);
-    if (r.enemyName && r.damage === 0 && r.enemyMidboss) {
-      const st = midbossState(app.state, r.enemyMidboss);
-      const mb = app.ctx.monsters.find((m) => m.id === r.enemyMidboss);
-      if (st.status !== 'broken') lines.push(['', `${r.enemyName}には効かない…（防御が崩れるまで あと${mb.unlockCorrect - st.correct}問）`]);
+    if (r.midbossBroken) lines.push(['good', `${r.targetName}の防御が崩れた！`]);
+    if (r.targetName && r.damage > 0) lines.push(['good', r.interfered ? `口を挟んでいた${r.targetName}に大ダメージ（${r.damage}）` : `${r.targetName}に${r.damage}ダメージ`]);
+    if (r.targetName && r.damage === 0 && r.targetMidboss) {
+      const st = midbossState(app.state, r.targetMidboss);
+      const mb = app.ctx.monsters.find((m) => m.id === r.targetMidboss);
+      if (st.status !== 'broken') lines.push(['', `${r.targetName}には効かない…（防御が崩れるまで あと${mb.unlockCorrect - st.correct}問）`]);
     }
-    if (r.defeated) lines.push(['good', `${r.enemyName}を倒した！`]);
+    if (r.defeated) lines.push(['good', `${r.targetName}を倒した！`]);
     if (r.levelUp) lines.push(['good', `${r.levelUp.genre}の熟練が Lv ${r.levelUp.level} になった！`]);
     else if (g && g.level < MAX_PROFICIENCY) lines.push(['', `${r.question.genre}：次のLvまで ${g.progress}/${per}回`]);
     for (const z of r.zukan) lines.push(['good', `図鑑：${name(z.monsterId)}の正体が判明した`]);
   } else {
-    if (r.fooled) lines.push(['bad', `${r.enemyName}に騙された！　${r.enemyName}が${r.healed}回復した`]);
+    if (r.fooled) lines.push(['bad', `${r.targetName}に騙された！　${r.targetName}が${r.healed}回復した`]);
     lines.push(['', '過去問復習に入った']);
   }
   return lines;

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { serialize, deserialize, SAVE_VERSION } from '../js/save.js';
+import { serialize, deserialize, SAVE_VERSION, MIGRATIONS } from '../js/save.js';
 import { tick, buyItem } from '../js/sim.js';
 import { createSession, nextQuestion, answer } from '../js/quiz.js';
 import { balance, makeCtx, newGame, seededRng } from './helpers.js';
@@ -39,19 +39,42 @@ test('セーブに無い項目は既定値で埋める（項目を足したと�
   assert.equal(back.hero.level, s.hero.level);
 });
 
-test('古い版のセーブを移行できる', () => {
-  // 版1→版2で「所持金を gold から wallet.gold に移した」と仮定した移行
-  const migrations = {
-    1: (save) => {
-      save.state.wallet = { gold: save.state.gold };
-      delete save.state.gold;
-      save.version = 2;
-      return save;
+test('版1のセーブ（敵が1体・名前やMPが無い）を版2に移行できる', () => {
+  const v1 = {
+    version: 1,
+    state: {
+      meta: { startAge: 0 },
+      life: { generation: 1, gameHours: 1234 },
+      hero: { level: 7, exp: 3, totalExp: 120, hp: 40 },
+      gold: 77,
+      adventure: { floor: 3, kills: 2, enemy: { monsterId: 'tsugihakuro', name: 'ツギハクロ', kind: 'monster', maxHp: 20, hp: 9, atk: 4, def: 1, exp: 6, gold: 4, cd: 0.5 }, spawnTimer: 0, heroCd: 0.2 },
+      knowledge: { genres: { 生物: { level: 1, progress: 3, correct: 13, studied: true } }, totalCorrect: 13, review: [], recent: [], zukan: {} },
     },
   };
+  const s = deserialize(JSON.stringify(v1), balance);
+  assert.equal(s.adventure.enemy, undefined);
+  assert.equal(s.adventure.enemies.length, 1);
+  assert.equal(s.adventure.enemies[0].hp, 9, '戦っていた敵はそのまま');
+  assert.equal(s.adventure.enemies[0].uid, 1);
+  assert.equal(s.adventure.nextUid, 2);
+  assert.equal(s.hero.name, '主人公', '名前は既定値');
+  assert.equal(s.hero.mp, balance.hero.base.mp, 'MPは既定値');
+  assert.equal(s.hero.level, 7);
+  assert.equal(s.gold, 77);
+  assert.equal(s.knowledge.totalCorrect, 13);
+  // 続けて遊べる
+  const ctx = makeCtx(seededRng(2));
+  for (let i = 0; i < 30; i++) tick(s, 1, ctx);
+  assert.ok(s.hero.totalExp > 120);
+});
+
+test('移行は版ごとに順につながる（版3を足したと仮定）', () => {
+  const migrations = {
+    ...MIGRATIONS,
+    2: (save) => { save.state.wallet = { gold: save.state.gold }; delete save.state.gold; save.version = 3; return save; },
+  };
   const s = playedState();
-  const old = serialize(s); // 版1
-  const back = deserialize(old, balance, { migrations, version: 2 });
+  const back = deserialize(serialize(s), balance, { migrations, version: 3 });
   assert.equal(back.wallet.gold, s.gold);
   assert.equal(back.hero.totalExp, s.hero.totalExp);
 });
