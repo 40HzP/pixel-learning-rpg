@@ -110,6 +110,7 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   pointer-events: none; z-index: 20; padding: 0 12px;
 }
+#notices.bottom { top: auto !important; bottom: calc(var(--tabs-h) + env(safe-area-inset-bottom) + 10px); }
 .notice {
   background: rgba(38, 33, 57, .95); border: 2px solid var(--accent); padding: 6px 12px;
   max-width: min(420px, 100%); width: fit-content; font-size: 14px; white-space: pre-line;
@@ -187,14 +188,40 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .stat { display: grid; grid-template-columns: 5.5em 4.5em 1fr; align-items: baseline; gap: 6px; background: var(--panel); padding: 4px 8px; }
 .stat b { font-weight: normal; color: var(--accent); }
 .stat small { color: var(--muted); font-size: 12px; }
-.version { font-size: 12px; text-align: right; }
 #update-bar {
   position: fixed; left: 0; right: 0; top: env(safe-area-inset-top); z-index: 25;
   display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;
   padding: 6px 12px; background: var(--panel); border-bottom: 2px solid var(--accent); font-size: 14px;
 }
-.soon { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.soon div { background: var(--panel); border: 2px dashed var(--line); padding: 8px; color: var(--muted); font-size: 14px; }
+
+/* 街：施設の外観を並べた 90×160 を整数倍で表示し、建物の上にタップできるボタンを重ねる（--s は倍率） */
+#screen-facility.town-screen { display: flex; padding: 4px; }
+.town { position: relative; margin: auto; flex-shrink: 0; }
+.town canvas { display: block; width: 100%; height: 100%; }
+.town-bar {
+  position: absolute; left: 0; right: 0; top: 0; height: calc(var(--s, 4) * 8px);
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px;
+  background: rgba(26, 22, 38, .6); font-size: 13px; white-space: nowrap; pointer-events: none;
+  text-shadow: 1px 1px 0 #1a1626, -1px 1px 0 #1a1626, 1px -1px 0 #1a1626, -1px -1px 0 #1a1626;
+}
+.town-bar .muted { font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+.town .spot { position: absolute; padding: 0; min-height: 0; background: none; border: 0; }
+.town .spot:focus-visible, .town .spot:active { outline: 2px solid var(--accent); outline-offset: 1px; }
+.town .label {
+  position: absolute; left: 50%; top: 100%; transform: translateX(-50%);
+  white-space: nowrap; background: rgba(26, 22, 38, .85); border: 1px solid var(--line);
+  padding: 0 4px; font-size: 12px; line-height: 1.5;
+}
+.town .label small { color: var(--muted); font-size: 10px; margin-left: 4px; }
+.town .spot.hero .label { color: var(--accent); }
+.town.small .label { font-size: 11px; line-height: 1.35; padding: 0 3px; }
+.town.small .town-bar { font-size: 12px; }
+.fhead { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.fhead h2 { flex: 1; min-width: 0; font-size: 20px; font-weight: normal; color: var(--accent); margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fhead .back { flex-shrink: 0; }
+.fhead canvas { flex-shrink: 0; }
+.soon-box { background: var(--panel); border: 2px dashed var(--line); padding: 10px; line-height: 1.7; }
+.soon-box b { display: block; color: var(--accent); font-weight: normal; }
 
 /* ---------- 図鑑 ---------- */
 .zukan { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }

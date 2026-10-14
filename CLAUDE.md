@@ -143,7 +143,7 @@ EOF
   - `pixel/editor.html` とスプライトJSONの形式（`serializeSprite`）を変更しない
   - ゲームは `pixel/sprites/*.json` と `pixel/palette.json` を **読むだけ**。`_original/` と `export/` は読まない
   - スプライトをゲーム用にコピー・変換して置かない（手直しした瞬間にゲームへ反映されるようにする）
-  - ゲームが読むスプライトは `monsters.json`・`recruits.json` の `sprites` に書いた名前と `hero_idle` / `hero_attack` / `bg_floor01` だけ（ブラウザはフォルダの中身を一覧できないため）
+  - ゲームが読むスプライトは `monsters.json`・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`、`hero_idle` / `hero_attack` / `bg_floor01` だけ（ブラウザはフォルダの中身を一覧できないため）
 - 計算（`sim.js`・`quiz.js`・`save.js`・`genres.js`）はブラウザの機能（DOM・localStorage）に触らない。乱数は `ctx.rng` で渡す（テストで固定するため）
 - 対象はスマホのブラウザ（縦画面）とデスクトップ版 Chrome。将来ストアアプリ化するので、ブラウザ固有の機能に頼りすぎない
 
@@ -161,12 +161,13 @@ game/
     genres.js            … 29ジャンル
     sprites.js           … スプライトJSONの読み込みと描画
     render.js            … 冒険画面の描画（90×160）
-    ui/                  … 画面ごとの表示（adventure / study / facility / zukan / debug / dom）
+    ui/                  … 画面ごとの表示（adventure / study / facility（街） / zukan / debug / dom）
   data/
     balance.json         … 数値（ここを書き換えるだけで調整できる）
     monsters.json        … 魔物・小ボス・中ボス
     items.json           … 店の品物
     recruits.json        … 仲間が集まる場所で契約できる仲間
+    town.json            … 施設画面の街（背景、施設の外観の名前と置く位置、主人公の立つ位置）
     questions.json       … 問題（Notion から生成。手で編集しない）
   fonts/                 … DotGothic16 と OFL.txt
   tests/                 … node --test 用
@@ -210,6 +211,15 @@ tools/check-questions.mjs … questions.json の検査
 - 強さは主人公に合わせて伸びる：攻撃＝主人公の攻撃×`atkRatio`。`role` は `attack`（先頭を攻撃）・`all`（敵全体を攻撃）・`heal`（主人公のHPを最大HP×`healRatio` 回復）。`intervalSec` は行動の間隔
 - 契約した仲間はセーブの `allies` に `hired: true` と次の支払い日 `paidUntil` を持つ。中ボスだった仲間（契約料なし）と同じ配列
 - スプライトは `ally_<id>_idle`（大人の頭身・右向き）。冒険画面では主人公の後ろに最大5人まで並べる
+
+## 施設画面（街）
+
+- 施設画面は「街」。`bg_town`（90×160）の上に施設の外観（`town_<施設>`、32×32、category `building`）を並べ、広場に主人公が立つ。設計ページ「施設画面の表示」の「施設を並べる」を、40HzP の依頼で街の見た目にした
+- 並べる位置は `town.json` の `x`・`y`（街の左上からのドット数）。建物の前の道と広場は `bg_town` に描いてあるので、位置を変えるときは背景も合わせる。`town.test.js` が「街の中に収まる・重ならない・スプライトがある」を確かめる
+- 建物をタップするとその施設に入る（上に「← 街へ」）。中身があるのは店（`shop`）・仲間が集まる場所（`guild`）・寝床（`home`）。それ以外（会社・ロケット発射場・専攻の付け替え・拠点）は「準備中」と `desc` を出す。中身は `facility.js` の `PANELS`
+- 広場の主人公をタップすると、主人公のステータスと名前の変更。街の上の帯に所持金と版を出す
+- 施設の中にいるときは、知らせを画面の下に出す（上の「← 街へ」を隠さない）
+- 施設を足すとき：スプライトを描き（`style-guide.md` 9章）、`town.json` に1件足す。中身を作ったら `PANELS` に足す
 
 ## 階層と小ボス
 

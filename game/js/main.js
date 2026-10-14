@@ -47,12 +47,12 @@ function loadSave(balance, notify) {
 
 async function boot() {
   const params = new URLSearchParams(location.search);
-  let balance, monsters, items, questions, recruits;
+  let balance, monsters, items, questions, recruits, town;
   try {
-    [balance, { monsters }, { items }, { questions }, { recruits }] = await Promise.all([
+    [balance, { monsters }, { items }, { questions }, { recruits }, town] = await Promise.all([
       fetchJSON('data/balance.json'), fetchJSON('data/monsters.json'),
       fetchJSON('data/items.json'), fetchJSON('data/questions.json'),
-      fetchJSON('data/recruits.json'),
+      fetchJSON('data/recruits.json'), fetchJSON('data/town.json'),
     ]);
   } catch (e) {
     document.querySelector('#loading .dialog').textContent = 'ゲームのデータを読めませんでした。\n' + e.message;
@@ -72,12 +72,19 @@ async function boot() {
     }),
   ]);
   const [heroIdle, heroAttack, bg] = await Promise.all([load('hero_idle'), load('hero_attack'), load('bg_floor01')]);
+  // 施設画面の街：背景と施設の外観（town.json に書いた名前だけ読む）
+  const townSprites = {};
+  const [townBg] = await Promise.all([
+    load(town.background),
+    ...town.facilities.map(async (f) => { townSprites[f.id] = await load(f.sprite); }),
+  ]);
 
   const ctx = { balance, monsters, items, questions, recruits, rng: Math.random };
   const app = {
     ctx, palette, monsterSprites, recruitSprites,
     heroSprites: { idle: heroIdle, attack: heroAttack },
     bg,
+    town: { ...town, bg: townBg, sprites: townSprites },
     state: null,
     speed: 1,
     debug: params.get('debug') === '1',
@@ -97,6 +104,7 @@ async function boot() {
       return r;
     },
     showTab,
+    placeNotices: () => placeNotices(),
   };
   app.state = loadSave(balance, notify);
   app.renderer = createRenderer(document.getElementById('scene'), app);
@@ -165,11 +173,13 @@ async function boot() {
   }
   /**
    * 知らせの位置：冒険では空と地面の間（山の辺り）、ほかの画面では上。解答ボタンやキャラクターに重ねない。
-   * 冒険画面のステータスが長いとき（挑戦・逃げるボタンが出ているときなど）は、その下に出してボタンを隠さない
+   * 冒険画面のステータスが長いとき（挑戦・逃げるボタンが出ているときなど）は、その下に出してボタンを隠さない。
+   * 施設の中に入っているときは下に出す（上の「街へ」ボタンを隠さない）
    */
   function placeNotices() {
     const box = document.getElementById('notices');
     const cv = document.getElementById('scene');
+    box.classList.toggle('bottom', app.tab === 'facility' && facility.insideFacility());
     if (app.tab === 'adventure' && cv.clientHeight) {
       const r = cv.getBoundingClientRect();
       const hud = document.getElementById('hud').getBoundingClientRect();
