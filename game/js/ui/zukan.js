@@ -1,4 +1,5 @@
 // 図鑑：未遭遇はシルエット、遭遇で名前と俗説、撃破か関連する問題に正解で正体
+// 小ボス（かつての学説）は、正体に加えて「なぜ信じられたか」「誰がどう覆したか」を載せる
 import { spriteCanvas } from '../sprites.js';
 import { el } from './dom.js';
 
@@ -17,7 +18,21 @@ function card(app, m) {
   const sprite = (app.monsterSprites[m.id] || {}).idle || null;
   const pic = el('div', { class: 'pic' }, spriteCanvas(sprite, 3, app.palette, { silhouette: z.stage === 0 }));
   if (z.stage === 0) {
-    return el('div', { class: 'zcard unknown' }, pic, el('div', { class: 'zname' }, '？？？'), el('div', { class: 'muted' }, 'まだ出会っていない'));
+    return el('div', { class: 'zcard unknown' + (m.kind === 'boss' ? ' wide' : '') }, pic, el('div', { class: 'zname' }, '？？？'),
+      el('div', { class: 'muted' }, m.kind === 'boss' ? `${m.floor}階層で待っている小ボス` : 'まだ出会っていない'));
+  }
+  if (m.kind === 'boss') {
+    const label = (t) => el('span', { class: 'label' }, t);
+    const known = z.stage >= 2;
+    return el('div', { class: 'zcard wide' }, pic,
+      el('div', { class: 'zname' }, m.name, el('span', { class: 'muted' }, `（小ボス・${m.floor}階層）`)),
+      label('かつての学説'), el('div', {}, m.myth),
+      ...(known
+        ? [label('正体'), el('div', {}, m.debated ? '研究が割れている' : m.truth),
+          label('なぜ信じられたか'), el('div', {}, m.whyBelieved || ''),
+          label('誰がどう覆したか'), el('div', {}, m.overturnedBy || ''),
+          el('div', { class: z.fooled ? 'bad' : 'muted', style: { marginTop: '4px' } }, `この学説に${z.fooled}回騙された`)]
+        : [el('div', { class: 'muted', style: { marginTop: '4px' } }, '倒すか、関連する問題に正解すると、正体と「なぜ信じられたか」「誰がどう覆したか」が分かる')]));
   }
   if (m.kind === 'midboss') {
     return el('div', { class: 'zcard' }, pic,

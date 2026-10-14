@@ -133,6 +133,19 @@
       "sprites": { "idle": null, "attack": null }
     },
     {
+      "id": "tendousetsu",
+      "name": "テンドウセツ",
+      "kind": "boss",
+      "floor": 10,
+      "genres": ["天体力学"],
+      "myth": "地球は宇宙の中心で止まっていて、太陽や月や星が地球のまわりを回っている（天動説）",
+      "truth": "地球は自転しながら、太陽のまわりを回っている（地動説）",
+      "whyBelieved": "太陽や星は毎日東から昇って西へ沈み、足もとの地面が動いている感じはしない。2世紀にプトレマイオスが、円の上をさらに小さな円（周転円）で回る仕組みを組み合わせて、惑星の位置を計算できる体系にまとめた",
+      "overturnedBy": "1543年にコペルニクスが太陽を中心に置く体系を発表した。1609年にケプラーが惑星は楕円の軌道を回ることを示し、1610年にガリレオが望遠鏡で木星の衛星と金星の満ち欠けを見つけた",
+      "debated": false,
+      "sprites": { "idle": "tendousetsu_idle", "attack": "tendousetsu_attack" }
+    },
+    {
       "id": "teacher_elementary",
       "name": "小学校教師",
       "kind": "midboss",

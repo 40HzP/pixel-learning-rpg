@@ -34,6 +34,7 @@ export function createState(balance) {
       zukan: {},                                    // 魔物id → { stage: 0|1|2, fooled }
     },
     midbosses: {},                                  // 中ボスid → { status: waiting|appeared|broken|defeated, correct }
+    bosses: {},                                     // 小ボスid → { status: waiting|appeared|defeated }（一度倒した小ボスは復活しない）
     lastSleep: null,                                // 直近の睡眠のまとめ
   };
 }
@@ -80,6 +81,11 @@ export function raiseZukan(state, monsterId, stage, events) {
 export function midbossState(state, id) {
   if (!state.midbosses[id]) state.midbosses[id] = { status: 'waiting', correct: 0 };
   return state.midbosses[id];
+}
+
+export function bossState(state, id) {
+  if (!state.bosses[id]) state.bosses[id] = { status: 'waiting' };
+  return state.bosses[id];
 }
 
 /* ================= 時間 ================= */
@@ -205,12 +211,14 @@ function makeEnemy(monster, state, ctx, slot) {
     maxHp: s.maxHp, hp: s.maxHp, atk: s.atk, def: s.def, exp: s.exp, gold: s.gold,
     cd: ctx.balance.monster.attackIntervalSec,
   };
-  if (monster.kind === 'midboss') {
-    const mb = ctx.balance.midboss;
-    e.maxHp = e.hp = Math.round(s.maxHp * mb.hpMultiplier);
-    e.atk = Math.max(1, Math.round(s.atk * mb.atkMultiplier));
-    e.exp = Math.round(s.exp * mb.expMultiplier);
-    e.gold = Math.round(s.gold * mb.goldMultiplier);
+  // 中ボス・小ボスは、その階層のザコの数値に倍率をかける
+  const mult = monster.kind === 'midboss' ? ctx.balance.midboss : monster.kind === 'boss' ? ctx.balance.boss : null;
+  if (mult) {
+    e.maxHp = e.hp = Math.round(s.maxHp * mult.hpMultiplier);
+    e.atk = Math.max(1, Math.round(s.atk * mult.atkMultiplier));
+    e.def = Math.round(s.def * (mult.defMultiplier || 1));
+    e.exp = Math.round(s.exp * mult.expMultiplier);
+    e.gold = Math.round(s.gold * mult.goldMultiplier);
   }
   return e;
 }
@@ -225,9 +233,18 @@ export function pendingMidboss(state, ctx) {
   return null;
 }
 
-/** 次に出る敵を1体決める。年齢を満たした未撃破の中ボスが最優先 */
+/** 今の階層の未撃破の小ボス（いなければ null）。小ボスは monsters.json の floor に書いた階層に出る */
+export function pendingBoss(state, ctx) {
+  const floor = state.adventure.floor;
+  for (const m of ctx.monsters) {
+    if (m.kind === 'boss' && m.floor === floor && bossState(state, m.id).status !== 'defeated') return m;
+  }
+  return null;
+}
+
+/** 次に出る敵を1体決める。年齢を満たした未撃破の中ボスが最優先、次にその階層の小ボス */
 export function chooseNextMonster(state, ctx) {
-  const mb = pendingMidboss(state, ctx);
+  const mb = pendingMidboss(state, ctx) || pendingBoss(state, ctx);
   if (mb) return mb;
   const pool = ctx.monsters.filter((m) => m.kind === 'monster');
   return pool[Math.floor(ctx.rng() * pool.length)] || null;
@@ -237,7 +254,8 @@ export function chooseNextMonster(state, ctx) {
 export const frontEnemy = (state) => state.adventure.enemies[0] || null;
 
 /**
- * 敵の群れを出す。ザコはその階層の残りの数だけまとめて出る（中ボスは1体で出る）。
+ * 敵の群れを出す。ザコはその階層の残りの数だけまとめて出る（中ボス・小ボスは1体で出る）。
+ * 小ボスのいる階層は小ボスだけ。倒すと次の階層に進む。
  * monsterIds を渡すとその魔物を出す（テスト・デバッグ用）
  */
 export function spawnGroup(state, ctx, events, monsterIds = null) {
@@ -246,7 +264,7 @@ export function spawnGroup(state, ctx, events, monsterIds = null) {
   let list;
   if (monsterIds) list = monsterIds.map((id) => ctx.monsters.find((m) => m.id === id)).filter(Boolean);
   else {
-    const mb = pendingMidboss(state, ctx);
+    const mb = pendingMidboss(state, ctx) || pendingBoss(state, ctx);
     if (mb) list = [mb];
     else {
       const pool = ctx.monsters.filter((m) => m.kind === 'monster');
@@ -263,12 +281,12 @@ export function spawnGroup(state, ctx, events, monsterIds = null) {
   for (const e of adv.enemies) {
     raiseZukan(state, e.monsterId, 1, events);
     let first = false;
-    if (e.kind === 'midboss') {
-      const st = midbossState(state, e.monsterId);
+    if (e.kind === 'midboss' || e.kind === 'boss') {
+      const st = e.kind === 'midboss' ? midbossState(state, e.monsterId) : bossState(state, e.monsterId);
       first = st.status === 'waiting';
       if (first) st.status = 'appeared';
     }
-    events.push({ type: 'spawn', monsterId: e.monsterId, kind: e.kind, uid: e.uid, slot: e.slot, first });
+    events.push({ type: 'spawn', monsterId: e.monsterId, name: e.name, kind: e.kind, uid: e.uid, slot: e.slot, floor: adv.floor, first });
   }
   return adv.enemies;
 }
@@ -371,7 +389,7 @@ export function healEnemy(state, amount, events, target = null) {
   const before = e.hp;
   e.hp = Math.min(e.maxHp, e.hp + Math.round(amount));
   const healed = e.hp - before;
-  events.push({ type: 'heal', target: 'enemy', uid: e.uid, slot: e.slot, amount: healed });
+  events.push({ type: 'heal', target: 'enemy', uid: e.uid, slot: e.slot, monsterId: e.monsterId, amount: healed });
   return healed;
 }
 
@@ -395,20 +413,19 @@ function defeatEnemy(state, e, ctx, events) {
       });
       events.push({ type: 'allyJoined', id: e.monsterId, name: e.name });
     }
+  } else if (e.kind === 'boss') {
+    bossState(state, e.monsterId).status = 'defeated';
+    events.push({ type: 'bossDefeated', monsterId: e.monsterId, name: e.name, floor: adv.floor });
   } else {
     adv.kills++;
   }
   if (adv.enemies.length) return;
-  // 群れを全部倒した
+  // 群れを全部倒した。ザコを階層の数だけ倒すか、小ボスを倒すと次の階層へ（階層の上限はない）
   adv.spawnTimer = b.floor.spawnDelaySec;
-  if (adv.kills >= b.floor.monstersPerFloor) {
+  if (adv.kills >= b.floor.monstersPerFloor || e.kind === 'boss') {
     adv.kills = 0;
-    if (adv.floor < b.floor.maxFloorPhase1) {
-      adv.floor++;
-      events.push({ type: 'floorUp', floor: adv.floor });
-    } else {
-      events.push({ type: 'floorRepeat', floor: adv.floor });
-    }
+    adv.floor++;
+    events.push({ type: 'floorUp', floor: adv.floor });
   }
 }
 

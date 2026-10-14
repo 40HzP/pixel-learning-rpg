@@ -190,6 +190,7 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .zcard .zname { font-size: 15px; }
 .zcard .label { color: var(--muted); font-size: 11px; display: block; margin-top: 4px; }
 .zcard.unknown .zname { color: var(--muted); }
+.zcard.wide { grid-column: 1 / -1; }
 
 /* ---------- デバッグ ---------- */
 .debug .section > div { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }

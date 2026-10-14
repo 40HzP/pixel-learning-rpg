@@ -164,7 +164,7 @@ game/
     ui/                  … 画面ごとの表示（adventure / study / facility / zukan / debug / dom）
   data/
     balance.json         … 数値（ここを書き換えるだけで調整できる）
-    monsters.json        … 魔物・中ボス
+    monsters.json        … 魔物・小ボス・中ボス
     items.json           … 店の品物
     questions.json       … 問題（Notion から生成。手で編集しない）
   fonts/                 … DotGothic16 と OFL.txt
@@ -183,8 +183,21 @@ tools/check-questions.mjs … questions.json の検査
   - `stats.agiSpeedPerPoint` すばやさ1あたり攻撃が速くなる割合（間隔＝attackIntervalSec÷(1＋すばやさ×この値)）
   - `stats.critChancePerLuck`・`critChanceMax`・`critMultiplier` 運の良さによる会心の一撃、`stats.goldBonusPerLuck` 運の良さ1あたりゴールドが増える割合
   - `spell` 主人公の全体攻撃「ひらめき」：敵が `minTargets` 体以上でMPが `mpCost` 以上あると使う。ダメージ＝賢さ×`power`（防御は効かない）。MPは毎秒 `mpRegenPerSec` 回復し、眠ると全回復
+  - `boss` 小ボスの強さ：その階層のザコの数値に `hpMultiplier`・`atkMultiplier`・`defMultiplier`・`expMultiplier`・`goldMultiplier` を掛ける
 - 主人公の名前は `hero.name`（8文字まで。最初の案内と施設で決める）
 - 品物は `items.json`、魔物は `monsters.json`
+
+## 階層と小ボス
+
+- 階層に上限はない（設計書4.1の「9階層を越えたら9階層を繰り返す」は、40HzP の依頼で外した）。敵は階層ごとに強くなり続ける
+- 小ボス（かつての学説）は `monsters.json` に `kind: "boss"` で書く。設計書に無い項目：
+  - `floor` 出る階層（設計ページでは10階層ごと）
+  - `whyBelieved` なぜ信じられたか、`overturnedBy` 誰がどう覆したか（図鑑で正体と一緒に開く）
+- 小ボスのいる階層では小ボスだけが1体で出て、倒すと次の階層へ進む。中ボスが待っているときは中ボスが先
+- 一度倒した小ボスは出ない（セーブの `bosses`）。その階層はザコの階層になる。小ボスは仲間にならない
+- 小ボスのスプライトは 32×32（`style-guide.md`）。ゲームは幅が16より大きい敵を右寄りに1体で描く
+- 小ボスを問題に干渉させるには、Notion の問題の「関連する魔物」に小ボスの名前を書き、誤答1に「当時その学説が信じられた根拠」を入れる（設計ページ「誤答選択肢との関係」）
+- 今あるのは10階層のテンドウセツ（天動説）だけ。11階層から先はザコだけが出る。背景は全階層 `bg_floor01` のまま（10階層ごとの世界観の切り替えはまだ）
 
 ## 「問題を同期して」と頼まれたとき（`questions.json` は手で編集しない）
 

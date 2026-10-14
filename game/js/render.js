@@ -16,6 +16,8 @@ const FORMATION = [
   { x: 74, feet: 117 },
 ];
 const slotPos = (slot) => FORMATION[(slot || 0) % FORMATION.length];
+// 大きい敵（小ボス 32×32 など）は群れの並びを使わず、右寄りに1体で立たせる
+const BIG_FEET = 141;
 
 // 3×5 のドット数字（ダメージ表示用）
 const DIGITS = {
@@ -56,6 +58,17 @@ export function createRenderer(canvas, app) {
   }
 
   const spriteOf = (id, kind) => (app.monsterSprites[id] || {})[kind] || null;
+  const kindOf = new Map(app.ctx.monsters.map((m) => [m.id, m.kind]));
+
+  /** 敵の絵の位置と大きさ：左端 x・足元 feet・幅 w・高さ h（中心は cx, cy、頭の上は top） */
+  function enemyBox(monsterId, slot) {
+    const sp = spriteOf(monsterId, 'idle');
+    const w = sp ? sp.w : kindOf.get(monsterId) === 'boss' ? 32 : 16;
+    const h = sp ? sp.h : w;
+    const p = w > 16 ? { x: SCENE_W - w - 3, feet: BIG_FEET } : slotPos(slot);
+    const top = p.feet - h;
+    return { x: p.x, feet: p.feet, w, h, top, cx: p.x + w / 2, cy: top + h / 2 };
+  }
 
   function addNumber(f) {
     // 数字が重なりすぎないように、同時に出すのは4つまで
@@ -67,20 +80,20 @@ export function createRenderer(canvas, app) {
   function onEvents(events, now) {
     for (const e of events) {
       if (e.type === 'attack' && e.target === 'enemy') {
-        const p = slotPos(e.slot);
+        const p = enemyBox(e.monsterId, e.slot);
         if (e.by === 'hero') anim.heroAt = now;
         if (e.by === 'ally') anim.allyAt = now;
         enemyHitAt.set(e.uid, now);
         const color = e.dmg === 0 ? col('3') : e.by === 'quiz' ? col('g') : e.crit ? col('e') : e.by === 'spell' ? col('o') : col('4');
-        addNumber({ text: String(e.dmg), x: p.x + 8, y: p.feet - 22, t0: now, color });
-        if (e.by === 'quiz' || e.by === 'spell') fx.push({ type: 'burst', x: p.x, y: p.feet - 16, t0: now, big: e.by === 'quiz' });
-        else fx.push({ type: 'slash', x: p.x, y: p.feet - 16, t0: now, crit: !!e.crit });
+        addNumber({ text: String(e.dmg), x: p.cx, y: p.top - 6, t0: now, color });
+        if (e.by === 'quiz' || e.by === 'spell') fx.push({ type: 'burst', cx: p.cx, cy: p.cy, t0: now, big: e.by === 'quiz' });
+        else fx.push({ type: 'slash', cx: p.cx, cy: p.cy, t0: now, crit: !!e.crit });
       } else if (e.type === 'attack' && e.target === 'hero') {
         enemyAttackAt.set(e.uid, now);
         addNumber({ text: String(e.dmg), x: X.hero + 8, y: FEET_Y - 22, t0: now, color: col('d') });
       } else if (e.type === 'heal' && e.amount > 0) {
-        const p = slotPos(e.slot);
-        addNumber({ text: '+' + e.amount, x: p.x + 8, y: p.feet - 26, t0: now, color: col('j') });
+        const p = enemyBox(e.monsterId, e.slot);
+        addNumber({ text: '+' + e.amount, x: p.cx, y: p.top - 10, t0: now, color: col('j') });
       } else if (e.type === 'spell') {
         anim.spellAt = now;
         anim.heroAt = now;
@@ -96,7 +109,7 @@ export function createRenderer(canvas, app) {
 
   function drawActor(sprites, x, feet, now, opts = {}) {
     const { idle, attack } = sprites;
-    const { attackAt = -9, flip = false, lunge = 0 } = opts;
+    const { attackAt = -9, flip = false, lunge = 0, size = 16 } = opts;
     const since = now - attackAt;
     if (attack && since >= 0 && since < attack.frames.length / attack.fps) {
       drawSprite(g, attack, Math.floor(since * attack.fps), x, feet - attack.h, { flip });
@@ -104,7 +117,7 @@ export function createRenderer(canvas, app) {
     }
     const dx = since >= 0 && since < 0.15 ? lunge : 0;
     if (idle) drawSprite(g, idle, frameAt(idle, now), x + dx, feet - idle.h, { flip });
-    else drawPlaceholder(g, x + dx, feet - 16, 16, 16, pal);
+    else drawPlaceholder(g, x + dx, feet - size, size, size, pal);
   }
 
   function bar(x, y, w, ratio, color) {
@@ -133,31 +146,33 @@ export function createRenderer(canvas, app) {
     // 敵の群れ（奥から順に描く）
     const enemies = state.adventure.enemies;
     const enter = Math.min(1, (now - anim.spawnAt) / 0.35);
-    const order = [...enemies].sort((a, b) => slotPos(a.slot).feet - slotPos(b.slot).feet);
+    const boxes = new Map(enemies.map((e) => [e, enemyBox(e.monsterId, e.slot)]));
+    const order = [...enemies].sort((a, b) => boxes.get(a).feet - boxes.get(b).feet);
     for (const e of order) {
-      const p = slotPos(e.slot);
+      const p = boxes.get(e);
       const shake = now - (enemyHitAt.get(e.uid) ?? -9) < 0.1 ? 1 : 0;
       const x = p.x + Math.round((1 - enter) * 40) + shake;
-      drawActor({ idle: spriteOf(e.monsterId, 'idle'), attack: spriteOf(e.monsterId, 'attack') }, x, p.feet, now, { attackAt: enemyAttackAt.get(e.uid) ?? -9, lunge: -3 });
+      drawActor({ idle: spriteOf(e.monsterId, 'idle'), attack: spriteOf(e.monsterId, 'attack') }, x, p.feet, now, { attackAt: enemyAttackAt.get(e.uid) ?? -9, lunge: -3, size: p.w });
     }
     // 倒れた敵（点滅して消える）
     for (let i = dying.length - 1; i >= 0; i--) {
       const d = dying[i];
       const t = now - d.t0;
       if (t > 0.4) { dying.splice(i, 1); continue; }
-      if (Math.floor(t * 20) % 2 === 0) { const p = slotPos(d.slot); drawActor({ idle: spriteOf(d.monsterId, 'idle') }, p.x, p.feet, now); }
+      if (Math.floor(t * 20) % 2 === 0) { const p = enemyBox(d.monsterId, d.slot); drawActor({ idle: spriteOf(d.monsterId, 'idle') }, p.x, p.feet, now, { size: p.w }); }
     }
     // HPバーと、狙っている敵の印（▼）
     for (const e of enemies) {
-      const p = slotPos(e.slot);
-      bar(p.x + 2, p.feet - 20, 12, e.hp / e.maxHp, isInvulnerable(state, e) ? col('3') : col('d'));
+      const p = boxes.get(e);
+      bar(p.x + 2, p.top - 4, p.w - 4, e.hp / e.maxHp, isInvulnerable(state, e) ? col('3') : col('d'));
     }
     if (enemies.length > 1 && enter >= 1) {
-      const p = slotPos(enemies[0].slot);
+      const p = boxes.get(enemies[0]);
+      const mx = Math.round(p.cx);
       g.fillStyle = col('4');
-      g.fillRect(p.x + 6, p.feet - 26, 5, 1);
-      g.fillRect(p.x + 7, p.feet - 25, 3, 1);
-      g.fillRect(p.x + 8, p.feet - 24, 1, 1);
+      g.fillRect(mx - 2, p.top - 10, 5, 1);
+      g.fillRect(mx - 1, p.top - 9, 3, 1);
+      g.fillRect(mx, p.top - 8, 1, 1);
     }
 
     const hs = heroStats(state, app.ctx);
@@ -175,15 +190,16 @@ export function createRenderer(canvas, app) {
         if (t > 0.18) { fx.splice(i, 1); continue; }
         const n = Math.min(9, Math.floor(t / 0.12 * 9));
         g.fillStyle = col(f.crit ? 'f' : t > 0.12 ? 'o' : '4');
+        const sx = Math.round(f.cx) + 5, sy = Math.round(f.cy) - 6;
         for (let k = 0; k <= n; k++) {
-          g.fillRect(f.x + 13 - k, f.y + 2 + k, 1, 1);
-          if (f.crit) g.fillRect(f.x + 14 - k, f.y + 2 + k, 1, 1);
+          g.fillRect(sx - k, sy + k, 1, 1);
+          if (f.crit) g.fillRect(sx + 1 - k, sy + k, 1, 1);
         }
       } else if (f.type === 'burst') {
         if (t > 0.35) { fx.splice(i, 1); continue; }
         const r = (f.big ? 3 : 2) + Math.floor(t * (f.big ? 30 : 20));
         g.fillStyle = col(f.big ? (t > 0.2 ? 'f' : 'g') : (t > 0.2 ? 'n' : 'o'));
-        const cx = f.x + 8, cy = f.y + 8;
+        const cx = Math.round(f.cx), cy = Math.round(f.cy);
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
           g.fillRect(cx + dx * r, cy + dy * r, 1, 1);
           g.fillRect(cx + dx * (r - 1), cy + dy * (r - 1), 1, 1);

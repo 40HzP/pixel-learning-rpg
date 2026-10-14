@@ -103,7 +103,8 @@ function interferenceBanner(app, q) {
   // 干渉が無いときも同じ高さの枠を置く（出たり消えたりしても解答ボタンの位置を変えない）
   if (!m) return el('div', { class: 'interfere off', id: 'interfere', 'aria-hidden': 'true' });
   const sp = (app.monsterSprites[m.id] || {}).idle || null;
-  return el('div', { class: 'interfere', id: 'interfere' }, spriteCanvas(sp, 2, app.palette), el('span', {}, `${m.name}が口を挟んでいる`));
+  // 枠の高さは変えない（小ボスの 32×32 は等倍で入れる）
+  return el('div', { class: 'interfere', id: 'interfere' }, spriteCanvas(sp, sp && sp.h > 16 ? 1 : 2, app.palette), el('span', {}, `${m.name}が口を挟んでいる`));
 }
 
 function renderQuestion(app) {

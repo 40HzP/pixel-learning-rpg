@@ -15,6 +15,7 @@ export function init(app) {
 
   speedButtons = [1, 60, 600].map((v) => el('button', { onclick: () => { app.speed = v; update(app); } }, `×${v}`));
   const age = el('input', { type: 'number', min: 0, max: 100, value: 7, style: { width: '80px' } });
+  const floor = el('input', { type: 'number', min: 1, value: 10, style: { width: '80px' } });
   const genre = el('select', {}, GENRES.map((g) => el('option', { value: g }, g)));
   const level = el('select', {}, Array.from({ length: MAX_PROFICIENCY + 1 }, (_, i) => el('option', { value: i }, `Lv ${i}`)));
   const monster = el('select', {}, ctx.monsters.map((m) => el('option', { value: m.id }, m.name)));
@@ -32,6 +33,17 @@ export function init(app) {
           app.notify(`${age.value}歳にした`);
         },
       }, '設定'))),
+    el('div', { class: 'section' }, el('h2', {}, '階層（小ボスの確認用）'),
+      el('div', {}, floor, '階層', el('button', {
+        onclick: () => {
+          const adv = app.state.adventure;
+          adv.floor = Math.max(1, Math.floor(Number(floor.value) || 1));
+          adv.kills = 0;
+          adv.enemies = [];
+          adv.spawnTimer = 0;
+          app.notify(`${adv.floor}階層にした`);
+        },
+      }, '移動'))),
     el('div', { class: 'section' }, el('h2', {}, '熟練'),
       el('div', {}, genre, level, el('button', {
         onclick: () => { genreState(app.state, genre.value).level = Number(level.value); app.notify(`${genre.value}を Lv ${level.value} にした`); },

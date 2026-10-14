@@ -1,5 +1,5 @@
 // 冒険画面の表示項目（設計ページ「自動冒険画面に必ず表示する項目」）。空の部分（y=0〜97）に重ねる
-import { heroStats, expToNext, formatDate, trackRates, isInvulnerable, midbossState } from '../sim.js';
+import { heroStats, expToNext, formatDate, trackRates, isInvulnerable, midbossState, pendingBoss } from '../sim.js';
 import { el, fmt } from './dom.js';
 
 let refs = null;
@@ -45,7 +45,9 @@ export function update(app) {
   const hs = heroStats(s, ctx);
   const adv = s.adventure;
   r.date.textContent = formatDate(s.life.gameHours);
-  r.floor.textContent = `${adv.floor}階層 ${adv.kills}/${ctx.balance.floor.monstersPerFloor}体`;
+  // 小ボスのいる階層は、小ボスを倒すと次の階層へ進む
+  const bossFloor = adv.enemies.some((e) => e.kind === 'boss') || pendingBoss(s, ctx);
+  r.floor.textContent = bossFloor ? `${adv.floor}階層 小ボス` : `${adv.floor}階層 ${adv.kills}/${ctx.balance.floor.monstersPerFloor}体`;
   r.name.textContent = s.hero.name;
   r.lv.textContent = s.hero.level;
   r.allies.textContent = s.allies.length ? `仲間 ${s.allies.length}` : '';
@@ -67,7 +69,7 @@ export function update(app) {
   const enemies = adv.enemies;
   const front = enemies[0];
   r.enemy.textContent = front
-    ? `敵：${front.name}　HP ${Math.ceil(front.hp)}/${front.maxHp}${enemies.length > 1 ? `（ほか${enemies.length - 1}体）` : ''}`
+    ? `${front.kind === 'boss' ? '小ボス' : '敵'}：${front.name}　HP ${Math.ceil(front.hp)}/${front.maxHp}${enemies.length > 1 ? `（ほか${enemies.length - 1}体）` : ''}`
     : '…進んでいる';
 
   const boss = enemies.find((e) => e.kind === 'midboss');

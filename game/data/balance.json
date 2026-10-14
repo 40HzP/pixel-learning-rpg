@@ -15,7 +15,7 @@
   },
   "spell": { "name": "ひらめき", "mpCost": 4, "power": 0.6, "minTargets": 2, "mpRegenPerSec": 0.2 },
   "levelExp": { "base": 10, "growth": 1.18 },
-  "floor": { "monstersPerFloor": 5, "maxFloorPhase1": 9, "spawnDelaySec": 0.8 },
+  "floor": { "monstersPerFloor": 5, "spawnDelaySec": 0.8 },
   "monster": {
     "base": { "hp": 12, "atk": 2, "def": 1, "exp": 3, "gold": 3 },
     "growthPerFloor": 1.2,
@@ -42,6 +42,7 @@
   },
   "sleep": { "gameHours": 10, "upChance": 0.15, "downChance": 0.05 },
   "midboss": { "hpMultiplier": 5, "atkMultiplier": 1.5, "expMultiplier": 5, "goldMultiplier": 5 },
+  "boss": { "hpMultiplier": 8, "atkMultiplier": 2, "defMultiplier": 1, "expMultiplier": 10, "goldMultiplier": 10 },
   "ally": { "attackIntervalSec": 1.5, "atkFromBoss": 0.6, "hpFromBoss": 0.6 },
   "rateWindowSec": 60
 }
