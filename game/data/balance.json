@@ -29,6 +29,7 @@
     "correctPerProficiencyLevel": 10,
     "recentAvoid": 5,
     "correctDamageRatio": 0.5,
+    "midbossDamageRatio": 0.1,
     "interferedCorrectDamageRatio": 1.0,
     "mythHealRatio": 0.3,
     "testQuestions": 5,

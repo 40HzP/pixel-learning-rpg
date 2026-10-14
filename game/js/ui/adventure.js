@@ -1,7 +1,7 @@
 // 冒険画面の表示項目（設計ページ「自動冒険画面に必ず表示する項目」）。空の部分（y=0〜97）に重ねる
 import {
   heroStats, expToNext, formatDate, monthlyRates, monthlyContractCost, monthlyNetGold, isInvulnerable, midbossLeft, pendingBoss, expMultiplier,
-  challengeableMidboss, challengeMidboss,
+  challengeableMidboss, challengeMidboss, retreatMidboss,
 } from '../sim.js';
 import { el, fmt } from './dom.js';
 
@@ -27,6 +27,15 @@ export function init(app) {
       if (challengeMidboss(app.state, app.ctx, ev)) { app.handleEvents(ev); app.save(); update(app); }
     },
   }, refs.challengeName, refs.challengeNote);
+  // 中ボス戦の途中で逃げる（報酬なし。また挑戦できる）
+  refs.retreat = el('button', {
+    class: 'retreat', hidden: true,
+    onclick: () => {
+      const ev = [];
+      if (retreatMidboss(app.state, app.ctx, ev)) { app.handleEvents(ev); app.save(); update(app); }
+    },
+  }, '逃げる');
+  refs.bossBar = el('div', { class: 'bossbar', hidden: true }, refs.boss, refs.retreat);
   const r = refs;
   hud.append(
     el('div', { class: 'row' }, r.date, r.floor),
@@ -41,7 +50,7 @@ export function init(app) {
     el('div', { class: 'row' }, el('span', {}, '1か月あたり 経験値 ', r.rexp, '・', r.rgold, 'G')),
     el('div', { class: 'row' }, el('span', {}, '契約料 ', r.fee, 'G'), el('span', {}, '手取り ', r.net, 'G')),
     el('div', { class: 'row enemy' }, r.enemy),
-    r.boss,
+    r.bossBar,
     r.challenge,
   );
 }
@@ -95,6 +104,8 @@ export function update(app) {
     : '…進んでいる';
 
   const boss = enemies.find((e) => e.kind === 'midboss');
+  r.bossBar.hidden = !boss;
+  r.retreat.hidden = !boss;
   if (boss && isInvulnerable(s, boss)) {
     const mb = ctx.monsters.find((m) => m.id === boss.monsterId);
     r.boss.textContent = `勉強で累計${mb.unlockCorrect}問正解しよう（あと${midbossLeft(s, mb)}問）　→ 勉強へ`;

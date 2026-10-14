@@ -172,7 +172,9 @@ export function answer(state, session, choiceIndex, ctx) {
     // 中ボスの防御は累計の正解数で崩れる（出てくる前の正解も数える）
     if (breakMidbosses(state, ctx, events).length) res.midbossBroken = true;
     if (target) {
-      const ratio = interferer ? qb.interferedCorrectDamageRatio : qb.correctDamageRatio;
+      // 中ボスには正解のダメージを小さくする（勉強だけで一気に倒せないように）
+      const ratio = interferer ? qb.interferedCorrectDamageRatio
+        : target.kind === 'midboss' ? (qb.midbossDamageRatio ?? qb.correctDamageRatio) : qb.correctDamageRatio;
       res.damage = damageEnemy(state, Math.ceil(target.maxHp * ratio), ctx, events, 'quiz', target);
       res.defeated = !state.adventure.enemies.includes(target);
     }

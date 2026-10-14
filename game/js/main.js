@@ -1,6 +1,6 @@
 // 起動・画面切り替え・ループ・セーブ
 import {
-  createState, startGame, tick, clockFrame, createClock, HOURS_PER_YEAR, midbossLeft,
+  createState, startGame, tick, clockFrame, createClock, HOURS_PER_YEAR,
   createRateTracker, trackTime, trackGain, sleep,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
@@ -105,6 +105,7 @@ async function boot() {
 
   /* ---------- 通知 ---------- */
   function notify(text, kind = '') {
+    placeNotices();
     const box = document.getElementById('notices');
     if (box.lastElementChild && box.lastElementChild.textContent === text) return;
     const n = el('div', { class: 'notice ' + kind }, text);
@@ -120,14 +121,6 @@ async function boot() {
     notify(lines.join('\n'), r.reason === 'defeated' ? 'bad' : 'good');
   }
 
-  function notifyMidboss(id) {
-    const m = monsters.find((x) => x.id === id);
-    if (!m) return;
-    const left = midbossLeft(app.state, m);
-    if (left === 0) notify(`${m.name}が現れた！\nこれまでの勉強で、もう攻撃が効く`, 'good');
-    else notify(`${m.name}が現れた！\n勉強で累計${m.unlockCorrect}問正解するまで攻撃が効かない（あと${left}問）`, 'bad');
-  }
-
   function handleEvents(events) {
     app.renderer.onEvents(events, performance.now() / 1000);
     const met = [];
@@ -136,7 +129,7 @@ async function boot() {
       else if (e.type === 'levelUp') notify(`${app.state.hero.name}のレベルが上がった！　Lv ${e.level}`, 'good');
       else if (e.type === 'floorUp') notify(`${e.floor}階層に進んだ`);
       else if (e.type === 'heroDefeated') notifySleep(e.sleep);
-      else if (e.type === 'spawn' && e.kind === 'midboss' && e.first) notifyMidboss(e.monsterId);
+      else if (e.type === 'retreat') notify(`${e.name}から逃げた。また挑戦できる`);
       else if (e.type === 'midbossReady') notify(`${e.name}に挑戦できるようになった！\n冒険画面の「挑戦する」を押すと戦える`, 'good');
       else if (e.type === 'midbossBroken') notify(`${(monsters.find((m) => m.id === e.monsterId) || {}).name || '中ボス'}の防御が崩れた！`, 'good');
       else if (e.type === 'spawn' && e.kind === 'boss') notify(`小ボス「${e.name}」が現れた！`, 'bad');
@@ -170,13 +163,17 @@ async function boot() {
     if (name === 'adventure') layoutStage();
     placeNotices();
   }
-  /** 知らせの位置：冒険では空と地面の間（山の辺り）、ほかの画面では上。解答ボタンやキャラクターに重ねない */
+  /**
+   * 知らせの位置：冒険では空と地面の間（山の辺り）、ほかの画面では上。解答ボタンやキャラクターに重ねない。
+   * 冒険画面のステータスが長いとき（挑戦・逃げるボタンが出ているときなど）は、その下に出してボタンを隠さない
+   */
   function placeNotices() {
     const box = document.getElementById('notices');
     const cv = document.getElementById('scene');
     if (app.tab === 'adventure' && cv.clientHeight) {
       const r = cv.getBoundingClientRect();
-      box.style.top = Math.round(r.top + r.height * (64 / SCENE_H)) + 'px';
+      const hud = document.getElementById('hud').getBoundingClientRect();
+      box.style.top = Math.round(Math.max(r.top + r.height * (64 / SCENE_H), hud.bottom + 4)) + 'px';
     } else {
       box.style.top = '';
     }

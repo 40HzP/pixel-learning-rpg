@@ -88,10 +88,12 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 #hud .hpbar i { display: block; height: 100%; background: var(--good); }
 #hud .hpbar.mp i { background: var(--info); }
 #hud .gauges { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#hud .bossbar { display: flex; gap: 4px; align-items: stretch; margin-top: 4px; }
 #hud .boss {
-  margin-top: 4px; padding: 3px 6px; background: rgba(26, 22, 38, .85); border: 2px solid var(--accent);
+  flex: 1; padding: 3px 6px; background: rgba(26, 22, 38, .85); border: 2px solid var(--accent);
   text-shadow: none; pointer-events: auto; cursor: pointer; white-space: normal;
 }
+#hud .retreat { margin-left: auto; flex-shrink: 0; min-height: 36px; padding: 2px 10px; text-shadow: none; pointer-events: auto; }
 #hud .enemy { color: #ffd0a8; }
 #hud .enemy span { min-width: 0; overflow: hidden; text-overflow: ellipsis; } /* 長い名前は「…」で切る */
 #hud .challenge {

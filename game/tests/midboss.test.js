@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tick, spawnGroup, chooseNextMonster, midbossState, challengeableMidboss, challengeMidboss, HOURS_PER_YEAR } from '../js/sim.js';
+import { tick, spawnGroup, chooseNextMonster, midbossState, challengeableMidboss, challengeMidboss, retreatMidboss, heroStats, HOURS_PER_YEAR } from '../js/sim.js';
 import { createSession, presentQuestion, answer } from '../js/quiz.js';
-import { makeCtx, newGame, questions, constRng } from './helpers.js';
+import { balance, monsters, makeCtx, newGame, questions, constRng, seededRng } from './helpers.js';
 
 const correctOnce = (s, ctx) => {
   const sess = createSession(s, 'quiz', ctx);
@@ -148,4 +148,67 @@ test('前の版のセーブ（中ボスが出ていて、累計の正解はも�
   const ev = tick(s, 0.1, ctx);
   assert.ok(ev.some((x) => x.type === 'midbossBroken' && x.monsterId === e.monsterId));
   assert.equal(midbossState(s, e.monsterId).status, 'broken');
+});
+
+const teacher = monsters.find((m) => m.id === 'teacher_elementary');
+
+/** 防御が崩れた小学校教師と、指定のレベル・装備の主人公を戦わせる */
+function fightTeacher(level, seed, weapon = 'wood_sword', armor = 'cloth') {
+  const s = newGame(7);
+  const ctx = makeCtx(seededRng(seed));
+  Object.assign(s.equipment, { weapon, armor });
+  s.hero.level = level;
+  s.hero.hp = heroStats(s, ctx).maxHp;
+  s.knowledge.totalCorrect = teacher.unlockCorrect;
+  challengeMidboss(s, ctx, []);
+  for (let t = 0; t < 120; t += 0.5) {
+    for (const e of tick(s, 0.5, ctx)) {
+      if (e.type === 'allyJoined') return 'win';
+      if (e.type === 'heroDefeated') return 'lose';
+    }
+  }
+  return 'draw';
+}
+
+test('小学校教師の強さは階層によらず決まっていて、主人公がレベル10くらいでないと倒せない', () => {
+  const ctx = makeCtx(constRng(0.5));
+  for (const floor of [1, 9]) {
+    const s = newGame(7);
+    s.adventure.floor = floor;
+    const e = challengeMidboss(s, ctx, []);
+    assert.deepEqual([e.maxHp, e.atk, e.def], [teacher.stats.hp, teacher.stats.atk, teacher.stats.def], `${floor}階層`);
+  }
+  const wins = (level) => [1, 2, 3, 4, 5, 6, 7, 8].filter((seed) => fightTeacher(level, seed) === 'win').length;
+  assert.ok(wins(10) >= 6, `Lv10（木の剣・布の服）ならほぼ勝てる：${wins(10)}/8`);
+  assert.equal(wins(8), 0, 'Lv8 では勝てない');
+});
+
+test('中ボスから逃げると、中ボスは退いて少ししてザコが出る。報酬はなく、また挑戦できる', () => {
+  const s = newGame(7);
+  const ctx = makeCtx(constRng(0.3));
+  s.hero.hp = 1e9;
+  challengeMidboss(s, ctx, []);
+  const gold = s.gold, exp = s.hero.totalExp;
+  const ev = [];
+  assert.equal(retreatMidboss(s, ctx, ev), true);
+  assert.ok(ev.some((x) => x.type === 'retreat' && x.name === '小学校教師'));
+  assert.equal(s.adventure.enemies.length, 0);
+  assert.equal(s.gold, gold);
+  assert.equal(s.hero.totalExp, exp);
+  assert.equal(midbossState(s, 'teacher_elementary').status, 'appeared', '倒したことにはならない');
+  assert.equal(challengeableMidboss(s, ctx).id, 'teacher_elementary');
+  tick(s, 2, ctx);
+  assert.ok(s.adventure.enemies.length > 0 && s.adventure.enemies.every((e) => e.kind === 'monster'));
+  assert.equal(retreatMidboss(s, ctx, []), false, '中ボスがいないときは逃げられない');
+});
+
+test('防御が崩れた中ボスへの正解のダメージは最大HPの midbossDamageRatio（勉強だけで一気に倒せない）', () => {
+  const s = newGame(7);
+  const ctx = makeCtx(constRng(0.5));
+  s.hero.hp = 1e9;
+  s.knowledge.totalCorrect = teacher.unlockCorrect;
+  const e = challengeMidboss(s, ctx, []);
+  const r = correctOnce(s, ctx);
+  assert.equal(r.damage, Math.ceil(e.maxHp * balance.quiz.midbossDamageRatio));
+  assert.ok(r.damage < e.maxHp / 4);
 });

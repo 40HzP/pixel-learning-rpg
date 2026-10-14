@@ -265,6 +265,11 @@ function makeEnemy(monster, state, ctx, slot) {
     e.exp = Math.round(s.exp * mult.expMultiplier);
     e.gold = Math.round(s.gold * mult.goldMultiplier);
   }
+  // monsters.json に stats（hp・atk・def・exp・gold）があれば、階層に関係なくその強さで出る（小学校教師など）
+  if (monster.stats) {
+    const st = monster.stats;
+    e.maxHp = e.hp = st.hp; e.atk = st.atk; e.def = st.def; e.exp = st.exp; e.gold = st.gold;
+  }
   return e;
 }
 
@@ -303,6 +308,17 @@ export function challengeMidboss(state, ctx, events) {
   if (!m) return null;
   state.adventure.enemies = [];
   return spawnGroup(state, ctx, events, [m.id])[0] || null;
+}
+
+/** 中ボスから逃げる：中ボスは退き、少ししてザコの群れが出る。報酬はなく、また挑戦できる */
+export function retreatMidboss(state, ctx, events) {
+  const adv = state.adventure;
+  const e = adv.enemies.find((x) => x.kind === 'midboss');
+  if (!e) return false;
+  adv.enemies = [];
+  adv.spawnTimer = ctx.balance.floor.spawnDelaySec;
+  if (events) events.push({ type: 'retreat', monsterId: e.monsterId, name: e.name });
+  return true;
 }
 
 /** 中ボスに挑戦できるようになったら一度だけ知らせる（まだ一度も戦っていない中ボスだけ） */
