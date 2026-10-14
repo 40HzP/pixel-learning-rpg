@@ -133,6 +133,207 @@
       "sprites": { "idle": "mujuuryoku_idle", "attack": null }
     },
     {
+      "id": "zerosamushounin",
+      "name": "ゼロサムショウニン",
+      "kind": "monster",
+      "genres": ["経済学"],
+      "myth": "貿易は片方が得をすれば片方が損をする",
+      "truth": "比較優位により双方が得をし得る",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "sankubourei",
+      "name": "サンクボウレイ",
+      "kind": "monster",
+      "genres": ["経営学", "経済学"],
+      "myth": "ここまで払ったのだから続けるべき",
+      "truth": "埋没費用は判断から外す",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "dekaguriinrando",
+      "name": "デカグリーンランド",
+      "kind": "monster",
+      "genres": ["地政学"],
+      "myth": "グリーンランドはアフリカと同じくらい大きい",
+      "truth": "メルカトル図法の歪み。実際は約1/14",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "kazekousei",
+      "name": "カゼコウセイ",
+      "kind": "monster",
+      "genres": ["微生物"],
+      "myth": "抗生物質は風邪に効く",
+      "truth": "風邪の原因は主にウイルス。抗生物質は細菌に効く薬",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "kiirotaiyou",
+      "name": "キイロタイヨウ",
+      "kind": "monster",
+      "genres": ["宇宙物理学"],
+      "myth": "太陽は黄色い",
+      "truth": "白に近い。大気を通るので黄色く見える",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "sarieridoku",
+      "name": "サリエリドク",
+      "kind": "monster",
+      "genres": ["音楽学"],
+      "myth": "サリエリがモーツァルトを毒殺した",
+      "truth": "根拠はない",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "tanjoubi",
+      "name": "タンジョウビ",
+      "kind": "monster",
+      "genres": ["数学", "統計学"],
+      "myth": "23人いても同じ誕生日の人はまずいない",
+      "truth": "確率は約50%",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "saburiminaru",
+      "name": "サブリミナル",
+      "kind": "monster",
+      "genres": ["心理学"],
+      "myth": "映画に一瞬映すと物が売れる",
+      "truth": "元の実験は本人が捏造を認めている",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "panganakereba",
+      "name": "パンガナケレバ",
+      "kind": "monster",
+      "genres": ["世界史"],
+      "myth": "マリー・アントワネットの「パンがなければ」",
+      "truth": "本人が言った証拠はない",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "chiisainippon",
+      "name": "チイサイニッポン",
+      "kind": "monster",
+      "genres": ["現代社会", "地政学"],
+      "myth": "日本は小さい国",
+      "truth": "面積は世界60位前後。排他的経済水域を含めると世界有数",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "tadanoriron",
+      "name": "タダノリロン",
+      "kind": "monster",
+      "genres": ["科学"],
+      "myth": "理論はただの仮説",
+      "truth": "科学の「理論」は、検証を重ねた説明体系のこと",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "yurenai",
+      "name": "ユレナイ",
+      "kind": "monster",
+      "genres": ["建築"],
+      "myth": "耐震構造は揺れない",
+      "truth": "倒壊しないための構造。揺れを抑えるのは免震・制震",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "kanzensakoku",
+      "name": "カンゼンサコク",
+      "kind": "monster",
+      "genres": ["日本史"],
+      "myth": "鎖国で国を完全に閉ざした",
+      "truth": "長崎・対馬・薩摩・松前の4つの窓口があった",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "taningoto",
+      "name": "タニンゴト",
+      "kind": "monster",
+      "genres": ["難読漢字", "現代文"],
+      "myth": "他人事は「たにんごと」",
+      "truth": "本来の読みは「ひとごと」",
+      "debated": false,
+      "wordType": true,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "eruaaru",
+      "name": "エルアール",
+      "kind": "monster",
+      "genres": ["外国語", "言語学"],
+      "myth": "日本人は一生LとRを聞き分けられない",
+      "truth": "訓練で改善する",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "magaranaikaabu",
+      "name": "マガラナイカーブ",
+      "kind": "monster",
+      "genres": ["流体力学", "物理"],
+      "myth": "変化球が曲がるのは目の錯覚",
+      "truth": "回転による力（マグヌス効果）で実際に曲がる",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "tedoriheeru",
+      "name": "テドリヘール",
+      "kind": "monster",
+      "genres": ["政治経済"],
+      "myth": "税率区分が上がると手取りが減る",
+      "truth": "超過累進なので、高い税率がかかるのは超えた部分だけ（社会保険の壁は別の問題）",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "ranuki",
+      "name": "ラヌキ",
+      "kind": "monster",
+      "genres": ["言語学", "現代文"],
+      "myth": "ら抜き言葉は日本語の乱れ",
+      "truth": "可能と受身を区別する方向への変化、と言語学では捉える",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "baideshiberu",
+      "name": "バイデシベル",
+      "kind": "monster",
+      "genres": ["音響工学", "数学"],
+      "myth": "デシベルが2倍なら音圧も2倍",
+      "truth": "6dB上がると2倍の音圧になる",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "shiofuttou",
+      "name": "シオフットウ",
+      "kind": "monster",
+      "genres": ["化学"],
+      "myth": "塩を入れると早く沸騰する",
+      "truth": "沸点はむしろわずかに上がる",
+      "debated": false,
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
       "id": "tendousetsu",
       "name": "テンドウセツ",
       "kind": "boss",
