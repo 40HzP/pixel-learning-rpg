@@ -34,11 +34,11 @@ test('現実の1時間でゲーム内の24年進む（40HzP の依頼で設計�
   assert.ok(Math.abs(balance.time.gameHoursPerRealSecond * 3600 - 24 * HOURS_PER_YEAR) < 1e-6);
 });
 
-test('日時の表示は0歳1月1日0時から数える', () => {
-  assert.equal(formatDate(0), '0歳 1月1日 0時');
-  assert.equal(formatDate(25), '0歳 1月2日 1時');
-  assert.equal(formatDate(31 * 24), '0歳 2月1日 0時');
-  assert.equal(formatDate(7 * HOURS_PER_YEAR + 364 * 24 + 23), '7歳 12月31日 23時');
+test('日時は0歳1月1日0時から数える。表示は日付まで', () => {
+  assert.equal(formatDate(0), '0歳 1月1日');
+  assert.equal(formatDate(25), '0歳 1月2日');
+  assert.equal(formatDate(31 * 24), '0歳 2月1日');
+  assert.equal(formatDate(7 * HOURS_PER_YEAR + 364 * 24 + 23), '7歳 12月31日');
   assert.deepEqual(gameDate(HOURS_PER_YEAR), { age: 1, month: 1, day: 1, hour: 0 });
 });
 

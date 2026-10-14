@@ -104,9 +104,10 @@ export function gameDate(gameHours) {
   return { age, month: month + 1, day: day + 1, hour };
 }
 
+/** 表示は日付まで（時間の進みが速く「◯時」はめまぐるしく変わるだけなので出さない） */
 export function formatDate(gameHours) {
   const d = gameDate(gameHours);
-  return `${d.age}歳 ${d.month}月${d.day}日 ${d.hour}時`;
+  return `${d.age}歳 ${d.month}月${d.day}日`;
 }
 
 /** 画面が見えている間だけ進む時計。戻ってきた最初のフレームは0（止まっていた分を取り戻さない） */
