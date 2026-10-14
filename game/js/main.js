@@ -109,7 +109,7 @@ async function boot() {
   }
   function notifySleep(r) {
     const name = app.state.hero.name;
-    const lines = [r.reason === 'defeated' ? `${name}はやられた…　1階層に戻って眠った` : `${name}は${r.hours}時間眠った。HPとMPが全回復した`];
+    const lines = [r.reason === 'defeated' ? `${name}はやられた…　1階層に戻って眠った` : `${name}は眠った。HPとMPが全回復した`];
     lines.push(r.up.length ? `熟練が上がった：${r.up.join('・')}` : '熟練が上がったジャンルはなかった');
     if (r.down.length) lines.push(`熟練が下がった：${r.down.join('・')}`);
     notify(lines.join('\n'), r.reason === 'defeated' ? 'bad' : 'good');

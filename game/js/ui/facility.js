@@ -86,7 +86,7 @@ function build(app) {
       el('div', { class: 'list' }, shop)),
     el('div', { class: 'section' },
       el('h2', {}, '寝床'),
-      el('button', { class: 'primary', onclick: () => { app.sleepNow('bed'); update(app, true); } }, `眠る（${ctx.balance.sleep.gameHours}時間）`),
+      el('button', { class: 'primary', onclick: () => { app.sleepNow('bed'); update(app, true); } }, '眠る'),
       sleepInfo),
     el('div', { class: 'section' },
       el('h2', {}, '仲間'),
