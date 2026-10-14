@@ -84,11 +84,11 @@ test('小ボスに負けると1階層に戻り、10階層に戻ってくると�
   assert.equal(sp.first, false, '2回目からは first にならない');
 });
 
-test('7歳の中ボスが待っていれば、10階層でも中ボスが先に出る', () => {
+test('中ボスに挑戦できる年齢でも、10階層では小ボスが出る（中ボスは挑戦したときだけ）', () => {
   const s = newGame(7);
   const ctx = makeCtx(constRng(0.5));
   s.adventure.floor = 10;
-  assert.equal(chooseNextMonster(s, ctx).kind, 'midboss');
+  assert.equal(chooseNextMonster(s, ctx).kind, 'boss');
 });
 
 test('9階層を越えても、敵は階層ごとに強くなり続ける', () => {

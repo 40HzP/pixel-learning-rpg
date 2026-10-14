@@ -137,6 +137,7 @@ async function boot() {
       else if (e.type === 'floorUp') notify(`${e.floor}階層に進んだ`);
       else if (e.type === 'heroDefeated') notifySleep(e.sleep);
       else if (e.type === 'spawn' && e.kind === 'midboss' && e.first) notifyMidboss(e.monsterId);
+      else if (e.type === 'midbossReady') notify(`${e.name}に挑戦できるようになった！\n冒険画面の「挑戦する」を押すと戦える`, 'good');
       else if (e.type === 'midbossBroken') notify(`${(monsters.find((m) => m.id === e.monsterId) || {}).name || '中ボス'}の防御が崩れた！`, 'good');
       else if (e.type === 'spawn' && e.kind === 'boss') notify(`小ボス「${e.name}」が現れた！`, 'bad');
       else if (e.type === 'bossDefeated') notify(`小ボス「${e.name}」を倒した！\n図鑑に「なぜ信じられたか」が載った`, 'good');

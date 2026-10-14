@@ -35,7 +35,7 @@ export function createState(balance) {
       recent: [],                                   // 直近に出した問題id
       zukan: {},                                    // 魔物id → { stage: 0|1|2, fooled }
     },
-    midbosses: {},                                  // 中ボスid → { status: waiting|appeared|broken|defeated }
+    midbosses: {},                                  // 中ボスid → { status: waiting|appeared|broken|defeated, announced }
     bosses: {},                                     // 小ボスid → { status: waiting|appeared|defeated }（一度倒した小ボスは復活しない）
     lastSleep: null,                                // 直近の睡眠のまとめ
   };
@@ -287,9 +287,39 @@ export function pendingBoss(state, ctx) {
   return null;
 }
 
-/** 次に出る敵を1体決める。年齢を満たした未撃破の中ボスが最優先、次にその階層の小ボス */
+/**
+ * 挑戦できる中ボス（年齢を満たした未撃破の中ボスで、今は戦っていないもの。いなければ null）。
+ * 中ボスは自動では出ない。冒険画面の「挑戦する」で challengeMidboss を呼ぶと出る
+ */
+export function challengeableMidboss(state, ctx) {
+  const m = pendingMidboss(state, ctx);
+  if (!m || state.adventure.enemies.some((e) => e.monsterId === m.id)) return null;
+  return m;
+}
+
+/** 中ボスに挑戦する：今の敵の群れは退き、中ボスが1体で出る。出した中ボスを返す（挑戦できなければ null） */
+export function challengeMidboss(state, ctx, events) {
+  const m = challengeableMidboss(state, ctx);
+  if (!m) return null;
+  state.adventure.enemies = [];
+  return spawnGroup(state, ctx, events, [m.id])[0] || null;
+}
+
+/** 中ボスに挑戦できるようになったら一度だけ知らせる（まだ一度も戦っていない中ボスだけ） */
+function announceMidbosses(state, ctx, events) {
+  const age = ageYears(state);
+  for (const m of ctx.monsters) {
+    if (m.kind !== 'midboss' || age < m.appearAge) continue;
+    const st = midbossState(state, m.id);
+    if (st.status !== 'waiting' || st.announced) continue;
+    st.announced = true;
+    events.push({ type: 'midbossReady', monsterId: m.id, name: m.name });
+  }
+}
+
+/** 次に出る敵を1体決める。その階層の未撃破の小ボスが先（中ボスは自動では出ない） */
 export function chooseNextMonster(state, ctx) {
-  const mb = pendingMidboss(state, ctx) || pendingBoss(state, ctx);
+  const mb = pendingBoss(state, ctx);
   if (mb) return mb;
   const pool = ctx.monsters.filter((m) => m.kind === 'monster');
   return pool[Math.floor(ctx.rng() * pool.length)] || null;
@@ -299,8 +329,8 @@ export function chooseNextMonster(state, ctx) {
 export const frontEnemy = (state) => state.adventure.enemies[0] || null;
 
 /**
- * 敵の群れを出す。ザコはその階層の残りの数だけまとめて出る（中ボス・小ボスは1体で出る）。
- * 小ボスのいる階層は小ボスだけ。倒すと次の階層に進む。
+ * 敵の群れを出す。ザコはその階層の残りの数だけまとめて出る（小ボスは1体で出る）。
+ * 小ボスのいる階層は小ボスだけ。倒すと次の階層に進む。中ボスは challengeMidboss で出す。
  * monsterIds を渡すとその魔物を出す（テスト・デバッグ用）
  */
 export function spawnGroup(state, ctx, events, monsterIds = null) {
@@ -309,7 +339,7 @@ export function spawnGroup(state, ctx, events, monsterIds = null) {
   let list;
   if (monsterIds) list = monsterIds.map((id) => ctx.monsters.find((m) => m.id === id)).filter(Boolean);
   else {
-    const mb = pendingMidboss(state, ctx) || pendingBoss(state, ctx);
+    const mb = pendingBoss(state, ctx);
     if (mb) list = [mb];
     else {
       const pool = ctx.monsters.filter((m) => m.kind === 'monster');
@@ -353,6 +383,7 @@ export function tick(state, dt, ctx) {
   if (state.meta.startAge == null || !(dt > 0)) return events;
   state.life.gameHours += dt * ctx.balance.time.gameHoursPerRealSecond;
   payContracts(state, ctx, events);
+  announceMidbosses(state, ctx, events);
   breakMidbosses(state, ctx, events);
   let remaining = dt;
   while (remaining > 1e-9) {

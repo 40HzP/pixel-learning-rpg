@@ -1,5 +1,8 @@
 // 冒険画面の表示項目（設計ページ「自動冒険画面に必ず表示する項目」）。空の部分（y=0〜97）に重ねる
-import { heroStats, expToNext, formatDate, monthlyRates, monthlyContractCost, monthlyNetGold, isInvulnerable, midbossLeft, pendingBoss, expMultiplier } from '../sim.js';
+import {
+  heroStats, expToNext, formatDate, monthlyRates, monthlyContractCost, monthlyNetGold, isInvulnerable, midbossLeft, pendingBoss, expMultiplier,
+  challengeableMidboss, challengeMidboss,
+} from '../sim.js';
 import { el, fmt } from './dom.js';
 
 let refs = null;
@@ -14,7 +17,16 @@ export function init(app) {
     atk: span(), def: span(), wis: span(), agi: span(), luck: span(),
     exp: span(), total: span(), gold: span(), xmul: span(), rexp: span(), rgold: span(), fee: span(), net: span(), enemy: span(),
     boss: el('div', { class: 'boss', onclick: () => app.showTab('study') }),
+    // 中ボスは自動では出ない。挑戦できる年齢になったらこのボタンを出す
+    challengeName: span(), challengeNote: el('small'),
   };
+  refs.challenge = el('button', {
+    class: 'challenge', hidden: true,
+    onclick: () => {
+      const ev = [];
+      if (challengeMidboss(app.state, app.ctx, ev)) { app.handleEvents(ev); app.save(); update(app); }
+    },
+  }, refs.challengeName, refs.challengeNote);
   const r = refs;
   hud.append(
     el('div', { class: 'row' }, r.date, r.floor),
@@ -30,6 +42,7 @@ export function init(app) {
     el('div', { class: 'row' }, el('span', {}, '契約料 ', r.fee, 'G'), el('span', {}, '手取り ', r.net, 'G')),
     el('div', { class: 'row enemy' }, r.enemy),
     r.boss,
+    r.challenge,
   );
 }
 
@@ -88,5 +101,15 @@ export function update(app) {
     r.boss.hidden = false;
   } else {
     r.boss.hidden = true;
+  }
+
+  const cm = challengeableMidboss(s, ctx);
+  r.challenge.hidden = !cm;
+  if (cm) {
+    const left = midbossLeft(s, cm);
+    r.challengeName.textContent = `${cm.name}に挑戦する`;
+    r.challengeNote.textContent = left
+      ? `勉強であと${left}問正解すると攻撃が効く`
+      : 'これまでの勉強で、もう攻撃が効く';
   }
 }
