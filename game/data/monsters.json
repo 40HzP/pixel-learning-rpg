@@ -38,7 +38,7 @@
       "myth": "赤が続いたら次は黒が出やすい",
       "truth": "毎回独立している（ギャンブラーの誤謬）",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "tsugihakuro_idle", "attack": null }
     },
     {
       "id": "nidoochizu",
@@ -48,7 +48,7 @@
       "myth": "雷は同じ場所に二度落ちない",
       "truth": "何度でも落ちる",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "nidoochizu_idle", "attack": null }
     },
     {
       "id": "atatamemoufu",
@@ -58,7 +58,7 @@
       "myth": "毛布が体を温める",
       "truth": "毛布は熱を生まず、体温が逃げるのを遅らせるだけ",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "atatamemoufu_idle", "attack": null }
     },
     {
       "id": "kinjitsunatsu",
@@ -68,7 +68,7 @@
       "myth": "夏は太陽に近いから暑い",
       "truth": "原因は地軸の傾き。北半球の夏、地球はむしろ太陽から遠い",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "kinjitsunatsu_idle", "attack": null }
     },
     {
       "id": "reitenkyuu",
@@ -78,7 +78,7 @@
       "myth": "0.999…は1より小さい",
       "truth": "等しい",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "reitenkyuu_idle", "attack": null }
     },
     {
       "id": "heikinsan",
@@ -88,7 +88,7 @@
       "myth": "平均年収の人が真ん中",
       "truth": "真ん中は中央値。平均は高所得者に引っ張られる",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "heikinsan_idle", "attack": null }
     },
     {
       "id": "yakubusoku",
@@ -99,7 +99,7 @@
       "truth": "本来は、役のほうが軽すぎること",
       "debated": false,
       "wordType": true,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "yakubusoku_idle", "attack": null }
     },
     {
       "id": "odoroku",
@@ -110,7 +110,7 @@
       "truth": "本来は、目を覚ます、はっと気づく",
       "debated": false,
       "wordType": true,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "odoroku_idle", "attack": null }
     },
     {
       "id": "ichiwari",
@@ -120,7 +120,7 @@
       "myth": "落とし物を届けたら1割もらえる",
       "truth": "法律上の報労金は5〜20%",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "ichiwari_idle", "attack": null }
     },
     {
       "id": "mujuuryoku",
@@ -130,7 +130,7 @@
       "myth": "宇宙飛行士が浮くのは重力が無いから",
       "truth": "ISSの高度でも地上の約9割の重力がある。落ち続けているから浮いて見える",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "mujuuryoku_idle", "attack": null }
     },
     {
       "id": "tendousetsu",

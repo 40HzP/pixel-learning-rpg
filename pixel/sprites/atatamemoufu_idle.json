@@ -1,0 +1,47 @@
+{
+  "name": "atatamemoufu_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      "......e..e......",
+      ".....e..e.......",
+      "................",
+      "....00000000....",
+      "..00nnnnnmmm00..",
+      ".0nnnlnmmmlmmm0.",
+      ".00n0lmmmmlmmm0.",
+      ".00n0lm00mlmmm0.",
+      ".0nmml00f0lmml0.",
+      ".0lsll0fgf0lll0.",
+      ".0mmml0egf0lll0.",
+      ".0mmmlm000llll0.",
+      ".00m0l0l0lll0l0.",
+      ".0.0.0.0.0.0.00.",
+      "..m.m.m.m.m.m.m.",
+      "..0.0.0.0.0.0.0."
+    ],
+    [
+      ".......e..e.....",
+      "......e..e......",
+      "................",
+      "................",
+      "....00000000....",
+      "..00nnnnnmmm00..",
+      ".0nnnlnmmmlmmm0.",
+      ".00n0lmmmmlmmm0.",
+      ".00n0lm00mlmmm0.",
+      ".0nmml00f0lmml0.",
+      ".0lsll0fgf0lll0.",
+      ".0mmml0egf0lll0.",
+      ".0mmmlm000llll0.",
+      ".00m0l0l0lll0l0.",
+      ".0.0.0.0.0.0.00.",
+      ".m.m.m.m.m.m.m.."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}
