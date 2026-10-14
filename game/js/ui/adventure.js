@@ -1,5 +1,5 @@
 // 冒険画面の表示項目（設計ページ「自動冒険画面に必ず表示する項目」）。空の部分（y=0〜97）に重ねる
-import { heroStats, expToNext, formatDate, trackRates, isInvulnerable, midbossLeft, pendingBoss } from '../sim.js';
+import { heroStats, expToNext, formatDate, trackRates, isInvulnerable, midbossLeft, pendingBoss, expMultiplier } from '../sim.js';
 import { el, fmt } from './dom.js';
 
 let refs = null;
@@ -12,7 +12,7 @@ export function init(app) {
     date: span(), floor: span(), name: span(), lv: span(), allies: span(),
     hp: span(), hpbar: el('i'), mp: span(), mpbar: el('i'),
     atk: span(), def: span(), wis: span(), agi: span(), luck: span(),
-    exp: span(), total: span(), gold: span(), rexp: span(), rgold: span(), enemy: span(),
+    exp: span(), total: span(), gold: span(), xmul: span(), rexp: span(), rgold: span(), enemy: span(),
     boss: el('div', { class: 'boss', onclick: () => app.showTab('study') }),
   };
   const r = refs;
@@ -25,7 +25,7 @@ export function init(app) {
     el('div', { class: 'row' }, el('span', {}, '攻撃 ', r.atk, '　防御 ', r.def, '　賢さ ', r.wis)),
     el('div', { class: 'row' }, el('span', {}, 'すばやさ ', r.agi, '　運の良さ ', r.luck)),
     el('div', { class: 'row' }, el('span', {}, '経験値 ', r.exp), el('span', {}, '累計 ', r.total)),
-    el('div', { class: 'row' }, el('span', {}, '所持金 ', r.gold, 'G')),
+    el('div', { class: 'row' }, el('span', {}, '所持金 ', r.gold, 'G'), el('span', {}, '経験値 ×', r.xmul)),
     el('div', { class: 'row' }, el('span', {}, '毎秒 経験値 ', r.rexp, '・ゴールド ', r.rgold)),
     el('div', { class: 'row enemy' }, r.enemy),
     r.boss,
@@ -63,6 +63,7 @@ export function update(app) {
   r.exp.textContent = `${fmt(s.hero.exp)}/${fmt(expToNext(s.hero.level, ctx.balance))}`;
   r.total.textContent = fmt(s.hero.totalExp);
   r.gold.textContent = fmt(s.gold);
+  r.xmul.textContent = expMultiplier(s, ctx.balance).toFixed(2);
   const rates = trackRates(app.rate, ctx.balance.rateWindowSec);
   r.rexp.textContent = rates.exp.toFixed(1);
   r.rgold.textContent = rates.gold.toFixed(1);

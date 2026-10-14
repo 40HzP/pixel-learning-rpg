@@ -192,6 +192,9 @@ export function heroStats(state, ctx) {
   };
 }
 
+/** 経験値の倍率：勉強で正解するたびに上がる（1 ＋ 累計の正解数 × expBonusPerCorrect） */
+export const expMultiplier = (state, balance) => 1 + state.knowledge.totalCorrect * (balance.hero.expBonusPerCorrect || 0);
+
 /** すばやさ：攻撃の間隔 ＝ attackIntervalSec ÷（1 ＋ すばやさ × agiSpeedPerPoint） */
 export const heroAttackInterval = (stats, balance) => balance.hero.attackIntervalSec / (1 + stats.agi * balance.stats.agiSpeedPerPoint);
 
@@ -437,9 +440,10 @@ function defeatEnemy(state, e, ctx, events) {
   const b = ctx.balance;
   adv.enemies = adv.enemies.filter((x) => x !== e);
   const gold = goldWithLuck(e.gold, heroStats(state, ctx), b);
+  const exp = Math.max(1, Math.round(e.exp * expMultiplier(state, b)));
   state.gold += gold;
-  events.push({ type: 'defeat', uid: e.uid, slot: e.slot, monsterId: e.monsterId, kind: e.kind, exp: e.exp, gold });
-  gainExp(state, e.exp, ctx, events);
+  events.push({ type: 'defeat', uid: e.uid, slot: e.slot, monsterId: e.monsterId, kind: e.kind, exp, gold });
+  gainExp(state, exp, ctx, events);
   raiseZukan(state, e.monsterId, 2, events);
   if (e.kind === 'midboss') {
     midbossState(state, e.monsterId).status = 'defeated';

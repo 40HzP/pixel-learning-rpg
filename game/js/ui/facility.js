@@ -1,5 +1,5 @@
 // 施設画面：店・寝床・仲間（会社・ロケット発射場・専攻の付け替え・拠点は準備中）
-import { shopList, buyItem, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, heroAttackInterval } from '../sim.js';
+import { shopList, buyItem, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, heroAttackInterval, expMultiplier } from '../sim.js';
 import { el, fmt } from './dom.js';
 
 let root = null;
@@ -78,7 +78,8 @@ function build(app) {
         stat('防御', hs.def, '受けるダメージが減る'),
         stat('賢さ', hs.wis, `「${b.spell.name}」の強さ。勉強で正解するほど上がる`),
         stat('すばやさ', hs.agi, `攻撃の速さ（${heroAttackInterval(hs, b).toFixed(2)}秒に1回）`),
-        stat('運の良さ', hs.luck, `会心の一撃 ${(critChance(hs, b) * 100).toFixed(1)}%・ゴールドが増える`))),
+        stat('運の良さ', hs.luck, `会心の一撃 ${(critChance(hs, b) * 100).toFixed(1)}%・ゴールドが増える`),
+        stat('経験値倍率', `×${expMultiplier(s, b).toFixed(2)}`, `勉強で正解するたびに +${Math.round((b.hero.expBonusPerCorrect || 0) * 100)}%`))),
     el('div', { class: 'section' },
       el('h2', {}, '店'),
       el('div', { style: { marginBottom: '6px' } }, '所持金 ', live.gold, 'G'),

@@ -183,6 +183,7 @@ tools/check-questions.mjs … questions.json の検査
   - `quiz.testQuestions` テストの問題数
   - `midboss.expMultiplier`・`goldMultiplier` 中ボスの経験値・ゴールドの倍率、`ally.hpFromBoss` 仲間になったときのHPの倍率
   - `hero.base`・`hero.perLevel` の `mp`（MP）・`wis`（賢さ）・`agi`（すばやさ）・`luck`（運の良さ）。`hero.wisPerCorrect` 正解1回で増える賢さ
+  - `hero.expBonusPerCorrect` 正解1回で上がる経験値の倍率（倍率＝1＋累計の正解数×この値。敵を倒したときの経験値に掛ける。不正解では下がらない）
   - `stats.agiSpeedPerPoint` すばやさ1あたり攻撃が速くなる割合（間隔＝attackIntervalSec÷(1＋すばやさ×この値)）
   - `stats.critChancePerLuck`・`critChanceMax`・`critMultiplier` 運の良さによる会心の一撃、`stats.goldBonusPerLuck` 運の良さ1あたりゴールドが増える割合
   - `spell` 主人公の全体攻撃「ひらめき」：敵が `minTargets` 体以上でMPが `mpCost` 以上あると使う。ダメージ＝賢さ×`power`（防御は効かない）。MPは毎秒 `mpRegenPerSec` 回復し、眠ると全回復

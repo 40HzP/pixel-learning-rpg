@@ -1,6 +1,6 @@
 // 勉強画面（設計ページ「勉強画面の表示」）
 import { createSession, nextQuestion, answer, interferingMonster, MODES } from '../quiz.js';
-import { genreState, midbossState, midbossLeft } from '../sim.js';
+import { genreState, midbossState, midbossLeft, expMultiplier } from '../sim.js';
 import { GENRES, MAX_PROFICIENCY } from '../genres.js';
 import { spriteCanvas } from '../sprites.js';
 import { el, stars } from './dom.js';
@@ -151,6 +151,7 @@ function effectLines(app, r) {
       if (st.status !== 'broken') lines.push(['', `${r.targetName}には効かない…（防御が崩れるまで 累計であと${midbossLeft(app.state, mb)}問）`]);
     }
     if (r.defeated) lines.push(['good', `${r.targetName}を倒した！`]);
+    lines.push(['good', `経験値の倍率が ×${expMultiplier(app.state, app.ctx.balance).toFixed(2)} になった`]);
     if (r.levelUp) lines.push(['good', `${r.levelUp.genre}の熟練が Lv ${r.levelUp.level} になった！`]);
     else if (g && g.level < MAX_PROFICIENCY) lines.push(['', `${r.question.genre}：次のLvまで ${g.progress}/${per}回`]);
     for (const z of r.zukan) lines.push(['good', `図鑑：${name(z.monsterId)}の正体が判明した`]);

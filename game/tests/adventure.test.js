@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tick, spawnEnemy, heroStats, genreState, buyItem, shopList, monsterStats, setHeroLevel } from '../js/sim.js';
+import { tick, spawnEnemy, heroStats, genreState, buyItem, shopList, monsterStats, setHeroLevel, expMultiplier } from '../js/sim.js';
 import { balance, makeCtx, newGame, seededRng, constRng } from './helpers.js';
 
 test('冒険が自動で進み、5体倒すと次の階層。9階層で止まらず先へ進む', () => {
@@ -105,4 +105,23 @@ test('デバッグ用：レベルを直接決めると、経験値は0からでH
   assert.equal(s.hero.hp, heroStats(s, ctx).maxHp);
   assert.equal(setHeroLevel(s, 0, ctx), 1);
   assert.equal(setHeroLevel(s, 'abc', ctx), 1);
+});
+
+test('勉強で正解するたびに経験値の倍率が上がり、敵を倒したときの経験値に掛かる', () => {
+  const ctx = makeCtx(constRng(0.5));
+  const per = balance.hero.expBonusPerCorrect;
+  assert.ok(per > 0);
+  const gained = (correct) => {
+    const s = newGame(0);
+    s.knowledge.totalCorrect = correct;
+    assert.equal(expMultiplier(s, balance), 1 + correct * per);
+    const e = spawnEnemy(s, ctx, [], 'sanbyoukingyo');
+    const ev = [];
+    while (s.adventure.enemies.includes(e)) ev.push(...tick(s, 0.5, ctx));
+    return ev.find((x) => x.type === 'defeat').exp;
+  };
+  const base = gained(0);
+  const fifty = gained(50);
+  assert.equal(fifty, Math.round(base * (1 + 50 * per)));
+  assert.ok(fifty > base);
 });
