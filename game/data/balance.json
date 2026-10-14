@@ -25,7 +25,7 @@
   },
   "damage": { "defFactor": 0.5, "variance": 0.1 },
   "quiz": {
-    "timeLimitSec": [10, 20, 30, 45, 60],
+    "timeLimitSec": [20, 30, 40, 55, 70],
     "correctPerProficiencyLevel": 10,
     "recentAvoid": 5,
     "correctDamageRatio": 0.5,

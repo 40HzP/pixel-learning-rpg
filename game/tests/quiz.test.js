@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSession, nextQuestion, presentQuestion, answer, buildChoices, pickDifficulty, pickQuestion, averageLevel } from '../js/quiz.js';
+import { createSession, nextQuestion, presentQuestion, answer, buildChoices, pickDifficulty, pickQuestion, averageLevel, timeLimitFor } from '../js/quiz.js';
 import { genreState, spawnEnemy } from '../js/sim.js';
 import { balance, makeCtx, newGame, questions, constRng, seededRng, questionFor } from './helpers.js';
 
@@ -145,4 +145,8 @@ test('干渉していないとき：正解は最大HPの50%、俗説を選んで
   assert.equal(r.fooled, false);
   assert.equal(e.hp, hp);
   assert.equal(s.knowledge.zukan.tsugihakuro.fooled, 0);
+});
+
+test('制限時間は難易度ごとに balance.json の値（☆1が20秒〜☆5が70秒）', () => {
+  assert.deepEqual([1, 2, 3, 4, 5].map((d) => timeLimitFor(d, balance)), [20, 30, 40, 55, 70]);
 });
