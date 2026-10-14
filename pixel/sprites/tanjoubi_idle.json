@@ -1,0 +1,47 @@
+{
+  "name": "tanjoubi_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 4,
+  "frames": [
+    [
+      "................",
+      "...g.f.g.f.g....",
+      "...d.n.d.n.d....",
+      "...d.n.d.n.d....",
+      "...d.n.d.n.d....",
+      "..000000000000..",
+      "..0tttttttttt0..",
+      "..0bsbbbbsbba0..",
+      "..0bbbbbbbbba0..",
+      "0000000000000000",
+      "0tttttttttttttt0",
+      "0ssssssssssssss0",
+      "0bb0bb0sbbbsbba0",
+      "0bbb00bbbbbbbba0",
+      "0bbbbbbbbbbbbba0",
+      "0000000000000000"
+    ],
+    [
+      "................",
+      "................",
+      "...f.g.f.g.f....",
+      "...d.n.d.n.d....",
+      "...d.n.d.n.d....",
+      "...d.n.d.n.d....",
+      "..000000000000..",
+      "..0tttttttttt0..",
+      "..0bsbbbbsbba0..",
+      "..0bbbbbbbbba0..",
+      "0000000000000000",
+      "0tttttttttttttt0",
+      "0ssssssssssssss0",
+      "0bb0bb0sbbbsbba0",
+      "0bbb00bbbbbbbba0",
+      "0000000000000000"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

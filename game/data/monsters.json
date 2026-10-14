@@ -140,7 +140,7 @@
       "myth": "貿易は片方が得をすれば片方が損をする",
       "truth": "比較優位により双方が得をし得る",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "zerosamushounin_idle", "attack": null }
     },
     {
       "id": "sankubourei",
@@ -150,7 +150,7 @@
       "myth": "ここまで払ったのだから続けるべき",
       "truth": "埋没費用は判断から外す",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "sankubourei_idle", "attack": null }
     },
     {
       "id": "dekaguriinrando",
@@ -160,7 +160,7 @@
       "myth": "グリーンランドはアフリカと同じくらい大きい",
       "truth": "メルカトル図法の歪み。実際は約1/14",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "dekaguriinrando_idle", "attack": null }
     },
     {
       "id": "kazekousei",
@@ -170,7 +170,7 @@
       "myth": "抗生物質は風邪に効く",
       "truth": "風邪の原因は主にウイルス。抗生物質は細菌に効く薬",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "kazekousei_idle", "attack": null }
     },
     {
       "id": "kiirotaiyou",
@@ -180,7 +180,7 @@
       "myth": "太陽は黄色い",
       "truth": "白に近い。大気を通るので黄色く見える",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "kiirotaiyou_idle", "attack": null }
     },
     {
       "id": "sarieridoku",
@@ -190,7 +190,7 @@
       "myth": "サリエリがモーツァルトを毒殺した",
       "truth": "根拠はない",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "sarieridoku_idle", "attack": null }
     },
     {
       "id": "tanjoubi",
@@ -200,7 +200,7 @@
       "myth": "23人いても同じ誕生日の人はまずいない",
       "truth": "確率は約50%",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "tanjoubi_idle", "attack": null }
     },
     {
       "id": "saburiminaru",
@@ -210,7 +210,7 @@
       "myth": "映画に一瞬映すと物が売れる",
       "truth": "元の実験は本人が捏造を認めている",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "saburiminaru_idle", "attack": null }
     },
     {
       "id": "panganakereba",
@@ -220,7 +220,7 @@
       "myth": "マリー・アントワネットの「パンがなければ」",
       "truth": "本人が言った証拠はない",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "panganakereba_idle", "attack": null }
     },
     {
       "id": "chiisainippon",
@@ -230,7 +230,7 @@
       "myth": "日本は小さい国",
       "truth": "面積は世界60位前後。排他的経済水域を含めると世界有数",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "chiisainippon_idle", "attack": null }
     },
     {
       "id": "tadanoriron",
@@ -240,7 +240,7 @@
       "myth": "理論はただの仮説",
       "truth": "科学の「理論」は、検証を重ねた説明体系のこと",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "tadanoriron_idle", "attack": null }
     },
     {
       "id": "yurenai",
@@ -250,7 +250,7 @@
       "myth": "耐震構造は揺れない",
       "truth": "倒壊しないための構造。揺れを抑えるのは免震・制震",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "yurenai_idle", "attack": null }
     },
     {
       "id": "kanzensakoku",
@@ -260,7 +260,7 @@
       "myth": "鎖国で国を完全に閉ざした",
       "truth": "長崎・対馬・薩摩・松前の4つの窓口があった",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "kanzensakoku_idle", "attack": null }
     },
     {
       "id": "eruaaru",
@@ -270,7 +270,7 @@
       "myth": "日本人は一生LとRを聞き分けられない",
       "truth": "訓練で改善する",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "eruaaru_idle", "attack": null }
     },
     {
       "id": "magaranaikaabu",
@@ -280,7 +280,7 @@
       "myth": "変化球が曲がるのは目の錯覚",
       "truth": "回転による力（マグヌス効果）で実際に曲がる",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "magaranaikaabu_idle", "attack": null }
     },
     {
       "id": "tedoriheeru",
@@ -290,7 +290,7 @@
       "myth": "税率区分が上がると手取りが減る",
       "truth": "超過累進なので、高い税率がかかるのは超えた部分だけ（社会保険の壁は別の問題）",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "tedoriheeru_idle", "attack": null }
     },
     {
       "id": "ranuki",
@@ -300,7 +300,7 @@
       "myth": "ら抜き言葉は日本語の乱れ",
       "truth": "可能と受身を区別する方向への変化、と言語学では捉える",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "ranuki_idle", "attack": null }
     },
     {
       "id": "baideshiberu",
@@ -310,7 +310,7 @@
       "myth": "デシベルが2倍なら音圧も2倍",
       "truth": "6dB上がると2倍の音圧になる",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "baideshiberu_idle", "attack": null }
     },
     {
       "id": "shiofuttou",
@@ -320,7 +320,7 @@
       "myth": "塩を入れると早く沸騰する",
       "truth": "沸点はむしろわずかに上がる",
       "debated": false,
-      "sprites": { "idle": null, "attack": null }
+      "sprites": { "idle": "shiofuttou_idle", "attack": null }
     },
     {
       "id": "tendousetsu",
