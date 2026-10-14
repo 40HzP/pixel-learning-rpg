@@ -577,6 +577,9 @@ export function recruitList(state, ctx) {
 export const monthlyContractCost = (state, ctx) =>
   state.allies.reduce((sum, a) => sum + (a.hired ? (recruitById(ctx, a.id) || { monthlyCost: 0 }).monthlyCost : 0), 0);
 
+/** 1か月あたりの手取り＝1か月あたりに入るゴールド−契約料の合計（マイナスにもなる） */
+export const monthlyNetGold = (grossGold, state, ctx) => grossGold - monthlyContractCost(state, ctx);
+
 /** 契約する。最初の1か月分をその場で払い、以後はゲーム内の1か月ごとに払う */
 export function hireRecruit(state, id, ctx) {
   const r = recruitById(ctx, id);

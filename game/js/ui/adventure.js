@@ -1,5 +1,5 @@
 // 冒険画面の表示項目（設計ページ「自動冒険画面に必ず表示する項目」）。空の部分（y=0〜97）に重ねる
-import { heroStats, expToNext, formatDate, monthlyRates, isInvulnerable, midbossLeft, pendingBoss, expMultiplier } from '../sim.js';
+import { heroStats, expToNext, formatDate, monthlyRates, monthlyContractCost, monthlyNetGold, isInvulnerable, midbossLeft, pendingBoss, expMultiplier } from '../sim.js';
 import { el, fmt } from './dom.js';
 
 let refs = null;
@@ -12,7 +12,7 @@ export function init(app) {
     date: span(), floor: span(), name: span(), lv: span(), allies: span(),
     hp: span(), hpbar: el('i'), mp: span(), mpbar: el('i'),
     atk: span(), def: span(), wis: span(), agi: span(), luck: span(),
-    exp: span(), total: span(), gold: span(), xmul: span(), rexp: span(), rgold: span(), enemy: span(),
+    exp: span(), total: span(), gold: span(), xmul: span(), rexp: span(), rgold: span(), fee: span(), net: span(), enemy: span(),
     boss: el('div', { class: 'boss', onclick: () => app.showTab('study') }),
   };
   const r = refs;
@@ -27,6 +27,7 @@ export function init(app) {
     el('div', { class: 'row' }, el('span', {}, '経験値 ', r.exp), el('span', {}, '累計 ', r.total)),
     el('div', { class: 'row' }, el('span', {}, '所持金 ', r.gold, 'G'), el('span', {}, '経験値 ×', r.xmul)),
     el('div', { class: 'row' }, el('span', {}, '1か月あたり 経験値 ', r.rexp, '・', r.rgold, 'G')),
+    el('div', { class: 'row' }, el('span', {}, '契約料 ', r.fee, 'G'), el('span', {}, '手取り ', r.net, 'G')),
     el('div', { class: 'row enemy' }, r.enemy),
     r.boss,
   );
@@ -68,6 +69,12 @@ export function update(app) {
   const rates = monthlyRates(app.rate, ctx.balance);
   r.rexp.textContent = fmt(Math.round(rates.exp));
   r.rgold.textContent = fmt(Math.round(rates.gold));
+  // 手取り＝入るゴールド−仲間の契約料（足りないときは赤）
+  const fee = monthlyContractCost(s, ctx);
+  const net = Math.round(monthlyNetGold(rates.gold, s, ctx));
+  r.fee.textContent = fee ? `−${fmt(fee)}` : '0';
+  r.net.textContent = `${net < 0 ? '−' : ''}${fmt(Math.abs(net))}`;
+  r.net.parentNode.classList.toggle('bad', net < 0);
   const enemies = adv.enemies;
   const front = enemies[0];
   r.enemy.textContent = front

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   tick, spawnEnemy, spawnGroup, heroStats, hireRecruit, dismissRecruit, recruitList, monthlyContractCost,
-  payContracts, HOURS_PER_MONTH,
+  payContracts, HOURS_PER_MONTH, monthlyNetGold,
 } from '../js/sim.js';
 import { serialize, deserialize } from '../js/save.js';
 import { balance, recruits, makeCtx, newGame, constRng, seededRng } from './helpers.js';
@@ -136,4 +136,15 @@ test('契約した仲間はセーブして読み込んでも残る', () => {
   const loaded = deserialize(serialize(s, 1), balance);
   assert.deepEqual(loaded.allies, s.allies);
   assert.equal(monthlyContractCost(loaded, ctx), cost('warrior') + cost('priest'));
+});
+
+test('1か月あたりの手取り＝入るゴールド−契約料の合計（足りなければマイナス）', () => {
+  const s = newGame(0);
+  const ctx = makeCtx();
+  assert.equal(monthlyNetGold(50, s, ctx), 50);
+  s.gold = 1000;
+  hireRecruit(s, 'warrior', ctx);
+  hireRecruit(s, 'mage', ctx);
+  assert.equal(monthlyNetGold(50, s, ctx), 50 - cost('warrior') - cost('mage'));
+  assert.ok(monthlyNetGold(10, s, ctx) < 0);
 });
