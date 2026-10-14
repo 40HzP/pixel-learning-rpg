@@ -175,7 +175,9 @@ tools/check-questions.mjs … questions.json の検査
 
 ## 数値の調整
 
-- 数値はすべて `game/data/balance.json` に置いてある。40HzP に「◯◯を△△にして」と頼まれたらここを直す。各項目の意味は設計書8章。設計書に無い項目：
+- 数値はすべて `game/data/balance.json` に置いてある。40HzP に「◯◯を△△にして」と頼まれたらここを直す。各項目の意味は設計書8章
+- 設計書・設計ページと違う値：`time.gameHoursPerRealSecond` は 58.4（現実の1時間＝ゲーム内の24年）。設計の「現実1時間＝1年」（2.4333）を 40HzP の依頼で24倍速にした。最初の案内の「7歳まで約◯分」はこの値から計算して出す
+- 設計書に無い項目：
   - `floor.spawnDelaySec` 群れを倒してから次の群れが出るまでの秒数。ザコは1階層分（`monstersPerFloor` 体）がまとめて出る
   - `quiz.testQuestions` テストの問題数
   - `midboss.expMultiplier`・`goldMultiplier` 中ボスの経験値・ゴールドの倍率、`ally.hpFromBoss` 仲間になったときのHPの倍率

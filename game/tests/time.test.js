@@ -19,7 +19,7 @@ test('1フレームの経過時間は最大1秒で打ち切る', () => {
   assert.equal(clockFrame(c, 30_000, true, balance.time.maxFrameSeconds), 1);
 });
 
-test('現実1秒でゲーム内の約2.43時間進む。開始年齢を選ぶまでは進まない', () => {
+test('現実1秒でゲーム内の時間が gameHoursPerRealSecond だけ進む。開始年齢を選ぶまでは進まない', () => {
   const ctx = makeCtx();
   const idle = createState(balance);
   tick(idle, 1, ctx);
@@ -27,6 +27,11 @@ test('現実1秒でゲーム内の約2.43時間進む。開始年齢を選ぶま
   const s = newGame(0);
   tick(s, 1, ctx);
   assert.ok(Math.abs(s.life.gameHours - balance.time.gameHoursPerRealSecond) < 1e-9);
+});
+
+test('現実の1時間でゲーム内の24年進む（40HzP の依頼で設計の24倍速）', () => {
+  // 冒険でやられると睡眠の分も時間が進むので、時間の速さの値そのものを確かめる
+  assert.ok(Math.abs(balance.time.gameHoursPerRealSecond * 3600 - 24 * HOURS_PER_YEAR) < 1e-6);
 });
 
 test('日時の表示は0歳1月1日0時から数える', () => {

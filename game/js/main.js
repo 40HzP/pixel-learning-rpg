@@ -1,6 +1,6 @@
 // 起動・画面切り替え・ループ・セーブ
 import {
-  createState, startGame, tick, clockFrame, createClock,
+  createState, startGame, tick, clockFrame, createClock, HOURS_PER_YEAR,
   createRateTracker, trackTime, trackGain, sleep,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
@@ -189,6 +189,10 @@ async function boot() {
   /* ---------- 最初の案内 ---------- */
   const intro = document.getElementById('intro');
   if (app.state.meta.startAge == null) intro.hidden = false;
+  // 7歳まで現実でどのくらいかかるか（balance.json の時間の速さから出す）
+  const untilSeven = (7 * HOURS_PER_YEAR) / balance.time.gameHoursPerRealSecond;
+  const span = untilSeven >= 90 * 60 ? `約${Math.round(untilSeven / 3600)}時間` : `約${Math.max(1, Math.round(untilSeven / 60))}分`;
+  document.getElementById('intro-age0-note').textContent = `準備期間が長い（7歳まで、遊んでいる時間で${span}）`;
   for (const b of intro.querySelectorAll('[data-age]')) {
     b.addEventListener('click', () => {
       startGame(app.state, Number(b.dataset.age), document.getElementById('hero-name').value);

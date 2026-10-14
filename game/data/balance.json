@@ -1,5 +1,5 @@
 {
-  "time": { "gameHoursPerRealSecond": 2.4333, "maxFrameSeconds": 1 },
+  "time": { "gameHoursPerRealSecond": 58.4, "maxFrameSeconds": 1 },
   "hero": {
     "base": { "hp": 30, "mp": 10, "atk": 5, "def": 2, "wis": 3, "agi": 3, "luck": 3 },
     "perLevel": { "hp": 6, "mp": 2, "atk": 1.5, "def": 0.8, "wis": 1, "agi": 0.6, "luck": 0.4 },
