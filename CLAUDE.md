@@ -143,7 +143,7 @@ EOF
   - `pixel/editor.html` とスプライトJSONの形式（`serializeSprite`）を変更しない
   - ゲームは `pixel/sprites/*.json` と `pixel/palette.json` を **読むだけ**。`_original/` と `export/` は読まない
   - スプライトをゲーム用にコピー・変換して置かない（手直しした瞬間にゲームへ反映されるようにする）
-  - ゲームが読むスプライトは `monsters.json` の `sprites` に書いた名前と `hero_idle` / `hero_attack` / `bg_floor01` だけ（ブラウザはフォルダの中身を一覧できないため）
+  - ゲームが読むスプライトは `monsters.json`・`recruits.json` の `sprites` に書いた名前と `hero_idle` / `hero_attack` / `bg_floor01` だけ（ブラウザはフォルダの中身を一覧できないため）
 - 計算（`sim.js`・`quiz.js`・`save.js`・`genres.js`）はブラウザの機能（DOM・localStorage）に触らない。乱数は `ctx.rng` で渡す（テストで固定するため）
 - 対象はスマホのブラウザ（縦画面）とデスクトップ版 Chrome。将来ストアアプリ化するので、ブラウザ固有の機能に頼りすぎない
 
@@ -166,6 +166,7 @@ game/
     balance.json         … 数値（ここを書き換えるだけで調整できる）
     monsters.json        … 魔物・小ボス・中ボス
     items.json           … 店の品物
+    recruits.json        … 仲間が集まる場所で契約できる仲間
     questions.json       … 問題（Notion から生成。手で編集しない）
   fonts/                 … DotGothic16 と OFL.txt
   tests/                 … node --test 用
@@ -190,7 +191,15 @@ tools/check-questions.mjs … questions.json の検査
   - `spell` 主人公の全体攻撃「ひらめき」：敵が `minTargets` 体以上でMPが `mpCost` 以上あると使う。ダメージ＝賢さ×`power`（防御は効かない）。MPは毎秒 `mpRegenPerSec` 回復し、眠ると全回復
   - `boss` 小ボスの強さ：その階層のザコの数値に `hpMultiplier`・`atkMultiplier`・`defMultiplier`・`expMultiplier`・`goldMultiplier` を掛ける
 - 主人公の名前は `hero.name`（8文字まで。最初の案内と施設で決める）
-- 品物は `items.json`、魔物は `monsters.json`
+- 品物は `items.json`、魔物は `monsters.json`、契約できる仲間は `recruits.json`
+
+## 仲間が集まる場所（契約）
+
+- 施設画面に最初から出ている。`recruits.json` の仲間（戦士・格闘家・魔法使い・僧侶）と契約できる（40HzP の依頼。設計書の第1段階は仲間の一覧だけだった。設計ページの「ゴールドを消費して仲間を手に入れる」を、ゲーム内の月ごとの契約にした）
+- 契約すると最初の1か月分（`monthlyCost`）をその場で払い、以後はゲーム内の1か月（`HOURS_PER_MONTH`＝8760÷12時間）ごとに払う。払えないと契約が切れて去る。解約はいつでもできる（払った分は戻らない）
+- 強さは主人公に合わせて伸びる：攻撃＝主人公の攻撃×`atkRatio`。`role` は `attack`（先頭を攻撃）・`all`（敵全体を攻撃）・`heal`（主人公のHPを最大HP×`healRatio` 回復）。`intervalSec` は行動の間隔
+- 契約した仲間はセーブの `allies` に `hired: true` と次の支払い日 `paidUntil` を持つ。中ボスだった仲間（契約料なし）と同じ配列
+- スプライトは `ally_<id>_idle`（大人の頭身・右向き）。冒険画面では主人公の後ろに最大5人まで並べる
 
 ## 階層と小ボス
 

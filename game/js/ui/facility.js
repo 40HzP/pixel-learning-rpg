@@ -1,5 +1,8 @@
-// 施設画面：店・寝床・仲間（会社・ロケット発射場・専攻の付け替え・拠点は準備中）
-import { shopList, buyItem, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, heroAttackInterval, expMultiplier } from '../sim.js';
+// 施設画面：主人公・店・仲間が集まる場所・寝床（会社・ロケット発射場・専攻の付け替え・拠点は準備中）
+import {
+  shopList, buyItem, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, heroAttackInterval, expMultiplier,
+  recruitList, hireRecruit, dismissRecruit, monthlyContractCost, HOURS_PER_MONTH,
+} from '../sim.js';
 import { el, fmt } from './dom.js';
 
 let root = null;
@@ -54,6 +57,38 @@ function build(app) {
       + `上がった熟練：${ls.up.length ? ls.up.join('・') : 'なし'}\n下がった熟練：${ls.down.length ? ls.down.join('・') : 'なし'}`)
     : null;
 
+  // 仲間が集まる場所：ゲーム内の1か月ごとに契約料を払って仲間にする
+  const monthSec = HOURS_PER_MONTH / ctx.balance.time.gameHoursPerRealSecond;
+  const recruitRows = recruitList(s, ctx).map((r) => {
+    const btn = r.hired
+      ? el('button', {
+        onclick: () => {
+          if (!confirm(`${r.name}との契約をやめますか？（払った契約料は戻りません）`)) return;
+          dismissRecruit(app.state, r.id);
+          app.notify(`${r.name}との契約をやめた`);
+          app.save();
+          update(app, true);
+        },
+      }, '解約する')
+      : el('button', {
+        onclick: () => {
+          const res = hireRecruit(app.state, r.id, ctx);
+          if (!res.ok) { app.notify(res.reason, 'bad'); return; }
+          app.notify(`${r.name}と契約した！（1か月 ${fmt(r.monthlyCost)}G）`, 'good');
+          app.save();
+          update(app, true);
+        },
+      }, '契約する');
+    if (!r.hired) live.buttons.push({ btn, price: r.monthlyCost });
+    return el('div', { class: 'item' },
+      el('div', { class: 'name' }, r.name,
+        el('small', {}, `${r.desc}　1か月 ${fmt(r.monthlyCost)}G`),
+        r.hired ? el('small', { style: { color: 'var(--good)' } }, `契約中（次の支払い：${formatDate(r.paidUntil)}）`) : null),
+      btn);
+  });
+  const others = s.allies.filter((a) => !a.hired);
+  const total = monthlyContractCost(s, ctx);
+
   const hs = heroStats(s, ctx);
   const nameInput = el('input', { type: 'text', value: s.hero.name, maxLength: HERO_NAME_MAX, autocomplete: 'off', 'aria-label': '主人公の名前' });
   const rename = () => {
@@ -90,11 +125,15 @@ function build(app) {
       el('button', { class: 'primary', onclick: () => { app.sleepNow('bed'); update(app, true); } }, '眠る'),
       sleepInfo),
     el('div', { class: 'section' },
-      el('h2', {}, '仲間'),
-      s.allies.length
-        ? el('div', { class: 'list' }, s.allies.map((a) => el('div', { class: 'item' },
-          el('div', { class: 'name' }, a.name, el('small', {}, `攻撃 ${a.atk}　HP ${Math.ceil(a.hp)}/${a.maxHp}`)))))
-        : el('div', { class: 'muted' }, 'まだいない')),
+      el('h2', {}, '仲間が集まる場所'),
+      el('div', { class: 'muted', style: { fontSize: '14px', marginBottom: '8px' } },
+        `契約料はゲーム内の1か月ごとに払う（今の速さで現実の約${Math.round(monthSec)}秒ごと）。払えなくなると契約が切れる`),
+      el('div', { class: 'list' }, recruitRows),
+      total ? el('div', { style: { marginTop: '6px', fontSize: '14px' } }, `契約料の合計　1か月 ${fmt(total)}G`) : null,
+      others.length
+        ? el('div', { class: 'list', style: { marginTop: '8px' } }, others.map((a) => el('div', { class: 'item' },
+          el('div', { class: 'name' }, a.name, el('small', {}, `中ボスだった仲間（契約料なし）　攻撃 ${a.atk}`)))))
+        : null),
     el('div', { class: 'section' },
       el('h2', {}, '準備中'),
       el('div', { class: 'soon' }, ['会社', 'ロケット発射場', '専攻の付け替え', '拠点'].map((n) => el('div', {}, `${n}（準備中）`)))),
@@ -104,7 +143,7 @@ function build(app) {
 
 export function update(app, force) {
   const s = app.state;
-  const k = JSON.stringify([s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.allies.map((a) => [a.id, Math.ceil(a.hp)]), s.lastSleep && s.lastSleep.at]);
+  const k = JSON.stringify([s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0]), s.lastSleep && s.lastSleep.at]);
   // 名前を入力している途中は作り直さない（入力が消えないように）
   const typing = root.contains(document.activeElement) && document.activeElement.tagName === 'INPUT';
   if (force || ((k !== key || !live) && !typing)) { key = k; build(app); }

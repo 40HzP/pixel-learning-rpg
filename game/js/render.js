@@ -5,7 +5,15 @@ import { heroStats, isInvulnerable } from './sim.js';
 export const SCENE_W = 90;
 export const SCENE_H = 160;
 const FEET_Y = 136;                       // 主人公の足元（style-guide：キャラクターは y=105〜150 に立つ）
-const X = { ally: 3, hero: 21 };
+const X = { hero: 21 };
+// 仲間の並び（主人公の後ろ。仲間になった順に置く）
+const ALLY_SLOTS = [
+  { x: 3, feet: 136 },
+  { x: 9, feet: 125 },
+  { x: 9, feet: 149 },
+  { x: -2, feet: 128 },
+  { x: -2, feet: 147 },
+];
 
 // 敵の群れの並び（群れの中の番号 slot → 絵の左端 x と足元 y）。先頭（slot 0）がいちばん手前
 const FORMATION = [
@@ -35,7 +43,8 @@ export function createRenderer(canvas, app) {
   const pal = app.palette;
   const col = (k, fallback) => cssColor(pal, k, fallback);
   const fx = [];
-  const anim = { heroAt: -9, allyAt: -9, spellAt: -9, spawnAt: -9 };
+  const anim = { heroAt: -9, spellAt: -9, spawnAt: -9 };
+  const allyAt = new Map();        // 仲間id → 攻撃・回復した時刻
   const enemyAttackAt = new Map(); // uid → 時刻
   const enemyHitAt = new Map();    // uid → 時刻
   const dying = [];                // { monsterId, slot, t0 }
@@ -82,7 +91,7 @@ export function createRenderer(canvas, app) {
       if (e.type === 'attack' && e.target === 'enemy') {
         const p = enemyBox(e.monsterId, e.slot);
         if (e.by === 'hero') anim.heroAt = now;
-        if (e.by === 'ally') anim.allyAt = now;
+        if (e.by === 'ally') allyAt.set(e.allyId, now);
         enemyHitAt.set(e.uid, now);
         const color = e.dmg === 0 ? col('3') : e.by === 'quiz' ? col('g') : e.crit ? col('e') : e.by === 'spell' ? col('o') : col('4');
         addNumber({ text: String(e.dmg), x: p.cx, y: p.top - 6, t0: now, color });
@@ -91,6 +100,9 @@ export function createRenderer(canvas, app) {
       } else if (e.type === 'attack' && e.target === 'hero') {
         enemyAttackAt.set(e.uid, now);
         addNumber({ text: String(e.dmg), x: X.hero + 8, y: FEET_Y - 22, t0: now, color: col('d') });
+      } else if (e.type === 'heal' && e.target === 'hero' && e.amount > 0) {
+        allyAt.set(e.allyId, now);
+        addNumber({ text: '+' + e.amount, x: X.hero + 8, y: FEET_Y - 26, t0: now, color: col('j') });
       } else if (e.type === 'heal' && e.amount > 0) {
         const p = enemyBox(e.monsterId, e.slot);
         addNumber({ text: '+' + e.amount, x: p.cx, y: p.top - 10, t0: now, color: col('j') });
@@ -131,13 +143,20 @@ export function createRenderer(canvas, app) {
     if (app.bg) drawSprite(g, app.bg, 0, 0, 0);
     else { g.fillStyle = col('o', '#a6d8f2'); g.fillRect(0, 0, SCENE_W, SCENE_H); g.fillStyle = col('j', '#6fb042'); g.fillRect(0, 98, SCENE_W, 62); }
 
-    // 仲間（中ボスは左向きに描かれているので左右反転して右向きにする）
-    for (const ally of state.allies) {
-      drawActor({ idle: spriteOf(ally.id, 'idle'), attack: spriteOf(ally.id, 'attack') }, X.ally, FEET_Y, now, { attackAt: anim.allyAt, flip: true, lunge: 2 });
+    // 仲間と主人公（奥から順に描く）。中ボスだった仲間は左向きに描かれているので左右反転して右向きにする。
+    // 契約した仲間は最初から右向き
+    const actors = state.allies.slice(0, ALLY_SLOTS.length).map((ally, i) => ({ ally, ...ALLY_SLOTS[i] }));
+    actors.push({ hero: true, x: X.hero, feet: FEET_Y });
+    actors.sort((a, b) => a.feet - b.feet);
+    for (const a of actors) {
+      if (a.hero) {
+        // 主人公（ひらめきの間は少し光る）
+        drawActor({ idle: app.heroSprites.idle, attack: app.heroSprites.attack }, X.hero, FEET_Y, now, { attackAt: anim.heroAt, lunge: 2 });
+        continue;
+      }
+      const sp = a.ally.hired ? (app.recruitSprites || {})[a.ally.id] || {} : { idle: spriteOf(a.ally.id, 'idle'), attack: spriteOf(a.ally.id, 'attack') };
+      drawActor({ idle: sp.idle || null, attack: sp.attack || null }, a.x, a.feet, now, { attackAt: allyAt.get(a.ally.id) ?? -9, flip: !a.ally.hired, lunge: 2 });
     }
-
-    // 主人公（ひらめきの間は少し光る）
-    drawActor({ idle: app.heroSprites.idle, attack: app.heroSprites.attack }, X.hero, FEET_Y, now, { attackAt: anim.heroAt, lunge: 2 });
     if (now - anim.spellAt < 0.25) {
       g.fillStyle = col('g');
       for (const [dx, dy] of [[0, -2], [16, 2], [-2, 10], [17, 12], [8, -4]]) g.fillRect(X.hero + dx, FEET_Y - 16 + dy, 1, 1);

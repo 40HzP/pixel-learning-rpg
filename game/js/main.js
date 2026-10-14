@@ -47,11 +47,12 @@ function loadSave(balance, notify) {
 
 async function boot() {
   const params = new URLSearchParams(location.search);
-  let balance, monsters, items, questions;
+  let balance, monsters, items, questions, recruits;
   try {
-    [balance, { monsters }, { items }, { questions }] = await Promise.all([
+    [balance, { monsters }, { items }, { questions }, { recruits }] = await Promise.all([
       fetchJSON('data/balance.json'), fetchJSON('data/monsters.json'),
       fetchJSON('data/items.json'), fetchJSON('data/questions.json'),
+      fetchJSON('data/recruits.json'),
     ]);
   } catch (e) {
     document.querySelector('#loading .dialog').textContent = 'ゲームのデータを読めませんでした。\n' + e.message;
@@ -61,16 +62,20 @@ async function boot() {
   const palette = await loadPalette(PIXEL + 'palette.json');
   const load = (name) => loadSprite(name, palette, SPRITES);
   const monsterSprites = {};
+  const recruitSprites = {};
   await Promise.all([
     ...monsters.map(async (m) => {
       monsterSprites[m.id] = { idle: await load(m.sprites.idle), attack: await load(m.sprites.attack) };
     }),
+    ...recruits.map(async (r) => {
+      recruitSprites[r.id] = { idle: await load(r.sprites.idle), attack: await load(r.sprites.attack) };
+    }),
   ]);
   const [heroIdle, heroAttack, bg] = await Promise.all([load('hero_idle'), load('hero_attack'), load('bg_floor01')]);
 
-  const ctx = { balance, monsters, items, questions, rng: Math.random };
+  const ctx = { balance, monsters, items, questions, recruits, rng: Math.random };
   const app = {
-    ctx, palette, monsterSprites,
+    ctx, palette, monsterSprites, recruitSprites,
     heroSprites: { idle: heroIdle, attack: heroAttack },
     bg,
     state: null,
@@ -136,6 +141,7 @@ async function boot() {
       else if (e.type === 'spawn' && e.kind === 'boss') notify(`小ボス「${e.name}」が現れた！`, 'bad');
       else if (e.type === 'bossDefeated') notify(`小ボス「${e.name}」を倒した！\n図鑑に「なぜ信じられたか」が載った`, 'good');
       else if (e.type === 'allyJoined') notify(`${e.name}が仲間になった！`, 'good');
+      else if (e.type === 'contractEnded') notify(`ゴールドが足りず、${e.name}との契約が切れた`, 'bad');
       else if (e.type === 'zukan' && e.stage === 1) {
         const m = monsters.find((x) => x.id === e.monsterId);
         if (m && !met.includes(m.name)) met.push(m.name);

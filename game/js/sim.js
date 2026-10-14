@@ -1,14 +1,16 @@
 // ゲームの計算（描画しない・ブラウザの機能に触らない）。
 // 乱数は ctx.rng（0以上1未満を返す関数）で受け取る。テストで固定できるようにするため。
 //
-// ctx = { balance, monsters, items, rng }
+// ctx = { balance, monsters, items, recruits, rng }
 //   balance  … data/balance.json
 //   monsters … data/monsters.json の monsters 配列
 //   items    … data/items.json の items 配列
+//   recruits … data/recruits.json の recruits 配列（仲間が集まる場所で契約できる仲間）
 
 import { GENRES, MAX_PROFICIENCY } from './genres.js';
 
 export const HOURS_PER_YEAR = 8760;
+export const HOURS_PER_MONTH = HOURS_PER_YEAR / 12; // 契約料を払う間隔（ゲーム内の1か月）
 const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const STEP_SEC = 0.1; // 戦闘を細かく刻む幅（速さ×600でも攻撃の順番が崩れないように）
 export const DEFAULT_HERO_NAME = '主人公';
@@ -24,7 +26,7 @@ export function createState(balance) {
     gold: 0,
     equipment: { weapon: null, armor: null },
     owned: [],                                      // 買った品物のid
-    allies: [],                                     // { id, name, atk, maxHp, hp, cd }
+    allies: [],                                     // 中ボス：{ id, name, atk, maxHp, hp, cd }／契約：{ id, name, hired: true, cd, paidUntil }
     adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1 }, // enemies：今出ている群れ（先頭が狙う相手）
     knowledge: {                                    // 転生で引き継ぐ前提のもの（第2段階）
       genres: {},                                   // ジャンル名 → { level, progress, correct, studied }
@@ -343,6 +345,7 @@ export function tick(state, dt, ctx) {
   const events = [];
   if (state.meta.startAge == null || !(dt > 0)) return events;
   state.life.gameHours += dt * ctx.balance.time.gameHoursPerRealSecond;
+  payContracts(state, ctx, events);
   breakMidbosses(state, ctx, events);
   let remaining = dt;
   while (remaining > 1e-9) {
@@ -372,10 +375,9 @@ function combatStep(state, dt, ctx, events) {
   for (const ally of state.allies) {
     ally.cd -= dt;
     if (ally.cd > 0) continue;
-    ally.cd += b.ally.attackIntervalSec;
-    const e = adv.enemies[0];
-    const dmg = isInvulnerable(state, e) ? 0 : calcDamage(ally.atk, e.def, b, ctx.rng);
-    hitEnemy(state, e, dmg, 'ally', ctx, events, { allyId: ally.id });
+    const r = ally.hired ? recruitById(ctx, ally.id) : null;
+    ally.cd += r ? r.intervalSec : b.ally.attackIntervalSec;
+    allyAct(state, ally, r, hs, ctx, events);
     if (!adv.enemies.length) return;
   }
   for (const e of [...adv.enemies]) {
@@ -386,6 +388,29 @@ function combatStep(state, dt, ctx, events) {
     state.hero.hp = Math.max(0, state.hero.hp - dmg);
     events.push({ type: 'attack', by: 'enemy', target: 'hero', uid: e.uid, slot: e.slot, dmg });
     if (state.hero.hp <= 0) { heroDefeated(state, ctx, events); return; }
+  }
+}
+
+/**
+ * 仲間の番。中ボスだった仲間は先頭を攻撃。契約した仲間は役目どおりに動く：
+ * attack＝先頭を攻撃、all＝敵全体を攻撃、heal＝主人公のHPを回復（満タンなら何もしない）。
+ * 契約した仲間の攻撃は主人公の攻撃×atkRatio（主人公が強くなると仲間も強くなる）
+ */
+function allyAct(state, ally, r, hs, ctx, events) {
+  const adv = state.adventure;
+  const b = ctx.balance;
+  if (r && r.role === 'heal') {
+    const before = state.hero.hp;
+    state.hero.hp = Math.min(hs.maxHp, state.hero.hp + Math.max(1, Math.round(hs.maxHp * r.healRatio)));
+    const amount = Math.round(state.hero.hp - before);
+    if (amount > 0) events.push({ type: 'heal', target: 'hero', amount, allyId: ally.id });
+    return;
+  }
+  const atk = r ? Math.max(1, Math.round(hs.atk * r.atkRatio)) : ally.atk;
+  const targets = r && r.role === 'all' ? [...adv.enemies] : [adv.enemies[0]];
+  for (const e of targets) {
+    const dmg = isInvulnerable(state, e) ? 0 : calcDamage(atk, e.def, b, ctx.rng);
+    hitEnemy(state, e, dmg, 'ally', ctx, events, { allyId: ally.id });
   }
 }
 
@@ -527,6 +552,60 @@ export function sleep(state, ctx, reason = 'bed') {
   }
   state.lastSleep = { reason, up, down, hours: s.gameHours, at: state.life.gameHours };
   return state.lastSleep;
+}
+
+/* ================= 仲間が集まる場所（契約） ================= */
+
+export const recruitById = (ctx, id) => (ctx.recruits || []).find((r) => r.id === id) || null;
+
+/** 契約できる仲間の一覧（契約中か・次の支払いはいつか） */
+export function recruitList(state, ctx) {
+  return (ctx.recruits || []).map((r) => {
+    const a = state.allies.find((x) => x.id === r.id && x.hired);
+    return { ...r, hired: !!a, paidUntil: a ? a.paidUntil : null };
+  });
+}
+
+/** 契約中の仲間の、1か月あたりの契約料の合計 */
+export const monthlyContractCost = (state, ctx) =>
+  state.allies.reduce((sum, a) => sum + (a.hired ? (recruitById(ctx, a.id) || { monthlyCost: 0 }).monthlyCost : 0), 0);
+
+/** 契約する。最初の1か月分をその場で払い、以後はゲーム内の1か月ごとに払う */
+export function hireRecruit(state, id, ctx) {
+  const r = recruitById(ctx, id);
+  if (!r) return { ok: false, reason: 'いない仲間です' };
+  if (state.allies.some((a) => a.id === id)) return { ok: false, reason: 'もう契約しています' };
+  if (state.gold < r.monthlyCost) return { ok: false, reason: 'ゴールドが足りません' };
+  state.gold -= r.monthlyCost;
+  state.allies.push({ id: r.id, name: r.name, hired: true, cd: r.intervalSec, paidUntil: state.life.gameHours + HOURS_PER_MONTH });
+  return { ok: true };
+}
+
+/** 解約する（払った分は戻らない） */
+export function dismissRecruit(state, id) {
+  const i = state.allies.findIndex((a) => a.id === id && a.hired);
+  if (i < 0) return { ok: false, reason: '契約していません' };
+  state.allies.splice(i, 1);
+  return { ok: true };
+}
+
+/** 支払日が来た契約の契約料を払う。払えなければ契約が切れて仲間が去る */
+export function payContracts(state, ctx, events) {
+  for (const a of [...state.allies]) {
+    if (!a.hired) continue;
+    const r = recruitById(ctx, a.id);
+    if (!r) { state.allies.splice(state.allies.indexOf(a), 1); continue; }
+    while (state.life.gameHours >= a.paidUntil) {
+      if (state.gold < r.monthlyCost) {
+        state.allies.splice(state.allies.indexOf(a), 1);
+        if (events) events.push({ type: 'contractEnded', id: a.id, name: a.name });
+        break;
+      }
+      state.gold -= r.monthlyCost;
+      a.paidUntil += HOURS_PER_MONTH;
+      if (events) events.push({ type: 'contractPaid', id: a.id, cost: r.monthlyCost });
+    }
+  }
 }
 
 /* ================= 店 ================= */

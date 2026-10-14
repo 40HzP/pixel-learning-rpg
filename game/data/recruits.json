@@ -1,0 +1,44 @@
+{
+  "recruits": [
+    {
+      "id": "warrior",
+      "name": "戦士",
+      "role": "attack",
+      "desc": "先頭の敵を強く叩く",
+      "atkRatio": 0.6,
+      "intervalSec": 1.5,
+      "monthlyCost": 15,
+      "sprites": { "idle": "ally_warrior_idle", "attack": null }
+    },
+    {
+      "id": "fighter",
+      "name": "格闘家",
+      "role": "attack",
+      "desc": "一撃は軽いが、手数が多い",
+      "atkRatio": 0.3,
+      "intervalSec": 0.7,
+      "monthlyCost": 15,
+      "sprites": { "idle": "ally_fighter_idle", "attack": null }
+    },
+    {
+      "id": "mage",
+      "name": "魔法使い",
+      "role": "all",
+      "desc": "敵全体に攻撃する",
+      "atkRatio": 0.35,
+      "intervalSec": 2.5,
+      "monthlyCost": 25,
+      "sprites": { "idle": "ally_mage_idle", "attack": null }
+    },
+    {
+      "id": "priest",
+      "name": "僧侶",
+      "role": "heal",
+      "desc": "主人公のHPを回復する",
+      "healRatio": 0.12,
+      "intervalSec": 3,
+      "monthlyCost": 20,
+      "sprites": { "idle": "ally_priest_idle", "attack": null }
+    }
+  ]
+}

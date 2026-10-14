@@ -9,6 +9,7 @@ const read = (name) => JSON.parse(readFileSync(dataDir + name, 'utf8'));
 export const balance = read('balance.json');
 export const monsters = read('monsters.json').monsters;
 export const items = read('items.json').items;
+export const recruits = read('recruits.json').recruits;
 export const questions = read('questions.json').questions;
 
 /** いつも同じ値を返す乱数 */
@@ -33,7 +34,7 @@ export function seededRng(seed) {
 }
 
 export function makeCtx(rng = constRng(0.5)) {
-  return { balance, monsters, items, questions, rng };
+  return { balance, monsters, items, recruits, questions, rng };
 }
 
 export function newGame(startAge = 0) {
