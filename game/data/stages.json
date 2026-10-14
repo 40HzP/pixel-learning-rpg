@@ -1,0 +1,14 @@
+{
+  "stages": [
+    { "from": 1, "name": "はじまりの草原", "genre": null, "background": "bg_floor01" },
+    { "from": 11, "name": "生き物の森", "genre": "生物", "background": "bg_floor11" },
+    { "from": 21, "name": "平安京", "genre": "古文漢文", "background": "bg_floor21" },
+    { "from": 31, "name": "錬金術の工房", "genre": "化学", "background": "bg_floor31" },
+    { "from": 41, "name": "ピラミッドの砂漠", "genre": "世界史", "background": "bg_floor41" },
+    { "from": 51, "name": "火山", "genre": "地学", "background": "bg_floor51" },
+    { "from": 61, "name": "氷の大地", "genre": "熱力学", "background": "bg_floor61" },
+    { "from": 71, "name": "夜の都会", "genre": "経済学", "background": "bg_floor71" },
+    { "from": 81, "name": "海の底", "genre": "流体力学", "background": "bg_floor81" },
+    { "from": 91, "name": "天空の神殿", "genre": "数学", "background": "bg_floor91" }
+  ]
+}

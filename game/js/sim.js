@@ -280,6 +280,16 @@ function makeEnemy(monster, state, ctx, slot) {
   return e;
 }
 
+/**
+ * その階層の世界（stages.json）。from がその階層以下で一番大きい世界を返す。
+ * 最後の世界より先の階層は、最後の世界のまま（世界を足すまで）
+ */
+export function stageFor(floor, stages) {
+  let st = null;
+  for (const s of stages || []) if (floor >= s.from && (!st || s.from > st.from)) st = s;
+  return st;
+}
+
 /** 年齢を満たした未撃破の中ボス（いなければ null） */
 export function pendingMidboss(state, ctx) {
   const age = ageYears(state);

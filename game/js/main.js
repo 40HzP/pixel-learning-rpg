@@ -1,7 +1,7 @@
 // 起動・画面切り替え・ループ・セーブ
 import {
   createState, startGame, tick, clockFrame, createClock, HOURS_PER_YEAR,
-  createRateTracker, trackTime, trackGain, sleep,
+  createRateTracker, trackTime, trackGain, sleep, stageFor,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
 import { forgetMissingQuestions } from './quiz.js';
@@ -48,12 +48,13 @@ function loadSave(balance, notify) {
 
 async function boot() {
   const params = new URLSearchParams(location.search);
-  let balance, monsters, items, questions, recruits, town;
+  let balance, monsters, items, questions, recruits, town, stages;
   try {
-    [balance, { monsters }, { items }, { questions }, { recruits }, town] = await Promise.all([
+    [balance, { monsters }, { items }, { questions }, { recruits }, town, { stages }] = await Promise.all([
       fetchJSON('data/balance.json'), fetchJSON('data/monsters.json'),
       fetchJSON('data/items.json'), fetchJSON('data/questions.json'),
       fetchJSON('data/recruits.json'), fetchJSON('data/town.json'),
+      fetchJSON('data/stages.json'),
     ]);
   } catch (e) {
     document.querySelector('#loading .dialog').textContent = 'ゲームのデータを読めませんでした。\n' + e.message;
@@ -72,7 +73,9 @@ async function boot() {
       recruitSprites[r.id] = { idle: await load(r.sprites.idle), attack: await load(r.sprites.attack) };
     }),
   ]);
-  const [heroIdle, heroAttack, bg] = await Promise.all([load('hero_idle'), load('hero_attack'), load('bg_floor01')]);
+  const [heroIdle, heroAttack] = await Promise.all([load('hero_idle'), load('hero_attack')]);
+  // 10階層ごとの世界の背景（stages.json に書いた名前だけ読む）
+  const stageList = await Promise.all(stages.map(async (st) => ({ ...st, bg: await load(st.background) })));
   // 施設画面の街：背景と施設の外観（town.json に書いた名前だけ読む）
   const townSprites = {};
   const [townBg] = await Promise.all([
@@ -84,7 +87,7 @@ async function boot() {
   const app = {
     ctx, palette, monsterSprites, recruitSprites,
     heroSprites: { idle: heroIdle, attack: heroAttack },
-    bg,
+    stages: stageList,
     town: { ...town, bg: townBg, sprites: townSprites },
     state: null,
     speed: 1,
@@ -137,7 +140,11 @@ async function boot() {
     for (const e of events) {
       if (e.type === 'defeat') trackGain(app.rate, e.exp, e.gold);
       else if (e.type === 'levelUp') notify(`${app.state.hero.name}のレベルが上がった！　Lv ${e.level}`, 'good');
-      else if (e.type === 'floorUp') notify(`${e.floor}階層に進んだ`);
+      else if (e.type === 'floorUp') {
+        // 10階層ごとに世界が変わる。新しい世界の最初の階層では世界の名前を出す
+        const st = stageFor(e.floor, app.stages);
+        notify(st && st.from === e.floor && e.floor > 1 ? `${e.floor}階層　${st.name}に入った` : `${e.floor}階層に進んだ`);
+      }
       else if (e.type === 'heroDefeated') notifySleep(e.sleep);
       else if (e.type === 'retreat') notify(`${e.name}から逃げた。また挑戦できる`);
       else if (e.type === 'midbossReady') notify(`${e.name}に挑戦できるようになった！\n冒険画面の「挑戦する」を押すと戦える`, 'good');
