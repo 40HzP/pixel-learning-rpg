@@ -33,7 +33,7 @@ export function createState(balance) {
       recent: [],                                   // 直近に出した問題id
       zukan: {},                                    // 魔物id → { stage: 0|1|2, fooled }
     },
-    midbosses: {},                                  // 中ボスid → { status: waiting|appeared|broken|defeated, correct }
+    midbosses: {},                                  // 中ボスid → { status: waiting|appeared|broken|defeated }
     bosses: {},                                     // 小ボスid → { status: waiting|appeared|defeated }（一度倒した小ボスは復活しない）
     lastSleep: null,                                // 直近の睡眠のまとめ
   };
@@ -89,8 +89,30 @@ export function raiseZukan(state, monsterId, stage, events) {
 }
 
 export function midbossState(state, id) {
-  if (!state.midbosses[id]) state.midbosses[id] = { status: 'waiting', correct: 0 };
+  if (!state.midbosses[id]) state.midbosses[id] = { status: 'waiting' };
   return state.midbosses[id];
+}
+
+/** 中ボスの防御が崩れるまでに要る正解の残り。累計の正解数（中ボスが出る前の正解も含む）で数える */
+export const midbossLeft = (state, monster) => Math.max(0, (monster.unlockCorrect || 0) - state.knowledge.totalCorrect);
+
+/**
+ * 出ている中ボスのうち、累計の正解数が足りたものの防御を崩す。崩れたら events に積む。
+ * 正解したとき（quiz.js）と毎回の tick で呼ぶ（古いセーブや、先に正解を貯めていた場合もここで崩れる）
+ */
+export function breakMidbosses(state, ctx, events) {
+  const broken = [];
+  for (const e of state.adventure.enemies) {
+    if (e.kind !== 'midboss') continue;
+    const st = midbossState(state, e.monsterId);
+    const m = ctx.monsters.find((x) => x.id === e.monsterId);
+    if (st.status === 'appeared' && m && midbossLeft(state, m) === 0) {
+      st.status = 'broken';
+      broken.push(e.monsterId);
+      if (events) events.push({ type: 'midbossBroken', monsterId: e.monsterId });
+    }
+  }
+  return broken;
 }
 
 export function bossState(state, id) {
@@ -296,6 +318,11 @@ export function spawnGroup(state, ctx, events, monsterIds = null) {
       const st = e.kind === 'midboss' ? midbossState(state, e.monsterId) : bossState(state, e.monsterId);
       first = st.status === 'waiting';
       if (first) st.status = 'appeared';
+      // それまでの勉強で正解が足りていれば、出てきた時点で防御が崩れている
+      if (e.kind === 'midboss' && st.status === 'appeared') {
+        const m = ctx.monsters.find((x) => x.id === e.monsterId);
+        if (m && midbossLeft(state, m) === 0) st.status = 'broken';
+      }
     }
     events.push({ type: 'spawn', monsterId: e.monsterId, name: e.name, kind: e.kind, uid: e.uid, slot: e.slot, floor: adv.floor, first });
   }
@@ -313,6 +340,7 @@ export function tick(state, dt, ctx) {
   const events = [];
   if (state.meta.startAge == null || !(dt > 0)) return events;
   state.life.gameHours += dt * ctx.balance.time.gameHoursPerRealSecond;
+  breakMidbosses(state, ctx, events);
   let remaining = dt;
   while (remaining > 1e-9) {
     const step = Math.min(remaining, STEP_SEC);

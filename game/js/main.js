@@ -1,6 +1,6 @@
 // 起動・画面切り替え・ループ・セーブ
 import {
-  createState, startGame, tick, clockFrame, createClock, HOURS_PER_YEAR,
+  createState, startGame, tick, clockFrame, createClock, HOURS_PER_YEAR, midbossLeft,
   createRateTracker, trackTime, trackGain, sleep,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
@@ -115,6 +115,14 @@ async function boot() {
     notify(lines.join('\n'), r.reason === 'defeated' ? 'bad' : 'good');
   }
 
+  function notifyMidboss(id) {
+    const m = monsters.find((x) => x.id === id);
+    if (!m) return;
+    const left = midbossLeft(app.state, m);
+    if (left === 0) notify(`${m.name}が現れた！\nこれまでの勉強で、もう攻撃が効く`, 'good');
+    else notify(`${m.name}が現れた！\n勉強で累計${m.unlockCorrect}問正解するまで攻撃が効かない（あと${left}問）`, 'bad');
+  }
+
   function handleEvents(events) {
     app.renderer.onEvents(events, performance.now() / 1000);
     const met = [];
@@ -123,8 +131,8 @@ async function boot() {
       else if (e.type === 'levelUp') notify(`${app.state.hero.name}のレベルが上がった！　Lv ${e.level}`, 'good');
       else if (e.type === 'floorUp') notify(`${e.floor}階層に進んだ`);
       else if (e.type === 'heroDefeated') notifySleep(e.sleep);
-      else if (e.type === 'spawn' && e.kind === 'midboss' && e.first) notify('小学校教師が現れた！\n勉強で5問正解するまで攻撃が効かない', 'bad');
-      else if (e.type === 'midbossBroken') notify('小学校教師の防御が崩れた！', 'good');
+      else if (e.type === 'spawn' && e.kind === 'midboss' && e.first) notifyMidboss(e.monsterId);
+      else if (e.type === 'midbossBroken') notify(`${(monsters.find((m) => m.id === e.monsterId) || {}).name || '中ボス'}の防御が崩れた！`, 'good');
       else if (e.type === 'spawn' && e.kind === 'boss') notify(`小ボス「${e.name}」が現れた！`, 'bad');
       else if (e.type === 'bossDefeated') notify(`小ボス「${e.name}」を倒した！\n図鑑に「なぜ信じられたか」が載った`, 'good');
       else if (e.type === 'allyJoined') notify(`${e.name}が仲間になった！`, 'good');

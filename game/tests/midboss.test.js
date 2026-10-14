@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tick, spawnEnemy, chooseNextMonster, midbossState } from '../js/sim.js';
+import { tick, spawnEnemy, chooseNextMonster, midbossState, HOURS_PER_YEAR } from '../js/sim.js';
 import { createSession, presentQuestion, answer } from '../js/quiz.js';
 import { makeCtx, newGame, questions, constRng } from './helpers.js';
 
@@ -16,7 +16,7 @@ test('7歳になるまでは小学校教師は出ない。7歳になったら次
   assert.equal(chooseNextMonster(newGame(7), ctx).id, 'teacher_elementary');
 });
 
-test('中ボス：正解5回まではダメージ0、その後は自動攻撃も勉強も効く', () => {
+test('中ボス：累計の正解が5回になるまではダメージ0、その後は自動攻撃も勉強も効く', () => {
   const s = newGame(7);
   const ctx = makeCtx(constRng(0.5));
   s.hero.hp = 99999;
@@ -66,4 +66,50 @@ test('中ボスを倒すと仲間になり、以後は出てこない', () => {
   assert.equal(chooseNextMonster(s, ctx).kind, 'monster');
   const allyHits = tick(s, 5, ctx).filter((x) => x.type === 'attack' && x.by === 'ally');
   assert.ok(allyHits.length >= 1, '仲間も攻撃する');
+});
+
+test('中ボスが出る前の正解も数える：5問正解してから7歳になると、出てきた時点で攻撃が効く', () => {
+  const s = newGame(0);
+  const ctx = makeCtx(constRng(0.5));
+  s.hero.hp = 99999;
+  for (let i = 0; i < 5; i++) correctOnce(s, ctx);
+  assert.equal(s.knowledge.totalCorrect, 5);
+  s.life.gameHours = 7 * HOURS_PER_YEAR;
+  s.adventure.enemies = [];
+  const ev = [];
+  const e = spawnEnemy(s, ctx, ev);
+  assert.equal(e.kind, 'midboss');
+  assert.equal(ev.find((x) => x.type === 'spawn').first, true);
+  assert.equal(midbossState(s, e.monsterId).status, 'broken');
+  const hits = tick(s, 2, ctx).filter((x) => x.type === 'attack' && x.by === 'hero');
+  assert.ok(hits.length && hits.every((x) => x.dmg > 0), '最初から自動攻撃が効く');
+});
+
+test('出る前に3問・出てから2問の正解で防御が崩れる', () => {
+  const s = newGame(0);
+  const ctx = makeCtx(constRng(0.5));
+  s.hero.hp = 99999;
+  for (let i = 0; i < 3; i++) correctOnce(s, ctx);
+  s.life.gameHours = 7 * HOURS_PER_YEAR;
+  s.adventure.enemies = [];
+  const e = spawnEnemy(s, ctx, []);
+  assert.equal(midbossState(s, e.monsterId).status, 'appeared');
+  const r4 = correctOnce(s, ctx);
+  assert.equal(r4.midbossBroken, false);
+  assert.equal(r4.damage, 0);
+  const r5 = correctOnce(s, ctx);
+  assert.equal(r5.midbossBroken, true);
+  assert.ok(r5.damage > 0);
+});
+
+test('前の版のセーブ（中ボスが出ていて、累計の正解はもう5回以上）は、次の時間の進みで防御が崩れる', () => {
+  const s = newGame(7);
+  const ctx = makeCtx(constRng(0.5));
+  s.hero.hp = 99999;
+  const e = spawnEnemy(s, ctx, []);
+  midbossState(s, e.monsterId).status = 'appeared';
+  s.knowledge.totalCorrect = 12;
+  const ev = tick(s, 0.1, ctx);
+  assert.ok(ev.some((x) => x.type === 'midbossBroken' && x.monsterId === e.monsterId));
+  assert.equal(midbossState(s, e.monsterId).status, 'broken');
 });

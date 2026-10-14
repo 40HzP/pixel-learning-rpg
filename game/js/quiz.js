@@ -2,7 +2,7 @@
 // ctx = { balance, monsters, items, questions, rng }（questions は questions.json の questions 配列）
 
 import { GENRES, MAX_PROFICIENCY } from './genres.js';
-import { genreState, raiseZukan, zukanEntry, midbossState, damageEnemy, healEnemy } from './sim.js';
+import { genreState, raiseZukan, zukanEntry, breakMidbosses, damageEnemy, healEnemy } from './sim.js';
 
 export { GENRES };
 
@@ -169,20 +169,8 @@ export function answer(state, session, choiceIndex, ctx) {
     if (ri >= 0) k.review.splice(ri, 1);
     if (relatedMonster && raiseZukan(state, relatedMonster.id, 2, events)) res.zukan.push({ monsterId: relatedMonster.id, stage: 2 });
 
-    // 中ボスが出ている間の正解は、防御を崩すための回数に数える
-    const boss = state.adventure.enemies.find((e) => e.kind === 'midboss');
-    if (boss) {
-      const st = midbossState(state, boss.monsterId);
-      const mb = ctx.monsters.find((m) => m.id === boss.monsterId);
-      if (st.status === 'appeared') {
-        st.correct++;
-        if (st.correct >= mb.unlockCorrect) {
-          st.status = 'broken';
-          res.midbossBroken = true;
-          events.push({ type: 'midbossBroken', monsterId: boss.monsterId });
-        }
-      }
-    }
+    // 中ボスの防御は累計の正解数で崩れる（出てくる前の正解も数える）
+    if (breakMidbosses(state, ctx, events).length) res.midbossBroken = true;
     if (target) {
       const ratio = interferer ? qb.interferedCorrectDamageRatio : qb.correctDamageRatio;
       res.damage = damageEnemy(state, Math.ceil(target.maxHp * ratio), ctx, events, 'quiz', target);

@@ -1,5 +1,5 @@
 // 冒険画面の表示項目（設計ページ「自動冒険画面に必ず表示する項目」）。空の部分（y=0〜97）に重ねる
-import { heroStats, expToNext, formatDate, trackRates, isInvulnerable, midbossState, pendingBoss } from '../sim.js';
+import { heroStats, expToNext, formatDate, trackRates, isInvulnerable, midbossLeft, pendingBoss } from '../sim.js';
 import { el, fmt } from './dom.js';
 
 let refs = null;
@@ -75,8 +75,7 @@ export function update(app) {
   const boss = enemies.find((e) => e.kind === 'midboss');
   if (boss && isInvulnerable(s, boss)) {
     const mb = ctx.monsters.find((m) => m.id === boss.monsterId);
-    const left = mb.unlockCorrect - midbossState(s, boss.monsterId).correct;
-    r.boss.textContent = `勉強で${mb.unlockCorrect}問正解しよう（あと${left}問）　→ 勉強へ`;
+    r.boss.textContent = `勉強で累計${mb.unlockCorrect}問正解しよう（あと${midbossLeft(s, mb)}問）　→ 勉強へ`;
     r.boss.hidden = false;
   } else {
     r.boss.hidden = true;

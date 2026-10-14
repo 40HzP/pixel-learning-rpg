@@ -1,6 +1,6 @@
 // 勉強画面（設計ページ「勉強画面の表示」）
 import { createSession, nextQuestion, answer, interferingMonster, MODES } from '../quiz.js';
-import { genreState, midbossState } from '../sim.js';
+import { genreState, midbossState, midbossLeft } from '../sim.js';
 import { GENRES, MAX_PROFICIENCY } from '../genres.js';
 import { spriteCanvas } from '../sprites.js';
 import { el, stars } from './dom.js';
@@ -148,7 +148,7 @@ function effectLines(app, r) {
     if (r.targetName && r.damage === 0 && r.targetMidboss) {
       const st = midbossState(app.state, r.targetMidboss);
       const mb = app.ctx.monsters.find((m) => m.id === r.targetMidboss);
-      if (st.status !== 'broken') lines.push(['', `${r.targetName}には効かない…（防御が崩れるまで あと${mb.unlockCorrect - st.correct}問）`]);
+      if (st.status !== 'broken') lines.push(['', `${r.targetName}には効かない…（防御が崩れるまで 累計であと${midbossLeft(app.state, mb)}問）`]);
     }
     if (r.defeated) lines.push(['good', `${r.targetName}を倒した！`]);
     if (r.levelUp) lines.push(['good', `${r.levelUp.genre}の熟練が Lv ${r.levelUp.level} になった！`]);
