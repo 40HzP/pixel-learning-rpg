@@ -1,5 +1,5 @@
 // デバッグ画面（URL に ?debug=1 を付けたときだけ出る）
-import { HOURS_PER_YEAR, genreState, spawnGroup } from '../sim.js';
+import { HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel } from '../sim.js';
 import { SAVE_KEY, serialize, deserialize } from '../save.js';
 import { GENRES, MAX_PROFICIENCY } from '../genres.js';
 import { el } from './dom.js';
@@ -16,6 +16,12 @@ export function init(app) {
   speedButtons = [1, 60, 600].map((v) => el('button', { onclick: () => { app.speed = v; update(app); } }, `×${v}`));
   const age = el('input', { type: 'number', min: 0, max: 100, value: 7, style: { width: '80px' } });
   const floor = el('input', { type: 'number', min: 1, value: 10, style: { width: '80px' } });
+  const heroLevel = el('input', { type: 'number', min: 1, value: 10, style: { width: '80px' } });
+  const changeLevel = (n) => {
+    const lv = setHeroLevel(app.state, n, ctx);
+    heroLevel.value = lv;
+    app.notify(`${app.state.hero.name}を Lv ${lv} にした（HP・MP満タン）`);
+  };
   const genre = el('select', {}, GENRES.map((g) => el('option', { value: g }, g)));
   const level = el('select', {}, Array.from({ length: MAX_PROFICIENCY + 1 }, (_, i) => el('option', { value: i }, `Lv ${i}`)));
   const monster = el('select', {}, ctx.monsters.map((m) => el('option', { value: m.id }, m.name)));
@@ -25,6 +31,12 @@ export function init(app) {
     el('div', { class: 'section' }, el('h2', {}, '時間の速さ'), el('div', {}, speedButtons)),
     el('div', { class: 'section' }, el('h2', {}, 'ゴールド'),
       el('div', {}, el('button', { onclick: () => { app.state.gold += 1000; app.notify('ゴールド +1000'); } }, '+1000G'))),
+    el('div', { class: 'section' }, el('h2', {}, '主人公のレベル'),
+      el('div', {}, 'Lv', heroLevel,
+        el('button', { onclick: () => changeLevel(heroLevel.value) }, '設定'),
+        el('button', { onclick: () => changeLevel(app.state.hero.level + 1) }, '+1'),
+        el('button', { onclick: () => changeLevel(app.state.hero.level + 10) }, '+10'),
+        el('button', { onclick: () => changeLevel(app.state.hero.level - 1) }, '−1'))),
     el('div', { class: 'section' }, el('h2', {}, '年齢'),
       el('div', {}, age, '歳', el('button', {
         onclick: () => {

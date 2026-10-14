@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tick, spawnEnemy, heroStats, genreState, buyItem, shopList, monsterStats } from '../js/sim.js';
+import { tick, spawnEnemy, heroStats, genreState, buyItem, shopList, monsterStats, setHeroLevel } from '../js/sim.js';
 import { balance, makeCtx, newGame, seededRng, constRng } from './helpers.js';
 
 test('冒険が自動で進み、5体倒すと次の階層。9階層で止まらず先へ進む', () => {
@@ -86,4 +86,23 @@ test('店：正解数で品揃えが増え、ゴールドで買うと強けれ�
   assert.equal(s.gold, 1000 - 150 - 30);
   assert.equal(buyItem(s, 'iron_sword', ctx).reason, 'まだ入荷していません');
   assert.equal(buyItem(s, 'copper_sword', ctx).reason, 'もう持っています');
+});
+
+test('デバッグ用：レベルを直接決めると、経験値は0からでHP・MPは満タン', () => {
+  const s = newGame(0);
+  const ctx = makeCtx(constRng(0.5));
+  s.hero.exp = 7;
+  s.hero.hp = 1;
+  assert.equal(setHeroLevel(s, 30, ctx), 30);
+  const hs = heroStats(s, ctx);
+  assert.equal(s.hero.level, 30);
+  assert.equal(s.hero.exp, 0);
+  assert.equal(s.hero.hp, hs.maxHp);
+  assert.equal(s.hero.mp, hs.maxMp);
+  assert.ok(hs.atk > heroStats(newGame(0), ctx).atk);
+  // 下げることもできる。1より下にはならない
+  assert.equal(setHeroLevel(s, 5, ctx), 5);
+  assert.equal(s.hero.hp, heroStats(s, ctx).maxHp);
+  assert.equal(setHeroLevel(s, 0, ctx), 1);
+  assert.equal(setHeroLevel(s, 'abc', ctx), 1);
 });

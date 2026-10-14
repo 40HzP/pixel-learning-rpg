@@ -50,6 +50,16 @@ export function renameHero(state, name) {
   return state.hero.name;
 }
 
+/** レベルを直接決める（デバッグ用）。次のレベルまでの経験値は0から、HP・MPは満タンにする */
+export function setHeroLevel(state, level, ctx) {
+  state.hero.level = Math.max(1, Math.floor(Number(level) || 1));
+  state.hero.exp = 0;
+  const hs = heroStats(state, ctx);
+  state.hero.hp = hs.maxHp;
+  state.hero.mp = hs.maxMp;
+  return state.hero.level;
+}
+
 /** 開始年齢（0歳 or 7歳）と名前を決めてゲームを始める */
 export function startGame(state, startAge, name) {
   state.meta.startAge = startAge;
