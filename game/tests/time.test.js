@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createClock, clockFrame, tick, formatDate, gameDate, HOURS_PER_YEAR, createState, createRateTracker, trackTime, trackGain, trackRates } from '../js/sim.js';
+import { createClock, clockFrame, tick, formatDate, gameDate, HOURS_PER_YEAR, HOURS_PER_MONTH, createState, createRateTracker, trackTime, trackGain, trackRates, monthlyRates } from '../js/sim.js';
 import { balance, makeCtx, newGame } from './helpers.js';
 
 test('隠れている間は時間が進まず、戻った最初のフレームも0', () => {
@@ -51,4 +51,16 @@ test('秒間獲得量は直近の時間で平均する', () => {
   assert.equal(r.gold, 1);
   trackTime(tr, 100);
   assert.deepEqual(trackRates(tr, 60), { exp: 0, gold: 0 });
+});
+
+test('冒険画面にはゲーム内1か月あたりの獲得量を出す（秒あたり×1か月の秒数）', () => {
+  const tr = createRateTracker();
+  trackTime(tr, 10);
+  trackGain(tr, 20, 10);
+  const perSec = trackRates(tr, balance.rateWindowSec);
+  const m = monthlyRates(tr, balance);
+  const secPerMonth = HOURS_PER_MONTH / balance.time.gameHoursPerRealSecond;
+  assert.ok(Math.abs(m.exp - perSec.exp * secPerMonth) < 1e-9);
+  assert.ok(Math.abs(m.gold - perSec.gold * secPerMonth) < 1e-9);
+  assert.ok(Math.abs(secPerMonth - 12.5) < 1e-9, '今の速さでは1か月＝現実12.5秒');
 });

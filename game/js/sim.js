@@ -168,6 +168,13 @@ export function trackRates(tr, windowSec) {
   return { exp: exp / span, gold: gold / span };
 }
 
+/** ゲーム内1か月あたりの獲得量（直近 rateWindowSec 秒の平均を、1か月の長さに直す） */
+export function monthlyRates(tr, balance) {
+  const r = trackRates(tr, balance.rateWindowSec);
+  const secPerMonth = HOURS_PER_MONTH / balance.time.gameHoursPerRealSecond;
+  return { exp: r.exp * secPerMonth, gold: r.gold * secPerMonth };
+}
+
 /* ================= 強さ ================= */
 
 const itemById = (items, id) => (id ? items.find((i) => i.id === id) || null : null);

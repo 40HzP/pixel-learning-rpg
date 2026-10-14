@@ -1,5 +1,5 @@
 // 冒険画面の表示項目（設計ページ「自動冒険画面に必ず表示する項目」）。空の部分（y=0〜97）に重ねる
-import { heroStats, expToNext, formatDate, trackRates, isInvulnerable, midbossLeft, pendingBoss, expMultiplier } from '../sim.js';
+import { heroStats, expToNext, formatDate, monthlyRates, isInvulnerable, midbossLeft, pendingBoss, expMultiplier } from '../sim.js';
 import { el, fmt } from './dom.js';
 
 let refs = null;
@@ -26,7 +26,7 @@ export function init(app) {
     el('div', { class: 'row' }, el('span', {}, 'すばやさ ', r.agi, '　運の良さ ', r.luck)),
     el('div', { class: 'row' }, el('span', {}, '経験値 ', r.exp), el('span', {}, '累計 ', r.total)),
     el('div', { class: 'row' }, el('span', {}, '所持金 ', r.gold, 'G'), el('span', {}, '経験値 ×', r.xmul)),
-    el('div', { class: 'row' }, el('span', {}, '毎秒 経験値 ', r.rexp, '・ゴールド ', r.rgold)),
+    el('div', { class: 'row' }, el('span', {}, '1か月あたり 経験値 ', r.rexp, '・', r.rgold, 'G')),
     el('div', { class: 'row enemy' }, r.enemy),
     r.boss,
   );
@@ -64,9 +64,10 @@ export function update(app) {
   r.total.textContent = fmt(s.hero.totalExp);
   r.gold.textContent = fmt(s.gold);
   r.xmul.textContent = expMultiplier(s, ctx.balance).toFixed(2);
-  const rates = trackRates(app.rate, ctx.balance.rateWindowSec);
-  r.rexp.textContent = rates.exp.toFixed(1);
-  r.rgold.textContent = rates.gold.toFixed(1);
+  // ゲーム内1か月あたりの獲得量（契約料を引く前）
+  const rates = monthlyRates(app.rate, ctx.balance);
+  r.rexp.textContent = fmt(Math.round(rates.exp));
+  r.rgold.textContent = fmt(Math.round(rates.gold));
   const enemies = adv.enemies;
   const front = enemies[0];
   r.enemy.textContent = front
