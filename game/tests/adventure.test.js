@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tick, spawnEnemy, heroStats, genreState, buyItem, shopList, monsterStats, setHeroLevel, expMultiplier } from '../js/sim.js';
+import { tick, spawnEnemy, heroStats, genreState, buyItem, shopList, monsterStats, setHeroLevel, expMultiplier, expToNext } from '../js/sim.js';
 import { balance, makeCtx, newGame, seededRng, constRng } from './helpers.js';
 
 test('冒険が自動で進み、5体倒すと次の階層。9階層で止まらず先へ進む', () => {
@@ -67,6 +67,34 @@ test('階層が上がるほど魔物が強くなる', () => {
   const b = balance.monster.base;
   assert.deepEqual(f1, { maxHp: b.hp, atk: b.atk, def: b.def, exp: b.exp, gold: b.gold });
   assert.ok(f5.maxHp > f1.maxHp && f5.atk > f1.atk && f5.gold > f1.gold);
+});
+
+test('魔物は1階層ごとに一定の量ずつ強くなる（掛け算では増えない）', () => {
+  const d = (a, b) => {
+    const x = monsterStats(a, balance), y = monsterStats(b, balance);
+    return [y.maxHp - x.maxHp, y.atk - x.atk, y.exp - x.exp];
+  };
+  assert.equal(d(1, 11)[0], Math.round(10 * balance.monster.perFloor.hp));
+  assert.deepEqual(d(1, 11), d(51, 61), '1〜11階層と51〜61階層で、増える量が同じ');
+});
+
+test('次のLvまでの経験値は base × Lv^power', () => {
+  const { base, power } = balance.levelExp;
+  for (const L of [1, 10, 50]) assert.equal(expToNext(L, balance), Math.max(1, Math.floor(base * L ** power)));
+  assert.ok(expToNext(50, balance) > expToNext(10, balance));
+});
+
+test('仲間も勉強もなしで遊び続けても頭打ちにならず、1時間で20階層を越える', () => {
+  const s = newGame(0);
+  const ctx = makeCtx(seededRng(1));
+  let max = 1, at30 = 0;
+  for (let t = 1; t <= 3600; t++) {
+    for (const e of tick(s, 1, ctx)) if (e.type === 'floorUp') max = Math.max(max, e.floor);
+    for (const it of shopList(s, ctx)) if (it.unlocked && !it.owned && s.gold >= it.price) buyItem(s, it.id, ctx);
+    if (t === 1800) at30 = max;
+  }
+  assert.ok(max >= 20, `1時間で ${max} 階層`);
+  assert.ok(max - at30 >= 3, `30分〜1時間でも進む：${at30} → ${max} 階層`);
 });
 
 test('店：正解数で品揃えが増え、ゴールドで買うと強ければ自動で装備する', () => {

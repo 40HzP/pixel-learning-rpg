@@ -15,12 +15,11 @@
     "goldBonusPerLuck": 0.01
   },
   "spell": { "name": "ひらめき", "mpCost": 4, "power": 0.6, "minTargets": 2, "mpRegenPerSec": 0.2 },
-  "levelExp": { "base": 10, "growth": 1.18 },
+  "levelExp": { "base": 1, "power": 2 },
   "floor": { "monstersPerFloor": 5, "spawnDelaySec": 0.8 },
   "monster": {
     "base": { "hp": 12, "atk": 2, "def": 1, "exp": 3, "gold": 3 },
-    "growthPerFloor": 1.2,
-    "hpGrowthPerFloor": 1.3,
+    "perFloor": { "hp": 13, "atk": 0.9, "def": 0.5, "exp": 1.4, "gold": 1.4 },
     "attackIntervalSec": 2.0
   },
   "damage": { "defFactor": 0.5, "variance": 0.1 },

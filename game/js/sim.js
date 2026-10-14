@@ -219,18 +219,25 @@ export function spellDamage(wis, balance, rng) {
   return Math.max(1, Math.round(wis * balance.spell.power * (1 + (rng() * 2 - 1) * v)));
 }
 
-export const expToNext = (level, balance) => Math.floor(balance.levelExp.base * balance.levelExp.growth ** (level - 1));
+/**
+ * 次のLvまでの経験値＝ base × Lv^power（Lvの2乗なら Lv10→11 に100）。
+ * 魔物の強さは階層に比例して伸びるので、必要な経験値も掛け算（growth^Lv）では増やさない（どこかで頭打ちになるため）
+ */
+export const expToNext = (level, balance) => Math.max(1, Math.floor(balance.levelExp.base * level ** balance.levelExp.power));
 
+/**
+ * 階層Fの魔物の数値＝ base ＋ perFloor ×（F−1）。主人公の perLevel と同じく、1階層ごとに一定の量ずつ強くなる
+ * （掛け算で強くすると、足し算で伸びる主人公がどこかで追いつけなくなる）
+ */
 export function monsterStats(floor, balance) {
   const m = balance.monster;
-  const g = m.growthPerFloor ** (floor - 1);
-  const hg = m.hpGrowthPerFloor ** (floor - 1);
+  const v = (k) => m.base[k] + (m.perFloor[k] || 0) * (floor - 1);
   return {
-    maxHp: Math.max(1, Math.round(m.base.hp * hg)),
-    atk: Math.max(1, Math.round(m.base.atk * g)),
-    def: Math.round(m.base.def * g),
-    exp: Math.max(1, Math.round(m.base.exp * g)),
-    gold: Math.max(1, Math.round(m.base.gold * g)),
+    maxHp: Math.max(1, Math.round(v('hp'))),
+    atk: Math.max(1, Math.round(v('atk'))),
+    def: Math.round(v('def')),
+    exp: Math.max(1, Math.round(v('exp'))),
+    gold: Math.max(1, Math.round(v('gold'))),
   };
 }
 
