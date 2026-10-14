@@ -68,7 +68,7 @@ function renderMenu(app) {
         '過去問復習', el('small', {}, k.review.length ? `間違えた問題・騙された問題（${k.review.length}問）` : 'まだありません'))),
     el('div', { class: 'prof-list' },
       el('span', { class: 'head' }, 'ジャンル'), el('span', { class: 'head' }, '熟練'), el('span', { class: 'head' }, '次のLvまで'),
-      prof.map((g) => {
+      prof.flatMap((g) => {
         const s = k.genres[g] || { level: 0, progress: 0, studied: false };
         return [
           el('span', {}, g, s.studied ? el('span', { class: 'muted' }, '（解いた）') : ''),
