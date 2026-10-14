@@ -263,17 +263,6 @@
       "sprites": { "idle": null, "attack": null }
     },
     {
-      "id": "taningoto",
-      "name": "タニンゴト",
-      "kind": "monster",
-      "genres": ["難読漢字", "現代文"],
-      "myth": "他人事は「たにんごと」",
-      "truth": "本来の読みは「ひとごと」",
-      "debated": false,
-      "wordType": true,
-      "sprites": { "idle": null, "attack": null }
-    },
-    {
       "id": "eruaaru",
       "name": "エルアール",
       "kind": "monster",

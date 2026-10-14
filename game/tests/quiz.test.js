@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSession, nextQuestion, presentQuestion, answer, buildChoices, pickDifficulty, pickQuestion, averageLevel, timeLimitFor } from '../js/quiz.js';
+import { createSession, nextQuestion, presentQuestion, answer, buildChoices, pickDifficulty, pickQuestion, averageLevel, timeLimitFor, forgetMissingQuestions } from '../js/quiz.js';
 import { genreState, spawnEnemy } from '../js/sim.js';
 import { balance, makeCtx, newGame, questions, constRng, seededRng, questionFor } from './helpers.js';
 
@@ -149,4 +149,18 @@ test('干渉していないとき：正解は最大HPの50%、俗説を選んで
 
 test('制限時間は難易度ごとに balance.json の値（☆1が20秒〜☆5が70秒）', () => {
   assert.deepEqual([1, 2, 3, 4, 5].map((d) => timeLimitFor(d, balance)), [20, 30, 40, 55, 70]);
+});
+
+test('同期で外した問題は、過去問復習と直近の出題から外す（復習が押せるのに出ない、を防ぐ）', () => {
+  const s = newGame(0);
+  const ctx = makeCtx(constRng(0.5));
+  const keep = questions[0].id;
+  s.knowledge.review = [keep, 'gone-question-id'];
+  s.knowledge.recent = ['gone-question-id', keep];
+  assert.equal(forgetMissingQuestions(s, ctx), 1);
+  assert.deepEqual(s.knowledge.review, [keep]);
+  assert.deepEqual(s.knowledge.recent, [keep]);
+  const sess = createSession(s, 'review', ctx);
+  assert.equal(sess.total, 1);
+  assert.ok(nextQuestion(s, sess, ctx), '残った問題は出る');
 });

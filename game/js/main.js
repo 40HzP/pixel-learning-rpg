@@ -4,6 +4,7 @@ import {
   createRateTracker, trackTime, trackGain, sleep,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
+import { forgetMissingQuestions } from './quiz.js';
 import { loadPalette, loadSprite } from './sprites.js';
 import { createRenderer, SCENE_W, SCENE_H } from './render.js';
 import * as adventure from './ui/adventure.js';
@@ -96,7 +97,7 @@ async function boot() {
     notify,
     handleEvents,
     save: saveNow,
-    replaceState(next) { app.state = next; app.rate = createRateTracker(); for (const s of Object.values(screens)) s.reset && s.reset(app); refreshActive(true); },
+    replaceState(next) { app.state = next; forgetMissingQuestions(next, ctx); app.rate = createRateTracker(); for (const s of Object.values(screens)) s.reset && s.reset(app); refreshActive(true); },
     sleepNow(reason = 'bed') {
       const r = sleep(app.state, ctx, reason);
       notifySleep(r);
@@ -107,6 +108,7 @@ async function boot() {
     placeNotices: () => placeNotices(),
   };
   app.state = loadSave(balance, notify);
+  forgetMissingQuestions(app.state, ctx); // 同期で外した問題が過去問復習に残らないように
   app.renderer = createRenderer(document.getElementById('scene'), app);
 
   for (const s of Object.values(screens)) s.init(app);

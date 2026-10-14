@@ -251,10 +251,14 @@ tools/check-questions.mjs … questions.json の検査
    | 関連する魔物 | `monster`（空なら `null`） |
 
    - 問題・解答・誤答が欠けているページは書き出さない
+   - 下の「同期しない問題」に書いたページは書き出さない（Notion にはページが残っている）
    - `generatedAt` に書き出した日時（日本時間）を入れる。インデント2、日本語はエスケープしない
 3. `node tools/check-questions.mjs` で検査する
 4. 増えた問題・外した問題・警告を 40HzP に短く報告する
 - 新しい「関連する魔物」が出てきたら `monsters.json` にも足す（設計ページの魔物系の節から。スプライトが無ければ `null`）
+- 同期しない問題（40HzP の依頼でゲームから外した。関連する魔物も `monsters.json` に足さない）
+  - `3f9bafd0-61fe-81b5-bc6a-f0824e7dddfd`「他人事」の本来の読みは？（関連する魔物：タニンゴト）
+- 外した問題がセーブの過去問復習に残っていても、起動時に `quiz.js` の `forgetMissingQuestions` が外す
 
 ## 変更したら必ず実行する
 

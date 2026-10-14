@@ -8,6 +8,19 @@ export { GENRES };
 
 export const MODES = { quiz: 'クイズ', test: 'テスト', review: '過去問復習' };
 
+/**
+ * セーブに残っている、もう無い問題（同期で外した問題など）を、過去問復習と直近の出題から外す。
+ * 残したままだと「過去問復習」が押せるのに1問も出ない。外した数を返す
+ */
+export function forgetMissingQuestions(state, ctx) {
+  const ids = new Set(ctx.questions.map((q) => q.id));
+  const k = state.knowledge;
+  const before = k.review.length;
+  k.review = k.review.filter((id) => ids.has(id));
+  k.recent = k.recent.filter((id) => ids.has(id));
+  return before - k.review.length;
+}
+
 /* ================= 出題の選び方 ================= */
 
 /** 熟練Lvに応じた割合で難易度（1〜5）を選ぶ */
