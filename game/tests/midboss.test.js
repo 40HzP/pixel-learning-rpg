@@ -170,7 +170,7 @@ function fightTeacher(level, seed, weapon = 'wood_sword', armor = 'cloth') {
   return 'draw';
 }
 
-test('小学校教師の強さは階層によらず決まっていて、主人公がレベル10くらいでないと倒せない', () => {
+test('小学校教師の強さは階層によらず決まっていて、主人公がレベル40くらいでないと倒せない', () => {
   const ctx = makeCtx(constRng(0.5));
   for (const floor of [1, 9]) {
     const s = newGame(7);
@@ -178,9 +178,9 @@ test('小学校教師の強さは階層によらず決まっていて、主人�
     const e = challengeMidboss(s, ctx, []);
     assert.deepEqual([e.maxHp, e.atk, e.def], [teacher.stats.hp, teacher.stats.atk, teacher.stats.def], `${floor}階層`);
   }
-  const wins = (level) => [1, 2, 3, 4, 5, 6, 7, 8].filter((seed) => fightTeacher(level, seed) === 'win').length;
-  assert.ok(wins(10) >= 6, `Lv10（木の剣・布の服）ならほぼ勝てる：${wins(10)}/8`);
-  assert.equal(wins(8), 0, 'Lv8 では勝てない');
+  const wins = (level) => [1, 2, 3, 4, 5, 6, 7, 8].filter((seed) => fightTeacher(level, seed, 'copper_sword', 'leather') === 'win').length;
+  assert.ok(wins(40) >= 6, `Lv40（銅の剣・革の鎧）ならほぼ勝てる：${wins(40)}/8`);
+  assert.equal(wins(37), 0, 'Lv37 では勝てない');
 });
 
 test('中ボスから逃げると、中ボスは退いて少ししてザコが出る。報酬はなく、また挑戦できる', () => {
