@@ -1,10 +1,10 @@
 {
   "items": [
-    { "id": "wood_sword",   "name": "木の剣",   "slot": "weapon", "atk": 2,  "def": 0, "price": 30,  "unlockCorrect": 0 },
-    { "id": "cloth",        "name": "布の服",   "slot": "armor",  "atk": 0,  "def": 1, "price": 25,  "unlockCorrect": 0 },
-    { "id": "copper_sword", "name": "銅の剣",   "slot": "weapon", "atk": 5,  "def": 0, "price": 150, "unlockCorrect": 5 },
-    { "id": "leather",      "name": "革の鎧",   "slot": "armor",  "atk": 0,  "def": 3, "price": 120, "unlockCorrect": 5 },
-    { "id": "iron_sword",   "name": "鉄の剣",   "slot": "weapon", "atk": 10, "def": 0, "price": 800, "unlockCorrect": 15 },
-    { "id": "iron_armor",   "name": "鉄の鎧",   "slot": "armor",  "atk": 0,  "def": 6, "price": 650, "unlockCorrect": 15 }
+    { "id": "wood_sword",   "name": "木の剣",   "slot": "weapon", "atk": 6,  "def": 0, "price": 30,  "unlockCorrect": 0 },
+    { "id": "cloth",        "name": "布の服",   "slot": "armor",  "atk": 0,  "def": 3, "price": 25,  "unlockCorrect": 0 },
+    { "id": "copper_sword", "name": "銅の剣",   "slot": "weapon", "atk": 15, "def": 0, "price": 150, "unlockCorrect": 5 },
+    { "id": "leather",      "name": "革の鎧",   "slot": "armor",  "atk": 0,  "def": 9, "price": 120, "unlockCorrect": 5 },
+    { "id": "iron_sword",   "name": "鉄の剣",   "slot": "weapon", "atk": 30, "def": 0, "price": 800, "unlockCorrect": 15 },
+    { "id": "iron_armor",   "name": "鉄の鎧",   "slot": "armor",  "atk": 0,  "def": 18, "price": 650, "unlockCorrect": 15 }
   ]
 }

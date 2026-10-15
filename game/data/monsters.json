@@ -342,7 +342,7 @@
       "appearAge": 7,
       "unlockCorrect": 5,
       "intro": "7歳で挑戦できる最初の壁。勉強で累計5問正解するまで、攻撃が効かない（出てくる前の正解も数える）。主人公がレベル10くらいの強さでないと倒せない。",
-      "stats": { "hp": 220, "atk": 18, "def": 10, "exp": 60, "gold": 60 },
+      "stats": { "hp": 500, "atk": 42, "def": 34, "exp": 60, "gold": 60 },
       "sprites": { "idle": "teacher_elementary_idle", "attack": "teacher_elementary_attack" }
     }
   ]

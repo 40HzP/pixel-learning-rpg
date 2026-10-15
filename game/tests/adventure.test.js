@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tick, spawnEnemy, heroStats, genreState, buyItem, shopList, monsterStats, setHeroLevel, expMultiplier, expToNext } from '../js/sim.js';
-import { balance, makeCtx, newGame, seededRng, constRng } from './helpers.js';
+import { balance, items, makeCtx, newGame, seededRng, constRng } from './helpers.js';
 
 test('冒険が自動で進み、5体倒すと次の階層。9階層で止まらず先へ進む', () => {
   const s = newGame(0);
@@ -108,7 +108,7 @@ test('店：正解数で品揃えが増え、ゴールドで買うと強けれ�
   s.gold = 1000;
   const atk0 = heroStats(s, ctx).atk;
   assert.deepEqual(buyItem(s, 'copper_sword', ctx), { ok: true, equipped: true });
-  assert.equal(heroStats(s, ctx).atk, atk0 + 5);
+  assert.equal(heroStats(s, ctx).atk, atk0 + items.find((i) => i.id === 'copper_sword').atk);
   assert.deepEqual(buyItem(s, 'wood_sword', ctx), { ok: true, equipped: false }, '弱い剣は装備しない');
   assert.equal(s.equipment.weapon, 'copper_sword');
   assert.equal(s.gold, 1000 - 150 - 30);
