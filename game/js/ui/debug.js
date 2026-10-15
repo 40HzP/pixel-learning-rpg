@@ -30,7 +30,8 @@ export function init(app) {
   root.replaceChildren(
     el('div', { class: 'section' }, el('h2', {}, '時間の速さ'), el('div', {}, speedButtons)),
     el('div', { class: 'section' }, el('h2', {}, 'ゴールド'),
-      el('div', {}, el('button', { onclick: () => { app.state.gold += 1000; app.notify('ゴールド +1000'); } }, '+1000G'))),
+      el('div', {}, el('button', { onclick: () => { app.state.gold += 1000; app.notify('ゴールド +1000'); } }, '+1000G'),
+        el('button', { onclick: () => { app.state.gold += 1e11; app.notify('ゴールド +1000億'); } }, '+1000億G'))),
     el('div', { class: 'section' }, el('h2', {}, '主人公のレベル'),
       el('div', {}, 'Lv', heroLevel,
         el('button', { onclick: () => changeLevel(heroLevel.value) }, '設定'),
@@ -44,7 +45,8 @@ export function init(app) {
           if (app.state.meta.startAge == null) app.state.meta.startAge = 0;
           app.notify(`${age.value}歳にした`);
         },
-      }, '設定'))),
+      }, '設定'),
+      el('button', { onclick: () => { app.state.life.gameHours = app.state.life.lifespan * HOURS_PER_YEAR - 24; app.notify('寿命の直前にした'); } }, 'すぐ寿命にする'))),
     el('div', { class: 'section' }, el('h2', {}, '階層（小ボスの確認用）'),
       el('div', {}, floor, '階層', el('button', {
         onclick: () => {

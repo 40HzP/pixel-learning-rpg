@@ -16,5 +16,16 @@ export function el(tag, props, ...kids) {
   return e;
 }
 
-export const fmt = (n) => Math.floor(n).toLocaleString('ja-JP');
+/** 数の表示。1億以上は「◯億」「◯兆」にする（会社で大きく稼いでも画面からはみ出さないように） */
+export function fmt(n) {
+  const v = Math.floor(n);
+  const abs = Math.abs(v);
+  const unit = (x, u) => {
+    const d = x >= 100 ? 0 : x >= 10 ? 1 : 2;
+    return `${v < 0 ? '-' : ''}${Math.floor(x * 10 ** d) / 10 ** d}${u}`;
+  };
+  if (abs >= 1e12) return unit(abs / 1e12, '兆');
+  if (abs >= 1e8) return unit(abs / 1e8, '億');
+  return v.toLocaleString('ja-JP');
+}
 export const stars = (n) => '☆'.repeat(n);

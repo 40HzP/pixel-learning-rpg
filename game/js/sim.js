@@ -21,7 +21,7 @@ export const HERO_NAME_MAX = 8;
 export function createState(balance) {
   return {
     meta: { startAge: null },                       // 開始年齢の選択（null＝まだ選んでいない）
-    life: { generation: 1, gameHours: 0 },          // 何回目の人生か・0歳1月1日0時からの経過時間
+    life: { generation: 1, gameHours: 0, lifespan: balance.life.lifespanYears, maxFloor: 1 }, // 何世代目か・0歳1月1日0時からの経過時間・寿命（歳）・この人生で一番深い階層
     hero: { name: DEFAULT_HERO_NAME, level: 1, exp: 0, totalExp: 0, hp: balance.hero.base.hp, mp: balance.hero.base.mp },
     gold: 0,
     equipment: { weapon: null, armor: null },
@@ -40,6 +40,11 @@ export function createState(balance) {
     midbosses: {},                                  // 中ボスid → { status: waiting|appeared|broken|defeated, announced }
     bosses: {},                                     // 小ボスid → { status: waiting|appeared|defeated }（一度倒した小ボスは復活しない）
     lastSleep: null,                                // 直近の睡眠のまとめ
+    legacy: {                                       // 転生しても残るもの
+      titles: [],                                   // 前世までにもらった称号
+      lives: [],                                    // 前世のまとめ：{ generation, name, age, level, maxFloor, gold }
+      rocket: { buildCostPaid: false },             // ロケット計画の工程（建造費を払ったか）
+    },
   };
 }
 
@@ -65,10 +70,49 @@ export function setHeroLevel(state, level, ctx) {
 }
 
 /** 開始年齢（0歳 or 7歳）と名前を決めてゲームを始める */
-export function startGame(state, startAge, name) {
+export function startGame(state, startAge, name, lifespan) {
   state.meta.startAge = startAge;
   state.life.gameHours = startAge * HOURS_PER_YEAR;
   if (name !== undefined) renameHero(state, name);
+  if (lifespan !== undefined) state.life.lifespan = lifespan;
+}
+
+/* ================= 寿命と転生 ================= */
+
+/** 生まれるたびに決める寿命（lifespanYears ± lifespanSpread 歳） */
+export const lifespanFor = (balance, rng) =>
+  balance.life.lifespanYears + Math.round((rng() * 2 - 1) * balance.life.lifespanSpread);
+
+/** 世代の倍率：ステータスの伸び・獲得経験値・獲得ゴールドに掛かる（1世代目は1、2世代目は1.5、3世代目は2.25…） */
+export const generationMultiplier = (state, balance) => balance.reincarnation.multiplier ** (state.life.generation - 1);
+
+/**
+ * 寿命で亡くなり、次の世代に生まれ変わる。
+ * 最初からになるもの：Lv・経験値・ゴールド・品物と装備・仲間（契約も）・会社・中ボス・階層・年齢。
+ * 引き継ぐもの：知識（熟練・累計正解数・過去問復習・図鑑）・倒した小ボス・称号・名前・ロケット計画の工程。
+ * 年齢を選ぶまで（meta.startAge＝null）時間は止まる。前世のまとめを返す
+ */
+export function reincarnate(state, ctx) {
+  const b = ctx.balance;
+  const prev = {
+    generation: state.life.generation, name: state.hero.name, age: ageYears(state),
+    level: state.hero.level, maxFloor: state.life.maxFloor || state.adventure.floor, gold: Math.floor(state.gold),
+  };
+  state.legacy.titles = [...new Set([...state.legacy.titles, ...heroTitles(state, ctx)])];
+  state.legacy.lives.push(prev);
+  const fresh = createState(b);
+  state.meta = fresh.meta;
+  state.life = { ...fresh.life, generation: prev.generation + 1 };
+  state.hero = { ...fresh.hero, name: state.hero.name };
+  state.gold = 0;
+  state.equipment = fresh.equipment;
+  state.owned = [];
+  state.allies = [];
+  state.companies = [];
+  state.adventure = fresh.adventure;
+  state.midbosses = {};
+  state.lastSleep = null;
+  return prev;
 }
 
 export function genreState(state, genre) {
@@ -191,13 +235,14 @@ export function heroStats(state, ctx) {
   const w = itemById(ctx.items, state.equipment.weapon);
   const a = itemById(ctx.items, state.equipment.armor);
   const gear = (k) => (w ? w[k] || 0 : 0) + (a ? a[k] || 0 : 0);
-  const grow = (k) => Math.floor((hero.base[k] || 0) + (hero.perLevel[k] || 0) * (L - 1));
+  const gm = generationMultiplier(state, ctx.balance); // 世代が進むと伸び方が大きくなる
+  const grow = (k) => Math.floor((hero.base[k] || 0) + (hero.perLevel[k] || 0) * gm * (L - 1));
   return {
     maxHp: grow('hp') + gear('hp'),
     maxMp: grow('mp') + gear('mp'),
     atk: grow('atk') + gear('atk'),
     def: grow('def') + gear('def'),
-    wis: grow('wis') + Math.floor((hero.wisPerCorrect || 0) * state.knowledge.totalCorrect) + gear('wis'),
+    wis: grow('wis') + Math.floor((hero.wisPerCorrect || 0) * gm * state.knowledge.totalCorrect) + gear('wis'),
     agi: grow('agi') + gear('agi'),
     luck: grow('luck') + gear('luck'),
   };
@@ -354,9 +399,10 @@ function announceMidbosses(state, ctx, events) {
 }
 
 /** 中ボスを倒してもらった称号（monsters.json の title。仲間にならない中ボス＝孫） */
-export const heroTitles = (state, ctx) => ctx.monsters
-  .filter((m) => m.kind === 'midboss' && m.title && midbossState(state, m.id).status === 'defeated')
-  .map((m) => m.title);
+export const heroTitles = (state, ctx) => [...new Set([
+  ...state.legacy.titles,
+  ...ctx.monsters.filter((m) => m.kind === 'midboss' && m.title && midbossState(state, m.id).status === 'defeated').map((m) => m.title),
+])];
 
 /** 次に出る敵を1体決める。その階層の未撃破の小ボスが先（中ボスは自動では出ない） */
 export function chooseNextMonster(state, ctx) {
@@ -423,6 +469,12 @@ export function tick(state, dt, ctx) {
   const events = [];
   if (state.meta.startAge == null || !(dt > 0)) return events;
   state.life.gameHours += dt * ctx.balance.time.gameHoursPerRealSecond;
+  if (ageYears(state) >= state.life.lifespan) {
+    // 寿命：生まれ変わる（年齢を選ぶまで時間は止まる）
+    const life = reincarnate(state, ctx);
+    events.push({ type: 'reincarnated', life, generation: state.life.generation });
+    return events;
+  }
   payContracts(state, ctx, events);
   earnCompany(state, dt, ctx);
   announceMidbosses(state, ctx, events);
@@ -572,8 +624,9 @@ function defeatEnemy(state, e, ctx, events) {
   const adv = state.adventure;
   const b = ctx.balance;
   adv.enemies = adv.enemies.filter((x) => x !== e);
-  const gold = goldWithLuck(e.gold, heroStats(state, ctx), b);
-  const exp = Math.max(1, Math.round(e.exp * expMultiplier(state, b)));
+  const gm = generationMultiplier(state, b);
+  const gold = goldWithLuck(e.gold * gm, heroStats(state, ctx), b);
+  const exp = Math.max(1, Math.round(e.exp * gm * expMultiplier(state, b)));
   state.gold += gold;
   events.push({ type: 'defeat', uid: e.uid, slot: e.slot, monsterId: e.monsterId, kind: e.kind, exp, gold });
   gainExp(state, exp, ctx, events);
@@ -606,6 +659,7 @@ function defeatEnemy(state, e, ctx, events) {
   if (adv.kills >= b.floor.monstersPerFloor || e.kind === 'boss') {
     adv.kills = 0;
     adv.floor++;
+    state.life.maxFloor = Math.max(state.life.maxFloor || 1, adv.floor);
     events.push({ type: 'floorUp', floor: adv.floor });
   }
 }
@@ -901,7 +955,7 @@ export function dismissStaff(state, uid, id) {
 
 /**
  * 会社1つの1か月あたりの利益（社員の契約料を引く前）と内訳。
- * 利益＝業種の monthlyProfit ×（1＋社員の staffBonus の合計）×（1＋関係するジャンルの熟練Lvの合計×genreBonusPerLevel）
+ * 利益＝業種の monthlyProfit ×（1＋社員の staffBonus の合計）×（1＋関係するジャンルの熟練Lvの合計×genreBonusPerLevel）×世代の倍率
  */
 export function companyProfit(state, company, ctx) {
   const ind = industryById(ctx, company.industry);
@@ -914,7 +968,8 @@ export function companyProfit(state, company, ctx) {
   const bonus = staff.reduce((sum, x) => sum + x.bonus, 0);
   const genreLevels = ind.genres.reduce((sum, g) => sum + genreLevel(state, g), 0);
   const genreBonus = genreLevels * ctx.business.genreBonusPerLevel;
-  return { company, industry: ind, base: ind.monthlyProfit, staff, staffBonus: bonus, genreLevels, genreBonus, total: Math.round(ind.monthlyProfit * (1 + bonus) * (1 + genreBonus)) };
+  const gm = generationMultiplier(state, ctx.balance);
+  return { company, industry: ind, base: ind.monthlyProfit, staff, staffBonus: bonus, genreLevels, genreBonus, generation: gm, total: Math.round(ind.monthlyProfit * (1 + bonus) * (1 + genreBonus) * gm) };
 }
 
 /** 全部の会社の利益（1か月あたり）。companies は会社ごとの内訳 */
@@ -927,6 +982,21 @@ export function companiesProfit(state, ctx) {
 function earnCompany(state, dt, ctx) {
   if (!state.companies.length) return;
   state.gold += companiesProfit(state, ctx).total * (dt * ctx.balance.time.gameHoursPerRealSecond) / HOURS_PER_MONTH;
+}
+
+/* ================= ロケット計画 ================= */
+
+/**
+ * ロケットの建造費（balance.rocket.buildCost）を払う。払った工程は転生しても残る（設計ページ「工程ごとに完了を保存する」）。
+ * ほかの工程（機体設計・エンジン・軌道計算・打ち上げ許可）は学際分野の仕組みができてから
+ */
+export function payRocketBuildCost(state, ctx) {
+  const cost = ctx.balance.rocket.buildCost;
+  if (state.legacy.rocket.buildCostPaid) return { ok: false, reason: 'もう建造費は払った' };
+  if (state.gold < cost) return { ok: false, reason: 'ゴールドが足りません' };
+  state.gold -= cost;
+  state.legacy.rocket.buildCostPaid = true;
+  return { ok: true };
 }
 
 /* ================= 店 ================= */

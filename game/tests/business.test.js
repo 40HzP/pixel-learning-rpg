@@ -16,7 +16,7 @@ const grades = business.staffGrades;
 function ready(lv = 1) {
   const s = newGame(0);
   genreState(s, '経営学').level = lv;
-  s.gold = 1e7;
+  s.gold = 1e12;
   return s;
 }
 
@@ -58,7 +58,7 @@ test('起業：経営学 Lv1 から。会社はいくつでも持てるが、同
   assert.equal(foundCompany(s, 'pharma', ctx).ok, true);
   assert.deepEqual(s.companies.map((c) => c.industry), ['restaurant', 'publishing', 'pharma']);
   assert.deepEqual(s.companies.map((c) => c.uid), [1, 2, 3]);
-  assert.equal(s.gold, 1e7 - ind('restaurant').cost - ind('publishing').cost - ind('pharma').cost);
+  assert.equal(s.gold, 1e12 - ind('restaurant').cost - ind('publishing').cost - ind('pharma').cost);
   // たたむと、その会社の社員との契約も終わり、同じ業種をまた起業できる
   hireStaff(s, 2, 'planner', ctx);
   assert.equal(closeCompany(s, 2).ok, true);

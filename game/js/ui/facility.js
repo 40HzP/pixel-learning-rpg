@@ -4,7 +4,7 @@
 import {
   shopList, buyItem, bedFloor, heroTitles, inParty, setInParty, partyAllies, partyMax, partyFull, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, heroAttackInterval, expMultiplier,
   recruitList, hireRecruit, dismissRecruit, monthlyContractCost, HOURS_PER_MONTH,
-  canFound, foundCompany, closeCompany, companiesProfit, industryList,
+  canFound, foundCompany, closeCompany, companiesProfit, industryList, generationMultiplier, ageYears, payRocketBuildCost,
   hireStaff, dismissStaff, bestStaffGrade, staffCost, staffBonus,
 } from '../sim.js';
 import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor } from '../sprites.js';
@@ -362,6 +362,45 @@ function companyPanel(app) {
   ];
 }
 
+/**
+ * ロケット発射場：ロケット計画の工程（設計ページ「ロケット計画」）。今払えるのは建造費だけ。
+ * 払った工程は生まれ変わっても残る。ゴールドは生まれ変わると無くなるので、建造費は1つの人生のうちに貯める
+ */
+function rocketPanel(app) {
+  const s = app.state;
+  const cost = app.ctx.balance.rocket.buildCost;
+  const paid = s.legacy.rocket.buildCostPaid;
+  const ratio = Math.min(1, s.gold / cost);
+  const btn = el('button', {
+    class: 'primary', disabled: paid,
+    onclick: () => {
+      if (!confirm(`${fmt(cost)}G を払ってロケットの建造費にしますか？`)) return;
+      const res = payRocketBuildCost(app.state, app.ctx);
+      if (!res.ok) { app.notify(res.reason, 'bad'); return; }
+      app.notify('ロケットの建造費を払った！（生まれ変わっても残る）', 'good');
+      app.save();
+      update(app, true);
+    },
+  }, paid ? '払った' : `建造費を払う（${fmt(cost)}G）`);
+  if (!paid) live.buttons.push({ btn, price: cost });
+  const step = (name, how, done) => el('div', { class: 'item' + (done ? '' : ' locked') },
+    el('div', { class: 'name' }, name, el('small', {}, how)),
+    el('span', { class: done ? 'good' : 'muted' }, done ? '済' : '準備中'));
+  return [
+    note('ロケットができると、月面の階層に行ける（月面はこれから作る）。払った工程は生まれ変わっても残る。ゴールドは生まれ変わると無くなるので、建造費は1つの人生のうちに貯めて払う'),
+    el('h3', { class: 'subhead' }, '建造費'),
+    el('div', { class: 'profit' }, '所持金 ', live.gold, `G ／ ${fmt(cost)}G`),
+    el('div', { class: 'timebar' }, el('i', { style: { width: `${(paid ? 1 : ratio) * 100}%` } })),
+    el('div', { class: 'btnrow' }, btn),
+    el('h3', { class: 'subhead' }, 'ほかの工程（学際分野の仕組みができてから）'),
+    el('div', { class: 'list' },
+      step('機体設計', '航空宇宙工学（流体力学＋建築）', false),
+      step('エンジン・推進剤', '燃焼工学（熱力学＋化学）', false),
+      step('軌道計算', '軌道力学（天体力学＋数学）', false),
+      step('打ち上げ許可', '宇宙法（法学＋政治経済）', false)),
+  ];
+}
+
 /** 主人公：名前とステータス */
 function heroPanel(app) {
   const s = app.state;
@@ -387,12 +426,17 @@ function heroPanel(app) {
       stat('すばやさ', hs.agi, `攻撃の速さ（${heroAttackInterval(hs, b).toFixed(2)}秒に1回）`),
       stat('運の良さ', hs.luck, `会心の一撃 ${(critChance(hs, b) * 100).toFixed(1)}%・ゴールドが増える`),
       stat('経験値倍率', `×${expMultiplier(s, b).toFixed(2)}`, `勉強で正解するたびに +${Math.round((b.hero.expBonusPerCorrect || 0) * 100)}%`),
-      titles.length ? stat('称号', titles.join('・'), '中ボスを倒してもらった') : null),
+      titles.length ? stat('称号', titles.join('・'), '中ボスを倒してもらった') : null,
+      stat('世代', `${s.life.generation}世代目`, `ステータスの伸び・経験値・ゴールド ×${generationMultiplier(s, b)}（生まれ変わるたびに ×${b.reincarnation.multiplier}）`),
+      stat('寿命', `${b.life.lifespanYears}歳前後`, `今${ageYears(s)}歳。寿命が来ると、前世の記憶（熟練・図鑑・称号）を受け継いで生まれ変わる。Lv・ゴールド・装備・仲間・会社は最初から`)),
+    s.legacy.lives.length
+      ? note(`前世：${s.legacy.lives.slice(-3).reverse().map((p) => `${p.generation}世代目 ${p.name}（${p.age}歳・Lv${p.level}・最高${p.maxFloor}階層）`).join('　')}`)
+      : null,
   ];
 }
 
 // 中に入れる施設（town.json の id → 中身）。ここに無い施設は「準備中」
-const PANELS = { shop: shopPanel, guild: guildPanel, home: homePanel, company: companyPanel };
+const PANELS = { shop: shopPanel, guild: guildPanel, home: homePanel, company: companyPanel, rocket: rocketPanel };
 
 function buildPanel(app) {
   const t = app.town;
@@ -439,7 +483,7 @@ export function update(app, force) {
     return;
   }
   town = null;
-  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched]), s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学')]);
+  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched]), s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket, s.life.generation]);
   // 名前を入力している途中は作り直さない（入力が消えないように）
   const typing = root.contains(document.activeElement) && document.activeElement.tagName === 'INPUT';
   if (force || ((k !== key || !live) && !typing)) { key = k; buildPanel(app); }

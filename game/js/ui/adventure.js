@@ -73,7 +73,7 @@ export function update(app) {
   // 小ボスのいる階層は、小ボスを倒すと次の階層へ進む
   const bossFloor = adv.enemies.some((e) => e.kind === 'boss') || pendingBoss(s, ctx);
   r.floor.textContent = bossFloor ? `${adv.floor}階層 小ボス` : `${adv.floor}階層 ${adv.kills}/${ctx.balance.floor.monstersPerFloor}体`;
-  r.name.textContent = s.hero.name;
+  r.name.textContent = s.life.generation > 1 ? `${s.hero.name}（${s.life.generation}世代目）` : s.hero.name;
   r.lv.textContent = s.hero.level;
   const party = partyAllies(s).length, bench = s.allies.length - party;
   r.allies.textContent = s.allies.length ? `仲間 ${party}${bench ? `（控え${bench}）` : ''}` : '';

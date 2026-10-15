@@ -1,7 +1,7 @@
 // 起動・画面切り替え・ループ・セーブ
 import {
   createState, startGame, tick, clockFrame, createClock, HOURS_PER_YEAR,
-  createRateTracker, trackTime, trackGain, sleepAtBed, stageFor, fitParty,
+  createRateTracker, trackTime, trackGain, sleepAtBed, stageFor, fitParty, lifespanFor, generationMultiplier,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
 import { forgetMissingQuestions } from './quiz.js';
@@ -12,7 +12,7 @@ import * as study from './ui/study.js';
 import * as facility from './ui/facility.js';
 import * as zukan from './ui/zukan.js';
 import * as debug from './ui/debug.js';
-import { el } from './ui/dom.js';
+import { el, fmt } from './ui/dom.js';
 import { playMovie } from './ui/movie.js';
 import { askNande } from './ui/nande.js';
 
@@ -168,6 +168,22 @@ async function boot() {
     runOverlay(() => playMovie(app, { lines: m.defeatMovie, otherId: m.id }));
   }
 
+  /** 寿命で亡くなった：ムービーで前世をふり返り、生まれ変わりの案内を出す */
+  function onReincarnated(e) {
+    const p = e.life;
+    const m = generationMultiplier(app.state, balance);
+    app.rate = createRateTracker();
+    for (const sc of Object.values(screens)) sc.reset && sc.reset(app);
+    runOverlay(() => playMovie(app, {
+      lines: [
+        `${p.name}は${p.age}歳で天寿を全うした。`,
+        `Lv${p.level}・最高${p.maxFloor}階層まで進み、${fmt(p.gold)}ゴールドを残した。`,
+        `前世の記憶を受け継いで、新しい命に生まれ変わる。${e.generation}世代目は、ステータスの伸び・経験値・ゴールドが${m}倍になる。`,
+      ],
+      otherId: null,
+    }).then(() => { showIntro(); saveNow(); refreshActive(true); }));
+  }
+
   function handleEvents(events) {
     app.renderer.onEvents(events, performance.now() / 1000);
     const met = [];
@@ -177,6 +193,7 @@ async function boot() {
         if (e.kind === 'midboss') startMovie(monsters.find((m) => m.id === e.monsterId));
       }
       else if (e.type === 'nande') runOverlay(() => askNande(app));
+      else if (e.type === 'reincarnated') onReincarnated(e);
       else if (e.type === 'levelUp') notify(`${app.state.hero.name}のレベルが上がった！　Lv ${e.level}`, 'good');
       else if (e.type === 'floorUp') {
         // 10階層ごとに世界が変わる。新しい世界の最初の階層では世界の名前を出す
@@ -258,14 +275,26 @@ async function boot() {
 
   /* ---------- 最初の案内 ---------- */
   const intro = document.getElementById('intro');
-  if (app.state.meta.startAge == null) intro.hidden = false;
+  /** 最初の案内（年齢と名前を選ぶ）。生まれ変わったあとも出す（世代と、受け継いだものを書く） */
+  function showIntro() {
+    const s = app.state;
+    const gen = document.getElementById('intro-gen');
+    gen.hidden = s.life.generation <= 1;
+    if (s.life.generation > 1) {
+      gen.textContent = `${s.life.generation}世代目。前世の記憶（熟練・図鑑・称号）を受け継いだ。`
+        + `ステータスの伸び・経験値・ゴールドが ${generationMultiplier(s, balance)}倍`;
+    }
+    document.getElementById('hero-name').value = s.hero.name === '主人公' ? '' : s.hero.name;
+    intro.hidden = false;
+  }
+  if (app.state.meta.startAge == null) showIntro();
   // 7歳まで現実でどのくらいかかるか（balance.json の時間の速さから出す）
   const untilSeven = (7 * HOURS_PER_YEAR) / balance.time.gameHoursPerRealSecond;
   const span = untilSeven >= 90 * 60 ? `約${Math.round(untilSeven / 3600)}時間` : `約${Math.max(1, Math.round(untilSeven / 60))}分`;
   document.getElementById('intro-age0-note').textContent = `準備期間が長い（7歳まで、遊んでいる時間で${span}）`;
   for (const b of intro.querySelectorAll('[data-age]')) {
     b.addEventListener('click', () => {
-      startGame(app.state, Number(b.dataset.age), document.getElementById('hero-name').value);
+      startGame(app.state, Number(b.dataset.age), document.getElementById('hero-name').value, lifespanFor(balance, Math.random));
       intro.hidden = true;
       saveNow();
       refreshActive(true);
