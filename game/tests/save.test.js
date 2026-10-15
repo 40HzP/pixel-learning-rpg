@@ -68,13 +68,13 @@ test('版1のセーブ（敵が1体・名前やMPが無い）を版2に移行で
   assert.ok(s.hero.totalExp > 120);
 });
 
-test('移行は版ごとに順につながる（版3を足したと仮定）', () => {
+test('移行は版ごとに順につながる（版4を足したと仮定）', () => {
   const migrations = {
     ...MIGRATIONS,
-    2: (save) => { save.state.wallet = { gold: save.state.gold }; delete save.state.gold; save.version = 3; return save; },
+    3: (save) => { save.state.wallet = { gold: save.state.gold }; delete save.state.gold; save.version = 4; return save; },
   };
   const s = playedState();
-  const back = deserialize(serialize(s), balance, { migrations, version: 3 });
+  const back = deserialize(serialize(s), balance, { migrations, version: 4 });
   assert.equal(back.wallet.gold, s.gold);
   assert.equal(back.hero.totalExp, s.hero.totalExp);
 });
@@ -85,4 +85,23 @@ test('新しすぎる版・移行できない版・壊れた文字列は読め�
   assert.throws(() => deserialize(future, balance), /新しい版/);
   assert.throws(() => deserialize(JSON.stringify({ state: s }), balance), /移行できません/);
   assert.throws(() => deserialize('{broken', balance), /壊れています/);
+});
+
+test('版2→3：会社1つ（company）と社員（staff）は、会社の並び（companies）の1つ目とその新人の社員になる', () => {
+  const s = newGame(0);
+  const v2 = JSON.parse(serialize(s));
+  v2.version = 2;
+  delete v2.state.companies; delete v2.state.nextCompanyUid;
+  v2.state.company = { industry: 'pharma', foundedAt: 123 };
+  v2.state.staff = [{ id: 'sales', name: '営業', paidUntil: 999 }, { id: 'clerk', name: '事務員', paidUntil: 888 }];
+  const back = deserialize(JSON.stringify(v2), balance);
+  assert.deepEqual(back.companies, [{ uid: 1, industry: 'pharma', foundedAt: 123, staff: [{ id: 'sales', grade: 0, paidUntil: 999 }, { id: 'clerk', grade: 0, paidUntil: 888 }] }]);
+  assert.equal(back.nextCompanyUid, 2);
+  assert.ok(!('company' in back) && !('staff' in back));
+  // 会社が無いのに雇っていた社員は、契約を終える
+  const v2b = JSON.parse(JSON.stringify(v2));
+  v2b.state.company = null;
+  const back2 = deserialize(JSON.stringify(v2b), balance);
+  assert.deepEqual(back2.companies, []);
+  assert.equal(back2.nextCompanyUid, 1);
 });

@@ -1,36 +1,92 @@
 {
   "unlock": { "genre": "経営学", "level": 1 },
   "genreBonusPerLevel": 0.1,
+  "staffGenre": "心理学",
+  "staffGrades": [
+    { "name": "新人", "psychLevel": 0, "bonusMultiplier": 1, "costMultiplier": 1 },
+    { "name": "中堅", "psychLevel": 1, "bonusMultiplier": 1.5, "costMultiplier": 1.6 },
+    { "name": "ベテラン", "psychLevel": 2, "bonusMultiplier": 2, "costMultiplier": 2.4 },
+    { "name": "エース", "psychLevel": 3, "bonusMultiplier": 2.6, "costMultiplier": 3.4 },
+    { "name": "精鋭", "psychLevel": 4, "bonusMultiplier": 3.3, "costMultiplier": 4.6 },
+    { "name": "伝説", "psychLevel": 5, "bonusMultiplier": 4, "costMultiplier": 6 }
+  ],
   "industries": [
     {
       "id": "restaurant",
       "name": "飲食店",
+      "level": 1,
       "desc": "少ない元手で始められる。お客を呼び込む営業がよく効く",
       "cost": 2000,
       "monthlyProfit": 200,
       "specialty": "sales",
       "specialtyMultiplier": 2,
-      "genres": ["経済学", "心理学"]
+      "genres": ["経済学", "化学"]
     },
     {
       "id": "publishing",
       "name": "出版社",
+      "level": 1,
       "desc": "本や雑誌を作って売る。売れる本を考える企画がよく効く",
-      "cost": 8000,
-      "monthlyProfit": 500,
+      "cost": 2500,
+      "monthlyProfit": 240,
       "specialty": "planner",
       "specialtyMultiplier": 2,
       "genres": ["現代文", "古文漢文"]
     },
     {
+      "id": "cram_school",
+      "name": "学習塾",
+      "level": 1,
+      "desc": "子どもに勉強を教える。生徒の名簿や連絡を受け持つ事務員がよく効く",
+      "cost": 2200,
+      "monthlyProfit": 220,
+      "specialty": "clerk",
+      "specialtyMultiplier": 2,
+      "genres": ["数学", "心理学"]
+    },
+    {
+      "id": "construction",
+      "name": "建設会社",
+      "level": 2,
+      "desc": "建物を建てる。書類と手続きが多いので事務員がよく効く",
+      "cost": 10000,
+      "monthlyProfit": 700,
+      "specialty": "clerk",
+      "specialtyMultiplier": 2,
+      "genres": ["建築", "物理"]
+    },
+    {
       "id": "pharma",
       "name": "製薬会社",
-      "desc": "薬を研究して作る。元手は大きいが、利益も大きい。大きなお金を管理する会計士がよく効く",
+      "level": 3,
+      "desc": "薬を研究して作る。大きなお金を管理する会計士がよく効く",
       "cost": 30000,
-      "monthlyProfit": 1500,
+      "monthlyProfit": 1800,
       "specialty": "accountant",
       "specialtyMultiplier": 2,
       "genres": ["化学", "生物"]
+    },
+    {
+      "id": "it",
+      "name": "IT企業",
+      "level": 4,
+      "desc": "アプリや仕組みを作って売る。新しいサービスを考える企画がよく効く",
+      "cost": 100000,
+      "monthlyProfit": 5000,
+      "specialty": "planner",
+      "specialtyMultiplier": 2,
+      "genres": ["数学", "統計学"]
+    },
+    {
+      "id": "trading",
+      "name": "総合商社",
+      "level": 5,
+      "desc": "世界中の品物を売り買いする。取引先を広げる営業がよく効く",
+      "cost": 300000,
+      "monthlyProfit": 13000,
+      "specialty": "sales",
+      "specialtyMultiplier": 2,
+      "genres": ["地政学", "経済学"]
     }
   ]
 }

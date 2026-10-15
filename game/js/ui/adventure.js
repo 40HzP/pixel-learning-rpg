@@ -1,6 +1,6 @@
 // 冒険画面の表示項目（設計ページ「自動冒険画面に必ず表示する項目」）。空の部分（y=0〜97）に重ねる
 import {
-  heroStats, partyAllies, companyProfit, expToNext, formatDate, monthlyRates, monthlyContractCost, monthlyNetGold, isInvulnerable, midbossLeft, pendingBoss, expMultiplier,
+  heroStats, partyAllies, companiesProfit, expToNext, formatDate, monthlyRates, monthlyContractCost, monthlyNetGold, isInvulnerable, midbossLeft, pendingBoss, expMultiplier,
   challengeableMidboss, challengeMidboss, retreatMidboss,
 } from '../sim.js';
 import { el, fmt } from './dom.js';
@@ -99,9 +99,12 @@ export function update(app) {
   const net = Math.round(monthlyNetGold(rates.gold, s, ctx));
   r.fee.textContent = fee ? `−${fmt(fee)}` : '0';
   // 会社の利益（起業していれば。手取りに入る）
-  const cp = companyProfit(s, ctx);
-  r.companyRow.hidden = !cp;
-  if (cp) r.company.textContent = `会社（${cp.industry.name}）の利益 1か月 +${fmt(cp.total)}G`;
+  const cp = companiesProfit(s, ctx);
+  r.companyRow.hidden = !cp.companies.length;
+  if (cp.companies.length) {
+    const who = cp.companies.length === 1 ? cp.companies[0].industry.name : `${cp.companies.length}社`;
+    r.company.textContent = `会社（${who}）の利益 1か月 +${fmt(cp.total)}G`;
+  }
   r.net.textContent = `${net < 0 ? '−' : ''}${fmt(Math.abs(net))}`;
   r.net.parentNode.classList.toggle('bad', net < 0);
   const enemies = adv.enemies;

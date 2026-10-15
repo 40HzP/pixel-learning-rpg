@@ -4,7 +4,7 @@
 import { createState } from './sim.js';
 
 export const SAVE_KEY = 'plrpg.save';
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 /**
  * 版の移行。MIGRATIONS[n] は「版 n のセーブ」を受け取り「版 n+1 のセーブ」を返す。
@@ -21,6 +21,24 @@ export const MIGRATIONS = {
     adv.nextUid = 2;
     delete adv.enemy;
     save.version = 2;
+    return save;
+  },
+  // 版2→3：会社を複数持てるようになった。会社1つ（company）と社員（staff）を、会社の並び（companies）にし、
+  // 社員はその会社で働く新人として移す。会社が無いのに雇っていた社員は、働く場所が無いので契約を終える
+  2: (save) => {
+    const st = save.state;
+    const old = st.company;
+    st.companies = [];
+    if (old && old.industry) {
+      st.companies.push({
+        uid: 1, industry: old.industry, foundedAt: old.foundedAt || 0,
+        staff: (st.staff || []).map((a) => ({ id: a.id, grade: 0, paidUntil: a.paidUntil })),
+      });
+    }
+    st.nextCompanyUid = st.companies.length + 1;
+    delete st.company;
+    delete st.staff;
+    save.version = 3;
     return save;
   },
 };
