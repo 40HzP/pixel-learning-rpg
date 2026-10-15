@@ -1,6 +1,6 @@
 // 冒険画面の描画（90×160 のキャンバス）。攻撃エフェクト・ダメージ数字・HPバーはここで描く。
 import { drawSprite, drawPlaceholder, frameAt, cssColor } from './sprites.js';
-import { heroStats, isInvulnerable, stageFor } from './sim.js';
+import { heroStats, isInvulnerable, stageFor, partyAllies } from './sim.js';
 
 export const SCENE_W = 90;
 export const SCENE_H = 160;
@@ -170,7 +170,7 @@ export function createRenderer(canvas, app) {
 
     // 仲間と主人公（奥から順に描く）。中ボスだった仲間は左向きに描かれているので左右反転して右向きにする。
     // 契約した仲間は最初から右向き
-    const actors = state.allies.slice(0, ALLY_SLOTS.length).map((ally, i) => ({ ally, ...ALLY_SLOTS[i] }));
+    const actors = partyAllies(state).slice(0, ALLY_SLOTS.length).map((ally, i) => ({ ally, ...ALLY_SLOTS[i] }));
     actors.push({ hero: true, x: X.hero, feet: FEET_Y });
     actors.sort((a, b) => a.feet - b.feet);
     for (const a of actors) {

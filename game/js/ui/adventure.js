@@ -1,6 +1,6 @@
 // 冒険画面の表示項目（設計ページ「自動冒険画面に必ず表示する項目」）。空の部分（y=0〜97）に重ねる
 import {
-  heroStats, expToNext, formatDate, monthlyRates, monthlyContractCost, monthlyNetGold, isInvulnerable, midbossLeft, pendingBoss, expMultiplier,
+  heroStats, partyAllies, expToNext, formatDate, monthlyRates, monthlyContractCost, monthlyNetGold, isInvulnerable, midbossLeft, pendingBoss, expMultiplier,
   challengeableMidboss, challengeMidboss, retreatMidboss,
 } from '../sim.js';
 import { el, fmt } from './dom.js';
@@ -73,7 +73,8 @@ export function update(app) {
   r.floor.textContent = bossFloor ? `${adv.floor}階層 小ボス` : `${adv.floor}階層 ${adv.kills}/${ctx.balance.floor.monstersPerFloor}体`;
   r.name.textContent = s.hero.name;
   r.lv.textContent = s.hero.level;
-  r.allies.textContent = s.allies.length ? `仲間 ${s.allies.length}` : '';
+  const party = partyAllies(s).length, bench = s.allies.length - party;
+  r.allies.textContent = s.allies.length ? `仲間 ${party}${bench ? `（控え${bench}）` : ''}` : '';
   r.hp.textContent = `${Math.ceil(s.hero.hp)}/${hs.maxHp}`;
   r.hpbar.style.width = pct(s.hero.hp, hs.maxHp);
   r.mp.textContent = `${Math.floor(s.hero.mp)}/${hs.maxMp}`;

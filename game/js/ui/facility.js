@@ -2,7 +2,7 @@
 // 入れる施設：店・仲間が集まる場所・寝床。会社・ロケット発射場・専攻の付け替え・拠点は準備中。
 // 広場に立っている主人公をタップすると、主人公のステータスと名前の変更
 import {
-  shopList, buyItem, bedFloor, heroTitles, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, heroAttackInterval, expMultiplier,
+  shopList, buyItem, bedFloor, heroTitles, inParty, setInParty, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, heroAttackInterval, expMultiplier,
   recruitList, hireRecruit, dismissRecruit, monthlyContractCost, HOURS_PER_MONTH,
 } from '../sim.js';
 import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor } from '../sprites.js';
@@ -197,9 +197,26 @@ function guildPanel(app) {
     note(`契約料はゲーム内の1か月ごとに払う（今の速さで現実の約${Math.round(monthSec)}秒ごと）。払えなくなると契約が切れる`),
     el('div', { class: 'list' }, rows),
     total ? el('div', { style: { marginTop: '6px', fontSize: '14px' } }, `契約料の合計　1か月 ${fmt(total)}G`) : null,
+    others.length ? el('h3', { class: 'subhead' }, '中ボスだった仲間（契約料なし）') : null,
+    others.length ? note('パーティーに入れるか控えに回すかを、いつでも選べる。控えの仲間は戦わず、冒険画面にも出ない') : null,
     others.length
-      ? el('div', { class: 'list', style: { marginTop: '8px' } }, others.map((a) => el('div', { class: 'item' },
-        el('div', { class: 'name' }, a.name, el('small', {}, `中ボスだった仲間（契約料なし）　攻撃 ${a.atk}`)))))
+      ? el('div', { class: 'list' }, others.map((a) => {
+        const on = inParty(a);
+        return el('div', { class: 'item' + (on ? '' : ' benched') },
+          el('div', { class: 'name' }, a.name,
+            el('small', {}, `攻撃 ${fmt(a.atk)}　HP ${fmt(a.maxHp)}`),
+            el('small', { style: { color: on ? 'var(--good)' : 'var(--muted)' } }, on ? 'パーティーにいる' : '控え（戦わない）')),
+          el('button', {
+            class: on ? '' : 'primary',
+            'aria-pressed': on ? 'true' : 'false',
+            onclick: () => {
+              setInParty(app.state, a.id, !on);
+              app.notify(on ? `${a.name}を控えに回した` : `${a.name}をパーティーに入れた`);
+              app.save();
+              update(app, true);
+            },
+          }, on ? '外す' : '入れる'));
+      }))
       : null,
   ];
 }
@@ -277,7 +294,7 @@ export function update(app, force) {
     return;
   }
   town = null;
-  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0]), s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx)]);
+  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched]), s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx)]);
   // 名前を入力している途中は作り直さない（入力が消えないように）
   const typing = root.contains(document.activeElement) && document.activeElement.tagName === 'INPUT';
   if (force || ((k !== key || !live) && !typing)) { key = k; buildPanel(app); }

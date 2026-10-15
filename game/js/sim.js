@@ -449,7 +449,7 @@ function combatStep(state, dt, ctx, events) {
     heroAct(state, hs, ctx, events);
     if (!adv.enemies.length) return;
   }
-  for (const ally of state.allies) {
+  for (const ally of partyAllies(state)) {
     ally.cd -= dt;
     if (ally.cd > 0) continue;
     const r = ally.hired ? recruitById(ctx, ally.id) : null;
@@ -677,6 +677,24 @@ export function sleep(state, ctx, reason = 'bed') {
   }
   state.lastSleep = { reason, up, down, hours: s.gameHours, at: state.life.gameHours, floor: state.adventure.floor };
   return state.lastSleep;
+}
+
+/* ================= パーティー ================= */
+
+/** パーティーにいる仲間（控えに回した中ボスだった仲間は戦わず、冒険画面にも出ない） */
+export const inParty = (ally) => !ally.benched;
+export const partyAllies = (state) => state.allies.filter(inParty);
+
+/**
+ * 中ボスだった仲間をパーティーに入れる（on=true）・外して控えに回す（on=false）。いつでも何度でも変えられる。
+ * 契約した仲間は対象外（やめるときは解約する）
+ */
+export function setInParty(state, id, on) {
+  const ally = state.allies.find((a) => a.id === id && !a.hired);
+  if (!ally) return false;
+  if (on) delete ally.benched;
+  else ally.benched = true;
+  return true;
 }
 
 /* ================= 仲間が集まる場所（契約） ================= */
