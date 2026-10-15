@@ -136,6 +136,20 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .intro-choices small { color: var(--muted); font-size: 12px; margin-top: 4px; }
 #loading .dialog { text-align: center; white-space: pre-line; }
 
+/* ---------- ミニムービー（暗転して始まり、暗転して終わる） ---------- */
+.overlay.movie {
+  z-index: 40; background: #000; flex-direction: column; gap: 16px;
+  opacity: 0; transition: opacity .5s; cursor: pointer; user-select: none; -webkit-user-select: none; outline: none;
+}
+.overlay.movie.show { opacity: 1; }
+.movie-text {
+  position: relative; width: 100%; max-width: 420px; min-height: calc(3 * 1.7em + 28px);
+  background: var(--panel); border: 2px solid var(--line); padding: 14px 16px; font-size: 17px; line-height: 1.7;
+}
+.movie-text .next { position: absolute; right: 10px; bottom: 4px; color: var(--accent); animation: blink 1s steps(2) infinite; }
+.movie-hint { color: var(--muted); font-size: 12px; }
+@keyframes blink { 50% { opacity: 0; } }
+
 /* ---------- 勉強 ---------- */
 .study-top { display: flex; gap: 10px; padding: 10px 12px 0; align-items: flex-start; }
 .study-info { flex: 1; font-size: 14px; line-height: 1.7; }

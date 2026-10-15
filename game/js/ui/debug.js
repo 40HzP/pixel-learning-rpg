@@ -75,6 +75,8 @@ export function init(app) {
           app.handleEvents(ev);
         },
       }, '出す'))),
+    el('div', { class: 'section' }, el('h2', {}, 'ミニムービー（倒したときに流れる）'),
+      el('div', {}, ctx.monsters.filter((m) => m.defeatMovie).map((m) => el('button', { onclick: () => app.playMovie(m.id) }, m.name)))),
     el('div', { class: 'section' }, el('h2', {}, '睡眠'),
       el('div', {}, el('button', { onclick: () => app.sleepNow() }, 'すぐ眠る'))),
     el('div', { class: 'section' }, el('h2', {}, 'セーブ'),

@@ -212,3 +212,11 @@ test('防御が崩れた中ボスへの正解のダメージは最大HPの midbo
   assert.equal(r.damage, Math.ceil(e.maxHp * balance.quiz.midbossDamageRatio));
   assert.ok(r.damage < e.maxHp / 4);
 });
+
+test('倒したときのミニムービー（defeatMovie）は空でない文の並び。小学校教師には2つある', () => {
+  for (const m of monsters.filter((x) => 'defeatMovie' in x)) {
+    assert.ok(Array.isArray(m.defeatMovie) && m.defeatMovie.length > 0, `${m.name} の defeatMovie は並び`);
+    for (const line of m.defeatMovie) assert.ok(typeof line === 'string' && line.trim(), `${m.name} の文が空でない`);
+  }
+  assert.equal(monsters.find((m) => m.id === 'teacher_elementary').defeatMovie.length, 2);
+});

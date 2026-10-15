@@ -161,7 +161,7 @@ game/
     genres.js            … 29ジャンル
     sprites.js           … スプライトJSONの読み込みと描画
     render.js            … 冒険画面の描画（90×160）
-    ui/                  … 画面ごとの表示（adventure / study / facility（街） / zukan / debug / dom）
+    ui/                  … 画面ごとの表示（adventure / study / facility（街） / zukan / debug / dom / movie（ミニムービー））
   data/
     balance.json         … 数値（ここを書き換えるだけで調整できる）
     monsters.json        … 魔物・小ボス・中ボス
@@ -193,6 +193,7 @@ tools/check-questions.mjs … questions.json の検査
 - `quiz.timeLimitSec`（難易度☆1〜☆5の制限時間）は 20・30・40・55・70秒。設計の 10〜60秒から 40HzP の依頼でそれぞれ10秒延ばした
 - 中ボスは自動では出ない（設計書4.7の「7歳で出る」を 40HzP の依頼で変えた）。`appearAge` に届くと知らせが一度出て、冒険画面に「◯◯に挑戦する」ボタンが出る。押すと今の敵の群れは退き、中ボスが1体で出る。戦っている間は「逃げる」ボタンが出て、押すと中ボスは退く（報酬なし）。負けたときも逃げたときもボタンがまた出る（`sim.js` の `challengeableMidboss`・`challengeMidboss`・`retreatMidboss`）
 - 小学校教師の強さは `monsters.json` の `stats`（hp・atk・def・exp・gold）で、階層によらない。主人公がレベル10くらい（木の剣・布の服）でやっと勝てる強さ（HP500・攻撃42・防御34）。`stats` の無い中ボスは、その階層のザコの数値に `balance.json` の `midboss` の倍率を掛ける
+- 中ボスを倒したときのミニムービー：`monsters.json` の `defeatMovie`（文の並び）がある中ボスを倒すと、画面全体が暗転して、主人公とその中ボスが向き合う絵（今の世界の背景を切り抜いたもの）の下に文を1つずつ出す。文字は少しずつ出て、タップで進む（途中でタップすると全部出る）。最後の文のあとタップで暗転して戻る。流れている間はゲームの時間を止め、知らせは終わってから出す（`ui/movie.js`、`main.js` の `startMovie`）。冒険で倒しても勉強の正解で倒しても流れる。小学校教師の2つの文は 40HzP の依頼。デバッグ画面から流し直せる
 - `quiz.midbossDamageRatio` 中ボスへの正解のダメージ（最大HPに対する割合。0.1＝10%）。ザコ・小ボスへは `correctDamageRatio`（50%）のまま
 - 中ボスの防御は、累計の正解数（`knowledge.totalCorrect`。中ボスが出る前の正解も数える）が `monsters.json` の `unlockCorrect` に届くと崩れる（設計書4.7の「出てから5問正解」を 40HzP の依頼で変えた）。足りていれば出てきた時点で攻撃が効く
 - 設計書に無い項目：

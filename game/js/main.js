@@ -13,6 +13,7 @@ import * as facility from './ui/facility.js';
 import * as zukan from './ui/zukan.js';
 import * as debug from './ui/debug.js';
 import { el } from './ui/dom.js';
+import { playMovie } from './ui/movie.js';
 
 const PIXEL = '../pixel/';
 const SPRITES = PIXEL + 'sprites/';
@@ -110,6 +111,8 @@ async function boot() {
     },
     showTab,
     placeNotices: () => placeNotices(),
+    movie: false,     // ミニムービーが流れている間は true（ゲームの時間を止め、知らせを後回しにする）
+    playMovie: (monsterId) => startMovie(monsters.find((m) => m.id === monsterId)),
   };
   app.state = loadSave(balance, notify);
   forgetMissingQuestions(app.state, ctx); // 同期で外した問題が過去問復習に残らないように
@@ -118,7 +121,9 @@ async function boot() {
   for (const s of Object.values(screens)) s.init(app);
 
   /* ---------- 通知 ---------- */
+  const heldNotices = []; // ミニムービーの間に出た知らせ（終わってから出す）
   function notify(text, kind = '') {
+    if (app.movie) { heldNotices.push([text, kind]); return; }
     placeNotices();
     const box = document.getElementById('notices');
     if (box.lastElementChild && box.lastElementChild.textContent === text) return;
@@ -137,11 +142,24 @@ async function boot() {
     notify(lines.join('\n'), r.reason === 'defeated' ? 'bad' : 'good');
   }
 
+  /** 魔物の defeatMovie（倒したときのミニムービー）を流す。流れている間はゲームの時間が止まる */
+  function startMovie(m) {
+    if (!m || !m.defeatMovie || !m.defeatMovie.length || app.movie) return;
+    app.movie = true;
+    playMovie(app, { lines: m.defeatMovie, otherId: m.id }).then(() => {
+      app.movie = false;
+      for (const [text, kind] of heldNotices.splice(0)) notify(text, kind);
+    });
+  }
+
   function handleEvents(events) {
     app.renderer.onEvents(events, performance.now() / 1000);
     const met = [];
     for (const e of events) {
-      if (e.type === 'defeat') trackGain(app.rate, e.exp, e.gold);
+      if (e.type === 'defeat') {
+        trackGain(app.rate, e.exp, e.gold);
+        if (e.kind === 'midboss') startMovie(monsters.find((m) => m.id === e.monsterId));
+      }
       else if (e.type === 'levelUp') notify(`${app.state.hero.name}のレベルが上がった！　Lv ${e.level}`, 'good');
       else if (e.type === 'floorUp') {
         // 10階層ごとに世界が変わる。新しい世界の最初の階層では世界の名前を出す
@@ -272,7 +290,7 @@ async function boot() {
   function frame(nowMs) {
     const visible = document.visibilityState === 'visible';
     const realDt = clockFrame(clock, nowMs, visible, balance.time.maxFrameSeconds);
-    if (app.state.meta.startAge != null) {
+    if (app.state.meta.startAge != null && !app.movie) {
       const dt = realDt * app.speed;
       trackTime(app.rate, dt);
       const events = tick(app.state, dt, ctx);
