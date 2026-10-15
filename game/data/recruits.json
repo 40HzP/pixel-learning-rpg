@@ -39,6 +39,46 @@
       "intervalSec": 3,
       "monthlyCost": 20,
       "sprites": { "idle": "ally_priest_idle", "attack": null }
+    },
+    {
+      "id": "accountant",
+      "name": "会計士",
+      "role": "staff",
+      "desc": "お金の流れを整えて、むだな出費を減らす",
+      "profitBonus": 0.25,
+      "monthlyCost": 80,
+      "unlock": { "genre": "経営学", "level": 1 },
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "sales",
+      "name": "営業",
+      "role": "staff",
+      "desc": "お客を見つけて、売り上げを増やす",
+      "profitBonus": 0.3,
+      "monthlyCost": 50,
+      "unlock": { "genre": "経営学", "level": 1 },
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "planner",
+      "name": "企画",
+      "role": "staff",
+      "desc": "売れる商品やサービスを考える",
+      "profitBonus": 0.3,
+      "monthlyCost": 60,
+      "unlock": { "genre": "経営学", "level": 1 },
+      "sprites": { "idle": null, "attack": null }
+    },
+    {
+      "id": "clerk",
+      "name": "事務員",
+      "role": "staff",
+      "desc": "書類や手続きを片づけて、仕事を回りやすくする",
+      "profitBonus": 0.15,
+      "monthlyCost": 30,
+      "unlock": { "genre": "経営学", "level": 1 },
+      "sprites": { "idle": null, "attack": null }
     }
   ]
 }

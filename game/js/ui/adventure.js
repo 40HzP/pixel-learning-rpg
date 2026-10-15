@@ -1,6 +1,6 @@
 // 冒険画面の表示項目（設計ページ「自動冒険画面に必ず表示する項目」）。空の部分（y=0〜97）に重ねる
 import {
-  heroStats, partyAllies, expToNext, formatDate, monthlyRates, monthlyContractCost, monthlyNetGold, isInvulnerable, midbossLeft, pendingBoss, expMultiplier,
+  heroStats, partyAllies, companyProfit, expToNext, formatDate, monthlyRates, monthlyContractCost, monthlyNetGold, isInvulnerable, midbossLeft, pendingBoss, expMultiplier,
   challengeableMidboss, challengeMidboss, retreatMidboss,
 } from '../sim.js';
 import { el, fmt } from './dom.js';
@@ -16,6 +16,7 @@ export function init(app) {
     hp: span(), hpbar: el('i'), mp: span(), mpbar: el('i'),
     atk: span(), def: span(), wis: span(), agi: span(), luck: span(),
     exp: span(), total: span(), gold: span(), xmul: span(), rexp: span(), rgold: span(), fee: span(), net: span(), enemy: span(),
+    company: span(),
     boss: el('div', { class: 'boss', onclick: () => app.showTab('study') }),
     // 中ボスは自動では出ない。挑戦できる年齢になったらこのボタンを出す
     challengeName: span(), challengeNote: el('small'),
@@ -48,6 +49,7 @@ export function init(app) {
     el('div', { class: 'row' }, el('span', {}, '経験値 ', r.exp), el('span', {}, '累計 ', r.total)),
     el('div', { class: 'row' }, el('span', {}, '所持金 ', r.gold, 'G'), el('span', {}, '経験値 ×', r.xmul)),
     el('div', { class: 'row' }, el('span', {}, '1か月あたり 経験値 ', r.rexp, '・', r.rgold, 'G')),
+    r.companyRow = el('div', { class: 'row', hidden: true }, r.company),
     el('div', { class: 'row' }, el('span', {}, '契約料 ', r.fee, 'G'), el('span', {}, '手取り ', r.net, 'G')),
     el('div', { class: 'row enemy' }, r.enemy),
     r.bossBar,
@@ -96,6 +98,10 @@ export function update(app) {
   const fee = monthlyContractCost(s, ctx);
   const net = Math.round(monthlyNetGold(rates.gold, s, ctx));
   r.fee.textContent = fee ? `−${fmt(fee)}` : '0';
+  // 会社の利益（起業していれば。手取りに入る）
+  const cp = companyProfit(s, ctx);
+  r.companyRow.hidden = !cp;
+  if (cp) r.company.textContent = `会社（${cp.industry.name}）の利益 1か月 +${fmt(cp.total)}G`;
   r.net.textContent = `${net < 0 ? '−' : ''}${fmt(Math.abs(net))}`;
   r.net.parentNode.classList.toggle('bad', net < 0);
   const enemies = adv.enemies;

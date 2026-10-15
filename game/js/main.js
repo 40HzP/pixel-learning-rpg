@@ -50,13 +50,13 @@ function loadSave(balance, notify) {
 
 async function boot() {
   const params = new URLSearchParams(location.search);
-  let balance, monsters, items, questions, recruits, town, stages;
+  let balance, monsters, items, questions, recruits, town, stages, business;
   try {
-    [balance, { monsters }, { items }, { questions }, { recruits }, town, { stages }] = await Promise.all([
+    [balance, { monsters }, { items }, { questions }, { recruits }, town, { stages }, business] = await Promise.all([
       fetchJSON('data/balance.json'), fetchJSON('data/monsters.json'),
       fetchJSON('data/items.json'), fetchJSON('data/questions.json'),
       fetchJSON('data/recruits.json'), fetchJSON('data/town.json'),
-      fetchJSON('data/stages.json'),
+      fetchJSON('data/stages.json'), fetchJSON('data/business.json'),
     ]);
   } catch (e) {
     document.querySelector('#loading .dialog').textContent = 'ゲームのデータを読めませんでした。\n' + e.message;
@@ -71,7 +71,7 @@ async function boot() {
     ...monsters.map(async (m) => {
       monsterSprites[m.id] = { idle: await load(m.sprites.idle), attack: await load(m.sprites.attack) };
     }),
-    ...recruits.map(async (r) => {
+    ...recruits.filter((r) => r.sprites).map(async (r) => {
       recruitSprites[r.id] = { idle: await load(r.sprites.idle), attack: await load(r.sprites.attack) };
     }),
   ]);
@@ -85,7 +85,7 @@ async function boot() {
     ...town.facilities.map(async (f) => { townSprites[f.id] = await load(f.sprite); }),
   ]);
 
-  const ctx = { balance, monsters, items, questions, recruits, rng: Math.random };
+  const ctx = { balance, monsters, items, questions, recruits, business, rng: Math.random };
   const app = {
     ctx, palette, monsterSprites, recruitSprites,
     heroSprites: { idle: heroIdle, attack: heroAttack },

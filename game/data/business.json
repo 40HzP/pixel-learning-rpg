@@ -1,0 +1,36 @@
+{
+  "unlock": { "genre": "経営学", "level": 1 },
+  "genreBonusPerLevel": 0.1,
+  "industries": [
+    {
+      "id": "restaurant",
+      "name": "飲食店",
+      "desc": "少ない元手で始められる。お客を呼び込む営業がよく効く",
+      "cost": 2000,
+      "monthlyProfit": 200,
+      "specialty": "sales",
+      "specialtyMultiplier": 2,
+      "genres": ["経済学", "心理学"]
+    },
+    {
+      "id": "publishing",
+      "name": "出版社",
+      "desc": "本や雑誌を作って売る。売れる本を考える企画がよく効く",
+      "cost": 8000,
+      "monthlyProfit": 500,
+      "specialty": "planner",
+      "specialtyMultiplier": 2,
+      "genres": ["現代文", "古文漢文"]
+    },
+    {
+      "id": "pharma",
+      "name": "製薬会社",
+      "desc": "薬を研究して作る。元手は大きいが、利益も大きい。大きなお金を管理する会計士がよく効く",
+      "cost": 30000,
+      "monthlyProfit": 1500,
+      "specialty": "accountant",
+      "specialtyMultiplier": 2,
+      "genres": ["化学", "生物"]
+    }
+  ]
+}

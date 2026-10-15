@@ -212,6 +212,12 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .item.locked { opacity: .6; }
 .item.benched .name { opacity: .6; }
 .subhead { font-size: 15px; font-weight: normal; color: var(--accent); margin: 14px 0 4px; }
+.industry { background: var(--panel); border: 2px solid var(--line); padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
+.industry small { color: var(--muted); font-size: 12px; }
+.industry button { align-self: flex-start; margin-top: 4px; }
+.industry.locked { opacity: .7; }
+.profit { font-size: 18px; margin: 4px 0 6px; }
+.profit b { color: var(--good); }
 .rename { display: flex; gap: 8px; margin-bottom: 10px; }
 .rename input { flex: 1; min-width: 0; font-size: 16px; }
 .stats { display: flex; flex-direction: column; gap: 2px; }

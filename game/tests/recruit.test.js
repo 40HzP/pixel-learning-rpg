@@ -12,10 +12,10 @@ const cost = (id) => recruits.find((r) => r.id === id).monthlyCost;
 test('仲間が集まる場所は最初から使える：戦士・格闘家・魔法使い・僧侶と契約できる', () => {
   const s = newGame(0);
   const ctx = makeCtx();
-  const list = recruitList(s, ctx);
+  const list = recruitList(s, ctx).filter((r) => r.role !== 'staff');
   assert.deepEqual(list.map((r) => r.name), ['戦士', '格闘家', '魔法使い', '僧侶']);
-  assert.ok(list.every((r) => !r.hired && r.monthlyCost > 0));
-  for (const r of recruits) assert.ok(r.sprites.idle, `${r.id} のスプライト`);
+  assert.ok(list.every((r) => !r.hired && r.unlocked && r.monthlyCost > 0));
+  for (const r of recruits.filter((x) => x.role !== 'staff')) assert.ok(r.sprites.idle, `${r.id} のスプライト`);
 });
 
 test('契約すると最初の1か月分を払う。同じ仲間とは二重に契約できない。ゴールドが足りなければ契約できない', () => {

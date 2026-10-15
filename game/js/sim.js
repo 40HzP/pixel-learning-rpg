@@ -27,6 +27,8 @@ export function createState(balance) {
     equipment: { weapon: null, armor: null },
     owned: [],                                      // 買った品物のid
     allies: [],                                     // 中ボス：{ id, name, atk, maxHp, hp, cd }／契約：{ id, name, hired: true, cd, paidUntil }
+    staff: [],                                      // 契約した社員（会社で働く。戦わない）：{ id, name, paidUntil }
+    company: null,                                  // 起業した会社：{ industry, foundedAt }
     adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1 }, // enemies：今出ている群れ（先頭が狙う相手）
     knowledge: {                                    // 転生で引き継ぐ前提のもの（第2段階）
       genres: {},                                   // ジャンル名 → { level, progress, correct, studied }
@@ -422,6 +424,7 @@ export function tick(state, dt, ctx) {
   if (state.meta.startAge == null || !(dt > 0)) return events;
   state.life.gameHours += dt * ctx.balance.time.gameHoursPerRealSecond;
   payContracts(state, ctx, events);
+  earnCompany(state, dt, ctx);
   announceMidbosses(state, ctx, events);
   breakMidbosses(state, ctx, events);
   let remaining = dt;
@@ -720,59 +723,131 @@ export function fitParty(state, ctx) {
 /* ================= 仲間が集まる場所（契約） ================= */
 
 export const recruitById = (ctx, id) => (ctx.recruits || []).find((r) => r.id === id) || null;
+/** 社員（role: staff）は会社で働く専門職。戦わず、パーティーにも入らない（セーブの staff に入る） */
+export const isStaff = (r) => !!r && r.role === 'staff';
+const genreLevel = (state, genre) => (state.knowledge.genres[genre] || { level: 0 }).level;
 
-/** 契約できる仲間の一覧（契約中か・次の支払いはいつか） */
+/** 契約できるようになっているか（unlock があれば、そのジャンルの熟練がそのLv以上） */
+export const recruitUnlocked = (state, r) => !r.unlock || genreLevel(state, r.unlock.genre) >= r.unlock.level;
+
+/** 契約中の記録（戦う仲間は allies、社員は staff） */
+const contractOf = (state, id) => state.allies.find((a) => a.id === id && a.hired) || state.staff.find((a) => a.id === id) || null;
+
+/** 契約できる仲間の一覧（契約中か・次の支払いはいつか・契約できるようになっているか） */
 export function recruitList(state, ctx) {
   return (ctx.recruits || []).map((r) => {
-    const a = state.allies.find((x) => x.id === r.id && x.hired);
-    return { ...r, hired: !!a, paidUntil: a ? a.paidUntil : null };
+    const a = contractOf(state, r.id);
+    return { ...r, hired: !!a, paidUntil: a ? a.paidUntil : null, unlocked: recruitUnlocked(state, r) };
   });
 }
 
-/** 契約中の仲間の、1か月あたりの契約料の合計 */
+/** 契約中の仲間と社員の、1か月あたりの契約料の合計 */
 export const monthlyContractCost = (state, ctx) =>
-  state.allies.reduce((sum, a) => sum + (a.hired ? (recruitById(ctx, a.id) || { monthlyCost: 0 }).monthlyCost : 0), 0);
+  [...state.allies.filter((a) => a.hired), ...state.staff].reduce((sum, a) => sum + (recruitById(ctx, a.id) || { monthlyCost: 0 }).monthlyCost, 0);
 
-/** 1か月あたりの手取り＝1か月あたりに入るゴールド−契約料の合計（マイナスにもなる） */
-export const monthlyNetGold = (grossGold, state, ctx) => grossGold - monthlyContractCost(state, ctx);
+/** 1か月あたりの手取り＝1か月あたりに入るゴールド＋会社の利益−契約料の合計（マイナスにもなる） */
+export const monthlyNetGold = (grossGold, state, ctx) =>
+  grossGold + ((companyProfit(state, ctx) || { total: 0 }).total) - monthlyContractCost(state, ctx);
 
 /** 契約する。最初の1か月分をその場で払い、以後はゲーム内の1か月ごとに払う */
 export function hireRecruit(state, id, ctx) {
   const r = recruitById(ctx, id);
   if (!r) return { ok: false, reason: 'いない仲間です' };
-  if (state.allies.some((a) => a.id === id)) return { ok: false, reason: 'もう契約しています' };
-  if (partyFull(state, ctx)) return { ok: false, reason: `パーティーがいっぱい（${partyMax(ctx)}人まで）。中ボスだった仲間を外すと契約できる` };
+  if (contractOf(state, id) || state.allies.some((a) => a.id === id)) return { ok: false, reason: 'もう契約しています' };
+  if (!recruitUnlocked(state, r)) return { ok: false, reason: `${r.unlock.genre}の熟練が Lv${r.unlock.level} になると契約できる` };
+  if (!isStaff(r) && partyFull(state, ctx)) return { ok: false, reason: `パーティーがいっぱい（${partyMax(ctx)}人まで）。中ボスだった仲間を外すと契約できる` };
   if (state.gold < r.monthlyCost) return { ok: false, reason: 'ゴールドが足りません' };
   state.gold -= r.monthlyCost;
-  state.allies.push({ id: r.id, name: r.name, hired: true, cd: r.intervalSec, paidUntil: state.life.gameHours + HOURS_PER_MONTH });
+  const paidUntil = state.life.gameHours + HOURS_PER_MONTH;
+  if (isStaff(r)) state.staff.push({ id: r.id, name: r.name, paidUntil });
+  else state.allies.push({ id: r.id, name: r.name, hired: true, cd: r.intervalSec, paidUntil });
   return { ok: true };
 }
 
 /** 解約する（払った分は戻らない） */
 export function dismissRecruit(state, id) {
-  const i = state.allies.findIndex((a) => a.id === id && a.hired);
-  if (i < 0) return { ok: false, reason: '契約していません' };
-  state.allies.splice(i, 1);
+  for (const list of [state.allies, state.staff]) {
+    const i = list.findIndex((a) => a.id === id && (list === state.staff || a.hired));
+    if (i >= 0) { list.splice(i, 1); return { ok: true }; }
+  }
+  return { ok: false, reason: '契約していません' };
+}
+
+/** 支払日が来た契約の契約料を払う。払えなければ契約が切れて仲間（社員）が去る */
+export function payContracts(state, ctx, events) {
+  for (const list of [state.allies, state.staff]) {
+    for (const a of [...list]) {
+      if (list === state.allies && !a.hired) continue;
+      const r = recruitById(ctx, a.id);
+      if (!r) { list.splice(list.indexOf(a), 1); continue; }
+      while (state.life.gameHours >= a.paidUntil) {
+        if (state.gold < r.monthlyCost) {
+          list.splice(list.indexOf(a), 1);
+          if (events) events.push({ type: 'contractEnded', id: a.id, name: a.name });
+          break;
+        }
+        state.gold -= r.monthlyCost;
+        a.paidUntil += HOURS_PER_MONTH;
+        if (events) events.push({ type: 'contractPaid', id: a.id, cost: r.monthlyCost });
+      }
+    }
+  }
+}
+
+/* ================= 会社（起業） ================= */
+
+export const industryById = (ctx, id) => ((ctx.business && ctx.business.industries) || []).find((x) => x.id === id) || null;
+
+/** 起業できるようになっているか（business.json の unlock：経営学の熟練 Lv1 から） */
+export function canFound(state, ctx) {
+  const u = ctx.business && ctx.business.unlock;
+  return !!u && genreLevel(state, u.genre) >= u.level;
+}
+
+/** 起業する。業種を選び、元手（cost）を払う。会社は1つだけ */
+export function foundCompany(state, industryId, ctx) {
+  const ind = industryById(ctx, industryId);
+  if (!ind) return { ok: false, reason: 'ない業種です' };
+  if (state.company) return { ok: false, reason: 'もう会社があります' };
+  if (!canFound(state, ctx)) { const u = ctx.business.unlock; return { ok: false, reason: `${u.genre}の熟練が Lv${u.level} になると起業できる` }; }
+  if (state.gold < ind.cost) return { ok: false, reason: 'ゴールドが足りません' };
+  state.gold -= ind.cost;
+  state.company = { industry: ind.id, foundedAt: state.life.gameHours };
   return { ok: true };
 }
 
-/** 支払日が来た契約の契約料を払う。払えなければ契約が切れて仲間が去る */
-export function payContracts(state, ctx, events) {
-  for (const a of [...state.allies]) {
-    if (!a.hired) continue;
+/** 会社をたたむ（元手は戻らない。社員の契約はそのまま） */
+export function closeCompany(state) {
+  if (!state.company) return { ok: false, reason: '会社がありません' };
+  state.company = null;
+  return { ok: true };
+}
+
+/**
+ * 会社の1か月あたりの利益（社員の契約料を引く前）と内訳。会社が無ければ null。
+ * 利益＝業種の monthlyProfit ×（1＋社員の profitBonus の合計）×（1＋関係するジャンルの熟練Lvの合計×genreBonusPerLevel）。
+ * 業種の specialty の社員は profitBonus が specialtyMultiplier 倍になる
+ */
+export function companyProfit(state, ctx) {
+  const ind = state.company && industryById(ctx, state.company.industry);
+  if (!ind) return null;
+  const staff = state.staff.map((a) => {
     const r = recruitById(ctx, a.id);
-    if (!r) { state.allies.splice(state.allies.indexOf(a), 1); continue; }
-    while (state.life.gameHours >= a.paidUntil) {
-      if (state.gold < r.monthlyCost) {
-        state.allies.splice(state.allies.indexOf(a), 1);
-        if (events) events.push({ type: 'contractEnded', id: a.id, name: a.name });
-        break;
-      }
-      state.gold -= r.monthlyCost;
-      a.paidUntil += HOURS_PER_MONTH;
-      if (events) events.push({ type: 'contractPaid', id: a.id, cost: r.monthlyCost });
-    }
-  }
+    if (!r) return null;
+    const special = ind.specialty === r.id;
+    return { id: r.id, name: r.name, bonus: (r.profitBonus || 0) * (special ? ind.specialtyMultiplier : 1), special };
+  }).filter(Boolean);
+  const staffBonus = staff.reduce((s, x) => s + x.bonus, 0);
+  const genreLevels = ind.genres.reduce((s, g) => s + genreLevel(state, g), 0);
+  const genreBonus = genreLevels * ctx.business.genreBonusPerLevel;
+  return { industry: ind, base: ind.monthlyProfit, staff, staffBonus, genreLevels, genreBonus, total: Math.round(ind.monthlyProfit * (1 + staffBonus) * (1 + genreBonus)) };
+}
+
+/** 会社の利益は時間がたつと少しずつ入る（1か月で companyProfit().total） */
+function earnCompany(state, dt, ctx) {
+  const p = companyProfit(state, ctx);
+  if (!p) return;
+  state.gold += p.total * (dt * ctx.balance.time.gameHoursPerRealSecond) / HOURS_PER_MONTH;
 }
 
 /* ================= 店 ================= */

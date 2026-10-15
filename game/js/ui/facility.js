@@ -1,9 +1,10 @@
 // 施設画面＝街。bg_town の上に施設の外観を並べ（並べる位置は data/town.json）、建物をタップするとその施設に入る。
-// 入れる施設：店・仲間が集まる場所・寝床。会社・ロケット発射場・専攻の付け替え・拠点は準備中。
+// 入れる施設：店・仲間が集まる場所・寝床・会社。ロケット発射場・専攻の付け替え・拠点は準備中。
 // 広場に立っている主人公をタップすると、主人公のステータスと名前の変更
 import {
   shopList, buyItem, bedFloor, heroTitles, inParty, setInParty, partyAllies, partyMax, partyFull, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, heroAttackInterval, expMultiplier,
   recruitList, hireRecruit, dismissRecruit, monthlyContractCost, HOURS_PER_MONTH,
+  isStaff, canFound, foundCompany, closeCompany, companyProfit, industryById,
 } from '../sim.js';
 import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor } from '../sprites.js';
 import { el, fmt } from './dom.js';
@@ -159,45 +160,66 @@ function homePanel(app) {
 }
 
 /** 仲間が集まる場所：ゲーム内の1か月ごとに契約料を払って仲間にする */
+const pct = (x) => `${Math.round(x * 100)}%`;
+const genreLv = (s, g) => (s.knowledge.genres[g] || { level: 0 }).level;
+
+/** 契約できる仲間・社員の1行（契約する・解約する） */
+function contractRow(app, r) {
+  const s = app.state;
+  const ctx = app.ctx;
+  const btn = r.hired
+    ? el('button', {
+      onclick: () => {
+        if (!confirm(`${r.name}との契約をやめますか？（払った契約料は戻りません）`)) return;
+        dismissRecruit(app.state, r.id);
+        app.notify(`${r.name}との契約をやめた`);
+        app.save();
+        update(app, true);
+      },
+    }, '解約する')
+    : el('button', {
+      disabled: !r.unlocked,
+      onclick: () => {
+        const res = hireRecruit(app.state, r.id, ctx);
+        if (!res.ok) { app.notify(res.reason, 'bad'); return; }
+        app.notify(`${r.name}と契約した！（1か月 ${fmt(r.monthlyCost)}G）`, 'good');
+        app.save();
+        update(app, true);
+      },
+    }, '契約する');
+  if (!r.hired && r.unlocked) live.buttons.push({ btn, price: r.monthlyCost });
+  let effect = null;
+  if (isStaff(r)) {
+    const ind = s.company && industryById(ctx, s.company.industry);
+    const special = ind && ind.specialty === r.id;
+    effect = el('small', {}, `会社の利益 +${pct(r.profitBonus * (special ? ind.specialtyMultiplier : 1))}${special ? `（${ind.name}ではよく効く）` : ''}`);
+  }
+  let status = null;
+  if (r.hired) status = el('small', { style: { color: 'var(--good)' } }, `契約中（次の支払い：${formatDate(r.paidUntil)}）`);
+  else if (!r.unlocked) status = el('small', {}, `${r.unlock.genre}の熟練が Lv${r.unlock.level} になると契約できる`);
+  else if (!isStaff(r) && partyFull(s, ctx)) status = el('small', {}, 'パーティーがいっぱい（中ボスだった仲間を外すと契約できる）');
+  return el('div', { class: 'item' + (r.unlocked ? '' : ' locked') },
+    el('div', { class: 'name' }, r.name, el('small', {}, `${r.desc}　1か月 ${fmt(r.monthlyCost)}G`), effect, status),
+    btn);
+}
+
 function guildPanel(app) {
   const s = app.state;
   const ctx = app.ctx;
   const monthSec = HOURS_PER_MONTH / ctx.balance.time.gameHoursPerRealSecond;
-  const rows = recruitList(s, ctx).map((r) => {
-    const btn = r.hired
-      ? el('button', {
-        onclick: () => {
-          if (!confirm(`${r.name}との契約をやめますか？（払った契約料は戻りません）`)) return;
-          dismissRecruit(app.state, r.id);
-          app.notify(`${r.name}との契約をやめた`);
-          app.save();
-          update(app, true);
-        },
-      }, '解約する')
-      : el('button', {
-        onclick: () => {
-          const res = hireRecruit(app.state, r.id, ctx);
-          if (!res.ok) { app.notify(res.reason, 'bad'); return; }
-          app.notify(`${r.name}と契約した！（1か月 ${fmt(r.monthlyCost)}G）`, 'good');
-          app.save();
-          update(app, true);
-        },
-      }, '契約する');
-    if (!r.hired) live.buttons.push({ btn, price: r.monthlyCost });
-    return el('div', { class: 'item' },
-      el('div', { class: 'name' }, r.name,
-        el('small', {}, `${r.desc}　1か月 ${fmt(r.monthlyCost)}G`),
-        r.hired ? el('small', { style: { color: 'var(--good)' } }, `契約中（次の支払い：${formatDate(r.paidUntil)}）`)
-          : partyFull(s, ctx) ? el('small', {}, 'パーティーがいっぱい（中ボスだった仲間を外すと契約できる）') : null),
-      btn);
-  });
+  const list = recruitList(s, ctx);
+  const fighters = list.filter((r) => !isStaff(r));
+  const staff = list.filter(isStaff);
   const others = s.allies.filter((a) => !a.hired);
   const total = monthlyContractCost(s, ctx);
   return [
     el('div', { style: { marginBottom: '6px' } }, '所持金 ', live.gold, 'G'),
     note(`契約料はゲーム内の1か月ごとに払う（今の速さで現実の約${Math.round(monthSec)}秒ごと）。払えなくなると契約が切れる`),
-    el('div', { class: 'list' }, rows),
+    el('div', { class: 'list' }, fighters.map((r) => contractRow(app, r))),
     total ? el('div', { style: { marginTop: '6px', fontSize: '14px' } }, `契約料の合計　1か月 ${fmt(total)}G`) : null,
+    staff.length ? el('h3', { class: 'subhead' }, '専門職（会社で働く）') : null,
+    staff.length ? note(s.company ? '社員として会社で働き、会社の利益を増やす。戦わず、パーティーにも入らない' : '社員として会社で働く（会社が無いと仕事が無い。起業は街の「会社」で）。戦わず、パーティーにも入らない') : null,
+    staff.length ? el('div', { class: 'list' }, staff.map((r) => contractRow(app, r))) : null,
     others.length ? el('h3', { class: 'subhead' }, '中ボスだった仲間（契約料なし）') : null,
     others.length ? note(`パーティーに入れるか控えに回すかを、いつでも選べる。パーティーは契約した仲間と合わせて${partyMax(ctx)}人まで。控えの仲間は戦わず、冒険画面にも出ない`) : null,
     others.length ? el('div', { style: { marginBottom: '6px' } }, 'パーティー ', el('b', {}, `${partyAllies(s).length}/${partyMax(ctx)}人`)) : null,
@@ -223,6 +245,73 @@ function guildPanel(app) {
           }, on ? '外す' : '入れる'));
       }))
       : null,
+  ];
+}
+
+/** 会社：業種を選んで起業する。社員（会計士・営業・企画・事務員）が利益を増やす */
+function companyPanel(app) {
+  const s = app.state;
+  const ctx = app.ctx;
+  const biz = ctx.business;
+  const staffRows = () => [
+    el('h3', { class: 'subhead' }, '社員'),
+    el('div', { class: 'list' }, recruitList(s, ctx).filter(isStaff).map((r) => contractRow(app, r))),
+  ];
+  if (s.company) {
+    const p = companyProfit(s, ctx);
+    const ind = p.industry;
+    const genreText = ind.genres.map((g) => `${g} Lv${genreLv(s, g)}`).join('・');
+    return [
+      el('div', { style: { marginBottom: '6px' } }, el('b', {}, ind.name), `（${formatDate(s.company.foundedAt)}に起業）`),
+      el('div', { class: 'profit' }, '1か月の利益 ', el('b', {}, `${fmt(p.total)}G`)),
+      el('ul', { class: 'effects' },
+        el('li', {}, `${ind.name}の利益　${fmt(p.base)}G`),
+        el('li', {}, p.staff.length
+          ? `社員　+${pct(p.staffBonus)}（${p.staff.map((x) => `${x.name} +${pct(x.bonus)}`).join('・')}）`
+          : '社員　なし（下で契約すると利益が増える）'),
+        el('li', {}, `ジャンルの熟練　+${pct(p.genreBonus)}（${genreText}。Lv1ごとに +${pct(biz.genreBonusPerLevel)}）`)),
+      note(`利益は時間がたつと少しずつ所持金に入る。社員の契約料は別に払う。よく効く社員：${(ctx.recruits.find((r) => r.id === ind.specialty) || {}).name}`),
+      ...staffRows(),
+      el('div', { class: 'btnrow', style: { marginTop: '12px' } }, el('button', {
+        onclick: () => {
+          if (!confirm(`${ind.name}をたたみますか？（元手は戻りません。社員の契約はそのまま）`)) return;
+          closeCompany(app.state);
+          app.notify(`${ind.name}をたたんだ`);
+          app.save();
+          update(app, true);
+        },
+      }, '会社をたたむ')),
+    ];
+  }
+  const can = canFound(s, ctx);
+  const cards = biz.industries.map((ind) => {
+    const btn = el('button', {
+      class: 'primary', disabled: !can,
+      onclick: () => {
+        if (!confirm(`${fmt(ind.cost)}G を払って${ind.name}を起業しますか？`)) return;
+        const res = foundCompany(app.state, ind.id, ctx);
+        if (!res.ok) { app.notify(res.reason, 'bad'); return; }
+        app.notify(`${ind.name}を起業した！`, 'good');
+        app.save();
+        update(app, true);
+      },
+    }, `起業する（${fmt(ind.cost)}G）`);
+    if (can) live.buttons.push({ btn, price: ind.cost });
+    const special = (ctx.recruits.find((r) => r.id === ind.specialty) || {}).name;
+    return el('div', { class: 'industry' + (can ? '' : ' locked') },
+      el('div', { class: 'zname' }, ind.name),
+      el('div', {}, ind.desc),
+      el('small', {}, `元手 ${fmt(ind.cost)}G　利益 1か月 ${fmt(ind.monthlyProfit)}G（社員なし）`),
+      el('small', {}, `よく効く社員：${special}　関係するジャンル：${ind.genres.join('・')}（熟練Lv1ごとに利益 +${pct(biz.genreBonusPerLevel)}）`),
+      btn);
+  });
+  return [
+    el('div', { style: { marginBottom: '6px' } }, '所持金 ', live.gold, 'G'),
+    can
+      ? note('業種を1つ選んで起業する（会社は1つだけ）。利益は時間がたつと少しずつ所持金に入る')
+      : note(`${biz.unlock.genre}の熟練が Lv${biz.unlock.level} になると起業できる（今 Lv${genreLv(s, biz.unlock.genre)}。勉強で${biz.unlock.genre}の問題に正解すると上がる）`),
+    el('div', { class: 'list' }, cards),
+    ...staffRows(),
   ];
 }
 
@@ -256,7 +345,7 @@ function heroPanel(app) {
 }
 
 // 中に入れる施設（town.json の id → 中身）。ここに無い施設は「準備中」
-const PANELS = { shop: shopPanel, guild: guildPanel, home: homePanel };
+const PANELS = { shop: shopPanel, guild: guildPanel, home: homePanel, company: companyPanel };
 
 function buildPanel(app) {
   const t = app.town;
@@ -299,7 +388,7 @@ export function update(app, force) {
     return;
   }
   town = null;
-  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched]), s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx)]);
+  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched]), s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx), s.staff.map((a) => [a.id, a.paidUntil]), s.company, (companyProfit(s, app.ctx) || {}).total, canFound(s, app.ctx)]);
   // 名前を入力している途中は作り直さない（入力が消えないように）
   const typing = root.contains(document.activeElement) && document.activeElement.tagName === 'INPUT';
   if (force || ((k !== key || !live) && !typing)) { key = k; buildPanel(app); }
