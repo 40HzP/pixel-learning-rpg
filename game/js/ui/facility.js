@@ -2,7 +2,7 @@
 // 入れる施設：店・仲間が集まる場所・寝床。会社・ロケット発射場・専攻の付け替え・拠点は準備中。
 // 広場に立っている主人公をタップすると、主人公のステータスと名前の変更
 import {
-  shopList, buyItem, bedFloor, heroTitles, inParty, setInParty, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, heroAttackInterval, expMultiplier,
+  shopList, buyItem, bedFloor, heroTitles, inParty, setInParty, partyAllies, partyMax, partyFull, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, heroAttackInterval, expMultiplier,
   recruitList, hireRecruit, dismissRecruit, monthlyContractCost, HOURS_PER_MONTH,
 } from '../sim.js';
 import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor } from '../sprites.js';
@@ -187,7 +187,8 @@ function guildPanel(app) {
     return el('div', { class: 'item' },
       el('div', { class: 'name' }, r.name,
         el('small', {}, `${r.desc}　1か月 ${fmt(r.monthlyCost)}G`),
-        r.hired ? el('small', { style: { color: 'var(--good)' } }, `契約中（次の支払い：${formatDate(r.paidUntil)}）`) : null),
+        r.hired ? el('small', { style: { color: 'var(--good)' } }, `契約中（次の支払い：${formatDate(r.paidUntil)}）`)
+          : partyFull(s, ctx) ? el('small', {}, 'パーティーがいっぱい（中ボスだった仲間を外すと契約できる）') : null),
       btn);
   });
   const others = s.allies.filter((a) => !a.hired);
@@ -198,19 +199,23 @@ function guildPanel(app) {
     el('div', { class: 'list' }, rows),
     total ? el('div', { style: { marginTop: '6px', fontSize: '14px' } }, `契約料の合計　1か月 ${fmt(total)}G`) : null,
     others.length ? el('h3', { class: 'subhead' }, '中ボスだった仲間（契約料なし）') : null,
-    others.length ? note('パーティーに入れるか控えに回すかを、いつでも選べる。控えの仲間は戦わず、冒険画面にも出ない') : null,
+    others.length ? note(`パーティーに入れるか控えに回すかを、いつでも選べる。パーティーは契約した仲間と合わせて${partyMax(ctx)}人まで。控えの仲間は戦わず、冒険画面にも出ない`) : null,
+    others.length ? el('div', { style: { marginBottom: '6px' } }, 'パーティー ', el('b', {}, `${partyAllies(s).length}/${partyMax(ctx)}人`)) : null,
     others.length
       ? el('div', { class: 'list' }, others.map((a) => {
         const on = inParty(a);
+        const full = !on && partyFull(s, ctx);
         return el('div', { class: 'item' + (on ? '' : ' benched') },
           el('div', { class: 'name' }, a.name,
             el('small', {}, `攻撃 ${fmt(a.atk)}　HP ${fmt(a.maxHp)}`),
-            el('small', { style: { color: on ? 'var(--good)' : 'var(--muted)' } }, on ? 'パーティーにいる' : '控え（戦わない）')),
+            el('small', { style: { color: on ? 'var(--good)' : 'var(--muted)' } }, on ? 'パーティーにいる' : full ? '控え（パーティーがいっぱい）' : '控え（戦わない）')),
           el('button', {
-            class: on ? '' : 'primary',
+            class: on || full ? '' : 'primary',
+            disabled: full,
             'aria-pressed': on ? 'true' : 'false',
             onclick: () => {
-              setInParty(app.state, a.id, !on);
+              const res = setInParty(app.state, a.id, !on, ctx);
+              if (!res.ok) { app.notify(res.reason, 'bad'); return; }
               app.notify(on ? `${a.name}を控えに回した` : `${a.name}をパーティーに入れた`);
               app.save();
               update(app, true);

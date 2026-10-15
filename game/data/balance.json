@@ -44,7 +44,7 @@
   "sleep": { "gameHours": 10, "upChance": 0.15, "downChance": 0.05 },
   "midboss": { "hpMultiplier": 5, "atkMultiplier": 1.5, "expMultiplier": 5, "goldMultiplier": 5 },
   "boss": { "hpMultiplier": 8, "atkMultiplier": 2, "defMultiplier": 1, "expMultiplier": 10, "goldMultiplier": 10 },
-  "ally": { "attackIntervalSec": 1.5, "atkFromBoss": 0.6, "hpFromBoss": 0.6 },
+  "ally": { "attackIntervalSec": 1.5, "atkFromBoss": 0.6, "hpFromBoss": 0.6, "partyMax": 5 },
   "nande": { "firstSec": 3, "intervalSec": 10, "wrongHealRatio": 0.1 },
   "rateWindowSec": 60
 }

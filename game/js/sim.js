@@ -449,7 +449,7 @@ function combatStep(state, dt, ctx, events) {
     heroAct(state, hs, ctx, events);
     if (!adv.enemies.length) return;
   }
-  for (const ally of partyAllies(state)) {
+  for (const ally of partyAllies(state).slice(0, partyMax(ctx))) {
     ally.cd -= dt;
     if (ally.cd > 0) continue;
     const r = ally.hired ? recruitById(ctx, ally.id) : null;
@@ -582,12 +582,14 @@ function defeatEnemy(state, e, ctx, events) {
     // ally: false の中ボス（孫）は仲間にならない
     if (m.ally !== false && !state.allies.some((a) => a.id === e.monsterId)) {
       const maxHp = Math.max(1, Math.round(e.maxHp * b.ally.hpFromBoss));
+      const benched = partyFull(state, ctx); // パーティーがいっぱいなら控えに入る
       state.allies.push({
         id: e.monsterId, name: e.name,
         atk: Math.max(1, Math.round(e.atk * b.ally.atkFromBoss)),
         maxHp, hp: maxHp, cd: b.ally.attackIntervalSec,
+        ...(benched ? { benched: true } : {}),
       });
-      events.push({ type: 'allyJoined', id: e.monsterId, name: e.name });
+      events.push({ type: 'allyJoined', id: e.monsterId, name: e.name, benched });
     }
   } else if (e.kind === 'boss') {
     bossState(state, e.monsterId).status = 'defeated';
@@ -684,17 +686,35 @@ export function sleep(state, ctx, reason = 'bed') {
 /** パーティーにいる仲間（控えに回した中ボスだった仲間は戦わず、冒険画面にも出ない） */
 export const inParty = (ally) => !ally.benched;
 export const partyAllies = (state) => state.allies.filter(inParty);
+/** パーティーの上限（balance.ally.partyMax 人。契約した仲間も数える。戦うのも冒険画面に並ぶのもこの人数まで） */
+export const partyMax = (ctx) => ctx.balance.ally.partyMax;
+export const partyFull = (state, ctx) => partyAllies(state).length >= partyMax(ctx);
 
 /**
  * 中ボスだった仲間をパーティーに入れる（on=true）・外して控えに回す（on=false）。いつでも何度でも変えられる。
- * 契約した仲間は対象外（やめるときは解約する）
+ * パーティーがいっぱいのときは入れられない。契約した仲間は対象外（やめるときは解約する）
  */
-export function setInParty(state, id, on) {
+export function setInParty(state, id, on, ctx) {
   const ally = state.allies.find((a) => a.id === id && !a.hired);
-  if (!ally) return false;
-  if (on) delete ally.benched;
-  else ally.benched = true;
-  return true;
+  if (!ally) return { ok: false, reason: '中ボスだった仲間ではありません' };
+  if (!on) { ally.benched = true; return { ok: true }; }
+  if (!inParty(ally) && partyFull(state, ctx)) return { ok: false, reason: `パーティーは${partyMax(ctx)}人まで。だれかを外してから入れる` };
+  delete ally.benched;
+  return { ok: true };
+}
+
+/** パーティーが上限を超えていたら、後ろの中ボスだった仲間から控えに回す（前のセーブを読んだとき）。控えに回した仲間の名前を返す */
+export function fitParty(state, ctx) {
+  let over = partyAllies(state).length - partyMax(ctx);
+  const moved = [];
+  for (let i = state.allies.length - 1; i >= 0 && over > 0; i--) {
+    const a = state.allies[i];
+    if (a.hired || !inParty(a)) continue;
+    a.benched = true;
+    moved.unshift(a.name);
+    over--;
+  }
+  return moved;
 }
 
 /* ================= 仲間が集まる場所（契約） ================= */
@@ -721,6 +741,7 @@ export function hireRecruit(state, id, ctx) {
   const r = recruitById(ctx, id);
   if (!r) return { ok: false, reason: 'いない仲間です' };
   if (state.allies.some((a) => a.id === id)) return { ok: false, reason: 'もう契約しています' };
+  if (partyFull(state, ctx)) return { ok: false, reason: `パーティーがいっぱい（${partyMax(ctx)}人まで）。中ボスだった仲間を外すと契約できる` };
   if (state.gold < r.monthlyCost) return { ok: false, reason: 'ゴールドが足りません' };
   state.gold -= r.monthlyCost;
   state.allies.push({ id: r.id, name: r.name, hired: true, cd: r.intervalSec, paidUntil: state.life.gameHours + HOURS_PER_MONTH });

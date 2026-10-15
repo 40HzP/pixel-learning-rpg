@@ -1,7 +1,7 @@
 // 起動・画面切り替え・ループ・セーブ
 import {
   createState, startGame, tick, clockFrame, createClock, HOURS_PER_YEAR,
-  createRateTracker, trackTime, trackGain, sleepAtBed, stageFor,
+  createRateTracker, trackTime, trackGain, sleepAtBed, stageFor, fitParty,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
 import { forgetMissingQuestions } from './quiz.js';
@@ -102,7 +102,7 @@ async function boot() {
     notify,
     handleEvents,
     save: saveNow,
-    replaceState(next) { app.state = next; forgetMissingQuestions(next, ctx); app.rate = createRateTracker(); for (const s of Object.values(screens)) s.reset && s.reset(app); refreshActive(true); },
+    replaceState(next) { app.state = next; forgetMissingQuestions(next, ctx); fitParty(next, ctx); app.rate = createRateTracker(); for (const s of Object.values(screens)) s.reset && s.reset(app); refreshActive(true); },
     sleepNow() {
       const from = app.state.adventure.floor;
       const r = sleepAtBed(app.state, ctx);
@@ -118,9 +118,11 @@ async function boot() {
   };
   app.state = loadSave(balance, notify);
   forgetMissingQuestions(app.state, ctx); // 同期で外した問題が過去問復習に残らないように
+  const benchedOnLoad = fitParty(app.state, ctx); // パーティーは5人まで（前のセーブで超えていたら控えに回す）
   app.renderer = createRenderer(document.getElementById('scene'), app);
 
   for (const s of Object.values(screens)) s.init(app);
+  if (benchedOnLoad.length) setTimeout(() => notify(`パーティーは${ctx.balance.ally.partyMax}人までになった。${benchedOnLoad.join('・')}を控えに回した（仲間が集まる場所で入れ替えられる）`), 1500);
 
   /* ---------- 通知 ---------- */
   const heldNotices = []; // ミニムービーなどを出している間に出た知らせ（終わってから出す）
@@ -187,7 +189,7 @@ async function boot() {
       else if (e.type === 'midbossBroken') notify(`${(monsters.find((m) => m.id === e.monsterId) || {}).name || '中ボス'}の防御が崩れた！`, 'good');
       else if (e.type === 'spawn' && e.kind === 'boss') notify(`小ボス「${e.name}」が現れた！`, 'bad');
       else if (e.type === 'bossDefeated') notify(`小ボス「${e.name}」を倒した！\n図鑑に「なぜ信じられたか」が載った`, 'good');
-      else if (e.type === 'allyJoined') notify(`${e.name}が仲間になった！`, 'good');
+      else if (e.type === 'allyJoined') notify(e.benched ? `${e.name}が仲間になった！\nパーティーがいっぱいなので控えにいる（仲間が集まる場所で入れ替えられる）` : `${e.name}が仲間になった！`, 'good');
       else if (e.type === 'titleGained') notify(`称号「${e.title}」を手に入れた！`, 'good');
       else if (e.type === 'contractEnded') notify(`ゴールドが足りず、${e.name}との契約が切れた`, 'bad');
       else if (e.type === 'zukan' && e.stage === 1) {
