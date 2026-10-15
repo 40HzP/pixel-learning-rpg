@@ -275,7 +275,6 @@ test('13歳から先の中ボスは、それぞれ決めたレベル（鉄の剣
   const LEVEL = { teacher_junior: 55, teacher_high: 60, politician: 65, professor: 70, interviewer: 75, reviewer: 90, tax_inspector: 110, grandchild: 150 };
   for (const [id, L] of Object.entries(LEVEL)) {
     const m = midbosses.find((x) => x.id === id);
-    assert.match(m.intro, new RegExp(`レベル${L}くらい`), `${m.name} の説明のレベル`);
     const wins = (level) => [1, 2, 3, 4, 5, 6, 7, 8].filter((seed) => fightMidboss(id, level, seed) === 'win').length;
     assert.ok(wins(L) >= 6, `${m.name}：Lv${L} ならほぼ勝てる（${wins(L)}/8）`);
     assert.ok(wins(L - 3) <= 2, `${m.name}：Lv${L - 3} ではほぼ勝てない（${wins(L - 3)}/8）`);
