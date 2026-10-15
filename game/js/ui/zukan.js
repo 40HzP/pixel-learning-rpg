@@ -38,7 +38,9 @@ function card(app, m) {
     return el('div', { class: 'zcard' }, pic,
       el('div', { class: 'zname' }, m.name, el('span', { class: 'muted' }, '（中ボス）')),
       el('div', {}, m.intro || ''),
-      z.stage >= 2 ? el('div', { class: 'good' }, '倒した。仲間になった') : el('div', { class: 'muted' }, 'まだ倒していない'));
+      z.stage >= 2
+        ? el('div', { class: 'good' }, m.ally === false ? `倒した。称号「${m.title}」をもらった` : '倒した。仲間になった')
+        : el('div', { class: 'muted' }, `まだ倒していない（${m.appearAge}歳から挑戦できる）`));
   }
   const mythLabel = m.wordType ? 'よく言われる意味' : '俗説';
   const truthLabel = m.wordType ? '本来の意味' : '正体';

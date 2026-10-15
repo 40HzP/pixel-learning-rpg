@@ -173,6 +173,7 @@ async function boot() {
       else if (e.type === 'spawn' && e.kind === 'boss') notify(`小ボス「${e.name}」が現れた！`, 'bad');
       else if (e.type === 'bossDefeated') notify(`小ボス「${e.name}」を倒した！\n図鑑に「なぜ信じられたか」が載った`, 'good');
       else if (e.type === 'allyJoined') notify(`${e.name}が仲間になった！`, 'good');
+      else if (e.type === 'titleGained') notify(`称号「${e.title}」を手に入れた！`, 'good');
       else if (e.type === 'contractEnded') notify(`ゴールドが足りず、${e.name}との契約が切れた`, 'bad');
       else if (e.type === 'zukan' && e.stage === 1) {
         const m = monsters.find((x) => x.id === e.monsterId);

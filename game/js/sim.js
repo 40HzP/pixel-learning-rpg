@@ -338,17 +338,23 @@ export function retreatMidboss(state, ctx, events) {
   return true;
 }
 
-/** 中ボスに挑戦できるようになったら一度だけ知らせる（まだ一度も戦っていない中ボスだけ） */
+/**
+ * 中ボスに挑戦できるようになったら一度だけ知らせる（まだ一度も戦っていない中ボスだけ）。
+ * 中ボスは monsters.json の順に1体ずつ挑む。前の中ボスを倒すまで、次の中ボスは知らせない
+ */
 function announceMidbosses(state, ctx, events) {
-  const age = ageYears(state);
-  for (const m of ctx.monsters) {
-    if (m.kind !== 'midboss' || age < m.appearAge) continue;
-    const st = midbossState(state, m.id);
-    if (st.status !== 'waiting' || st.announced) continue;
-    st.announced = true;
-    events.push({ type: 'midbossReady', monsterId: m.id, name: m.name });
-  }
+  const m = pendingMidboss(state, ctx);
+  if (!m) return;
+  const st = midbossState(state, m.id);
+  if (st.status !== 'waiting' || st.announced) return;
+  st.announced = true;
+  events.push({ type: 'midbossReady', monsterId: m.id, name: m.name });
 }
+
+/** 中ボスを倒してもらった称号（monsters.json の title。仲間にならない中ボス＝孫） */
+export const heroTitles = (state, ctx) => ctx.monsters
+  .filter((m) => m.kind === 'midboss' && m.title && midbossState(state, m.id).status === 'defeated')
+  .map((m) => m.title);
 
 /** 次に出る敵を1体決める。その階層の未撃破の小ボスが先（中ボスは自動では出ない） */
 export function chooseNextMonster(state, ctx) {
@@ -543,7 +549,10 @@ function defeatEnemy(state, e, ctx, events) {
   raiseZukan(state, e.monsterId, 2, events);
   if (e.kind === 'midboss') {
     midbossState(state, e.monsterId).status = 'defeated';
-    if (!state.allies.some((a) => a.id === e.monsterId)) {
+    const m = ctx.monsters.find((x) => x.id === e.monsterId) || {};
+    if (m.title) events.push({ type: 'titleGained', monsterId: e.monsterId, name: e.name, title: m.title });
+    // ally: false の中ボス（孫）は仲間にならない
+    if (m.ally !== false && !state.allies.some((a) => a.id === e.monsterId)) {
       const maxHp = Math.max(1, Math.round(e.maxHp * b.ally.hpFromBoss));
       state.allies.push({
         id: e.monsterId, name: e.name,

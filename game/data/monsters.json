@@ -348,6 +348,120 @@
         "次は中学校教師と心の内を語り合おうではないか。"
       ],
       "sprites": { "idle": "teacher_elementary_idle", "attack": "teacher_elementary_attack" }
+    },
+    {
+      "id": "teacher_junior",
+      "name": "中学校教師",
+      "kind": "midboss",
+      "appearAge": 13,
+      "unlockCorrect": 15,
+      "intro": "13歳で挑戦できる。勉強で累計15問正解するまで、攻撃が効かない（出てくる前の正解も数える）。主人公がレベル55くらいの強さでないと倒せない。",
+      "stats": { "hp": 4180, "atk": 216, "def": 200, "exp": 303, "gold": 303 },
+      "defeatMovie": [
+        "彼は反抗する私を、最後まで見捨てなかった。今ならその背中の大きさが分かる。",
+        "次は高校教師と将来の夢を語り合おうではないか。"
+      ],
+      "sprites": { "idle": "teacher_junior_idle", "attack": "teacher_junior_attack" }
+    },
+    {
+      "id": "teacher_high",
+      "name": "高校教師",
+      "kind": "midboss",
+      "appearAge": 16,
+      "unlockCorrect": 20,
+      "intro": "16歳で挑戦できる。勉強で累計20問正解するまで、攻撃が効かない（出てくる前の正解も数える）。主人公がレベル60くらいの強さでないと倒せない。",
+      "stats": { "hp": 4480, "atk": 234, "def": 215, "exp": 360, "gold": 360 },
+      "defeatMovie": [
+        "彼女は私の答案に、点数より長い言葉を書いてくれた。あの言葉を私は忘れない。",
+        "次は政治家とこの国の未来を語り合おうではないか。"
+      ],
+      "sprites": { "idle": "teacher_high_idle", "attack": "teacher_high_attack" }
+    },
+    {
+      "id": "politician",
+      "name": "政治家",
+      "kind": "midboss",
+      "appearAge": 18,
+      "unlockCorrect": 25,
+      "intro": "18歳で挑戦できる。選挙権を得る年に現れる。勉強で累計25問正解するまで、攻撃が効かない（出てくる前の正解も数える）。主人公がレベル65くらいの強さでないと倒せない。",
+      "stats": { "hp": 5020, "atk": 253, "def": 232, "exp": 423, "gold": 423 },
+      "defeatMovie": [
+        "彼は私の質問に一度もまっすぐ答えなかった。だが、その沈黙こそが答えだった。",
+        "次は大学教授と真理を探究しようではないか。"
+      ],
+      "sprites": { "idle": "politician_idle", "attack": "politician_attack" }
+    },
+    {
+      "id": "professor",
+      "name": "大学教授",
+      "kind": "midboss",
+      "appearAge": 19,
+      "unlockCorrect": 30,
+      "intro": "19歳で挑戦できる。勉強で累計30問正解するまで、攻撃が効かない（出てくる前の正解も数える）。主人公がレベル70くらいの強さでないと倒せない。",
+      "stats": { "hp": 5640, "atk": 272, "def": 248, "exp": 490, "gold": 490 },
+      "defeatMovie": [
+        "「分からないことが分かったなら、それが研究の始まりだ」。彼はそう言って笑った。",
+        "次は就職面接官と、私という人間について語り合おうではないか。"
+      ],
+      "sprites": { "idle": "professor_idle", "attack": "professor_attack" }
+    },
+    {
+      "id": "interviewer",
+      "name": "就職面接官",
+      "kind": "midboss",
+      "appearAge": 22,
+      "unlockCorrect": 35,
+      "intro": "22歳で挑戦できる。経営学の壁。勉強で累計35問正解するまで、攻撃が効かない（出てくる前の正解も数える）。主人公がレベル75くらいの強さでないと倒せない。",
+      "stats": { "hp": 6400, "atk": 291, "def": 264, "exp": 563, "gold": 563 },
+      "defeatMovie": [
+        "「あなたの強みは何ですか」。その問いに、私は初めて自分の言葉で答えられた。",
+        "次は学会の査読者と、真実をめぐって議論を戦わせようではないか。"
+      ],
+      "sprites": { "idle": "interviewer_idle", "attack": "interviewer_attack" }
+    },
+    {
+      "id": "reviewer",
+      "name": "学会の査読者",
+      "kind": "midboss",
+      "appearAge": 30,
+      "unlockCorrect": 45,
+      "intro": "30歳で挑戦できる。科学の壁。勉強で累計45問正解するまで、攻撃が効かない（出てくる前の正解も数える）。主人公がレベル90くらいの強さでないと倒せない。",
+      "stats": { "hp": 8240, "atk": 347, "def": 312, "exp": 810, "gold": 810 },
+      "defeatMovie": [
+        "彼の赤字は厳しかった。だが、ひとつとして的外れなものはなかった。",
+        "次は税務調査官と、お金の正しさについて語り合おうではないか。"
+      ],
+      "sprites": { "idle": "reviewer_idle", "attack": "reviewer_attack" }
+    },
+    {
+      "id": "tax_inspector",
+      "name": "税務調査官",
+      "kind": "midboss",
+      "appearAge": 40,
+      "unlockCorrect": 60,
+      "intro": "40歳で挑戦できる。法学の壁。勉強で累計60問正解するまで、攻撃が効かない（出てくる前の正解も数える）。主人公がレベル110くらいの強さでないと倒せない。",
+      "stats": { "hp": 11330, "atk": 421, "def": 377, "exp": 1210, "gold": 1210 },
+      "defeatMovie": [
+        "帳簿の数字は嘘をつかない。彼はそれを私に教えてくれた。",
+        "次はまだ見ぬ孫と、世界の不思議について語り合おうではないか。"
+      ],
+      "sprites": { "idle": "tax_inspector_idle", "attack": "tax_inspector_attack" }
+    },
+    {
+      "id": "grandchild",
+      "name": "孫",
+      "kind": "midboss",
+      "appearAge": 60,
+      "unlockCorrect": 80,
+      "intro": "60歳で挑戦できる。全ジャンルから「なんで？」と聞いてくる。倒しても仲間にはならず、称号「生き字引」がもらえる。勉強で累計80問正解するまで、攻撃が効かない（出てくる前の正解も数える）。主人公がレベル150くらいの強さでないと倒せない。",
+      "stats": { "hp": 19850, "atk": 571, "def": 506, "exp": 2250, "gold": 2250 },
+      "ally": false,
+      "title": "生き字引",
+      "defeatMovie": [
+        "孫の「なんで？」に、私はまだ半分も答えられない。",
+        "学ぶことに終わりはない。私の冒険は、まだ続く。"
+      ],
+      "sprites": { "idle": "grandchild_idle", "attack": "grandchild_attack" }
     }
   ]
 }

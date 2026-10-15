@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tick, spawnGroup, chooseNextMonster, midbossState, challengeableMidboss, challengeMidboss, retreatMidboss, heroStats, HOURS_PER_YEAR } from '../js/sim.js';
+import { tick, spawnGroup, chooseNextMonster, midbossState, challengeableMidboss, challengeMidboss, retreatMidboss, heroStats, heroTitles, HOURS_PER_YEAR } from '../js/sim.js';
 import { createSession, presentQuestion, answer } from '../js/quiz.js';
 import { balance, monsters, makeCtx, newGame, questions, constRng, seededRng } from './helpers.js';
 
@@ -219,4 +219,82 @@ test('倒したときのミニムービー（defeatMovie）は空でない文の
     for (const line of m.defeatMovie) assert.ok(typeof line === 'string' && line.trim(), `${m.name} の文が空でない`);
   }
   assert.equal(monsters.find((m) => m.id === 'teacher_elementary').defeatMovie.length, 2);
+});
+
+const midbosses = monsters.filter((m) => m.kind === 'midboss');
+/** 指定の中ボスより前の中ボスを倒したことにして、その年齢の主人公を作る */
+function readyFor(id, age = null) {
+  const m = midbosses.find((x) => x.id === id);
+  const s = newGame(0);
+  s.life.gameHours = (age ?? m.appearAge) * HOURS_PER_YEAR;
+  for (const o of midbosses) { if (o.id === id) break; midbossState(s, o.id).status = 'defeated'; }
+  return s;
+}
+
+test('中ボスは設計ページの9人。年齢の順に並び、1人ずつ挑む（前の中ボスを倒すまで次は知らせない）', () => {
+  assert.deepEqual(midbosses.map((m) => m.name),
+    ['小学校教師', '中学校教師', '高校教師', '政治家', '大学教授', '就職面接官', '学会の査読者', '税務調査官', '孫']);
+  for (let i = 1; i < midbosses.length; i++) {
+    assert.ok(midbosses[i].appearAge > midbosses[i - 1].appearAge, `${midbosses[i].name} は前より年上で出る`);
+    assert.ok(midbosses[i].unlockCorrect >= midbosses[i - 1].unlockCorrect, `${midbosses[i].name} の必要な正解数`);
+    assert.ok(midbosses[i].stats, `${midbosses[i].name} は決まった強さ`);
+  }
+  const ctx = makeCtx(constRng(0.3));
+  const s = newGame(0);
+  s.life.gameHours = 20 * HOURS_PER_YEAR; // 20歳でも、小学校教師を倒すまでは小学校教師だけ
+  s.hero.hp = 1e9;
+  const ev = tick(s, 1, ctx);
+  assert.deepEqual(ev.filter((e) => e.type === 'midbossReady').map((e) => e.name), ['小学校教師']);
+  assert.equal(challengeableMidboss(s, ctx).id, 'teacher_elementary');
+  midbossState(s, 'teacher_elementary').status = 'defeated';
+  assert.equal(challengeableMidboss(s, ctx).id, 'teacher_junior', '倒すと次は中学校教師');
+  assert.deepEqual(tick(s, 1, ctx).filter((e) => e.type === 'midbossReady').map((e) => e.name), ['中学校教師']);
+  assert.equal(challengeableMidboss(readyFor('teacher_high', 15), ctx), null, '16歳になるまで高校教師には挑めない');
+});
+
+/** 中ボスと、指定のレベル・装備の主人公を戦わせる（防御は崩れている） */
+function fightMidboss(id, level, seed, weapon = 'iron_sword', armor = 'iron_armor') {
+  const s = readyFor(id);
+  const ctx = makeCtx(seededRng(seed));
+  Object.assign(s.equipment, { weapon, armor });
+  s.hero.level = level;
+  s.hero.hp = heroStats(s, ctx).maxHp;
+  s.knowledge.totalCorrect = 1000;
+  const e = challengeMidboss(s, ctx, []);
+  assert.equal(e.monsterId, id);
+  for (let t = 0; t < 300; t += 0.5) {
+    for (const ev of tick(s, 0.5, ctx)) {
+      if (ev.type === 'defeat' && ev.kind === 'midboss') return 'win';
+      if (ev.type === 'heroDefeated') return 'lose';
+    }
+  }
+  return 'draw';
+}
+
+test('13歳から先の中ボスは、それぞれ決めたレベル（鉄の剣・鉄の鎧）でやっと倒せる', () => {
+  const LEVEL = { teacher_junior: 55, teacher_high: 60, politician: 65, professor: 70, interviewer: 75, reviewer: 90, tax_inspector: 110, grandchild: 150 };
+  for (const [id, L] of Object.entries(LEVEL)) {
+    const m = midbosses.find((x) => x.id === id);
+    assert.match(m.intro, new RegExp(`レベル${L}くらい`), `${m.name} の説明のレベル`);
+    const wins = (level) => [1, 2, 3, 4, 5, 6, 7, 8].filter((seed) => fightMidboss(id, level, seed) === 'win').length;
+    assert.ok(wins(L) >= 6, `${m.name}：Lv${L} ならほぼ勝てる（${wins(L)}/8）`);
+    assert.ok(wins(L - 3) <= 2, `${m.name}：Lv${L - 3} ではほぼ勝てない（${wins(L - 3)}/8）`);
+  }
+});
+
+test('孫は倒しても仲間にならず、称号「生き字引」がもらえる', () => {
+  const s = readyFor('grandchild');
+  const ctx = makeCtx(seededRng(1));
+  s.knowledge.totalCorrect = 1000;
+  s.hero.level = 300;
+  s.hero.hp = heroStats(s, ctx).maxHp;
+  assert.deepEqual(heroTitles(s, ctx), []);
+  challengeMidboss(s, ctx, []);
+  const ev = [];
+  for (let t = 0; t < 60 && !ev.some((e) => e.type === 'defeat'); t += 0.5) ev.push(...tick(s, 0.5, ctx));
+  assert.ok(ev.some((e) => e.type === 'titleGained' && e.title === '生き字引'));
+  assert.ok(!ev.some((e) => e.type === 'allyJoined'), '仲間にならない');
+  assert.ok(!s.allies.some((a) => a.id === 'grandchild'));
+  assert.deepEqual(heroTitles(s, ctx), ['生き字引']);
+  assert.equal(challengeableMidboss(s, ctx), null, 'もう挑む中ボスはいない');
 });
