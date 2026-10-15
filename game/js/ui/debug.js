@@ -76,7 +76,7 @@ export function init(app) {
         },
       }, '出す'))),
     el('div', { class: 'section' }, el('h2', {}, '睡眠'),
-      el('div', {}, el('button', { onclick: () => app.sleepNow('bed') }, 'すぐ眠る'))),
+      el('div', {}, el('button', { onclick: () => app.sleepNow() }, 'すぐ眠る'))),
     el('div', { class: 'section' }, el('h2', {}, 'セーブ'),
       el('div', {},
         el('button', { onclick: () => { text.value = serialize(app.state, Date.now()); } }, '文字列で書き出す'),

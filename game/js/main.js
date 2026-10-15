@@ -1,7 +1,7 @@
 // 起動・画面切り替え・ループ・セーブ
 import {
   createState, startGame, tick, clockFrame, createClock, HOURS_PER_YEAR,
-  createRateTracker, trackTime, trackGain, sleep, stageFor,
+  createRateTracker, trackTime, trackGain, sleepAtBed, stageFor,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
 import { forgetMissingQuestions } from './quiz.js';
@@ -101,9 +101,10 @@ async function boot() {
     handleEvents,
     save: saveNow,
     replaceState(next) { app.state = next; forgetMissingQuestions(next, ctx); app.rate = createRateTracker(); for (const s of Object.values(screens)) s.reset && s.reset(app); refreshActive(true); },
-    sleepNow(reason = 'bed') {
-      const r = sleep(app.state, ctx, reason);
-      notifySleep(r);
+    sleepNow() {
+      const from = app.state.adventure.floor;
+      const r = sleepAtBed(app.state, ctx);
+      notifySleep(r, from);
       saveNow();
       return r;
     },
@@ -126,9 +127,11 @@ async function boot() {
     while (box.children.length > 2) box.firstElementChild.remove();
     setTimeout(() => n.remove(), kind === 'bad' ? 6000 : 3500);
   }
-  function notifySleep(r) {
+  function notifySleep(r, from = null) {
     const name = app.state.hero.name;
-    const lines = [r.reason === 'defeated' ? `${name}はやられた…　1階層に戻って眠った` : `${name}は眠った。HPとMPが全回復した`];
+    const lines = [r.reason === 'defeated' ? `${name}はやられた…　1階層に戻って眠った`
+      : from > r.floor ? `${name}はテントで眠った。${r.floor}階層に戻って、HPとMPが全回復した`
+        : `${name}はテントで眠った。HPとMPが全回復した`];
     lines.push(r.up.length ? `熟練が上がった：${r.up.join('・')}` : '熟練が上がったジャンルはなかった');
     if (r.down.length) lines.push(`熟練が下がった：${r.down.join('・')}`);
     notify(lines.join('\n'), r.reason === 'defeated' ? 'bad' : 'good');

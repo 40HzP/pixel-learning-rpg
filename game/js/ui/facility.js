@@ -2,7 +2,7 @@
 // 入れる施設：店・仲間が集まる場所・寝床。会社・ロケット発射場・専攻の付け替え・拠点は準備中。
 // 広場に立っている主人公をタップすると、主人公のステータスと名前の変更
 import {
-  shopList, buyItem, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, heroAttackInterval, expMultiplier,
+  shopList, buyItem, bedFloor, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, heroAttackInterval, expMultiplier,
   recruitList, hireRecruit, dismissRecruit, monthlyContractCost, HOURS_PER_MONTH,
 } from '../sim.js';
 import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor } from '../sprites.js';
@@ -143,15 +143,16 @@ function shopPanel(app) {
   ];
 }
 
-/** 寝床：眠る */
+/** 寝床（テント）：眠ると1つ手前の階層に戻って全回復する */
 function homePanel(app) {
   const ls = app.state.lastSleep;
   return [
     el('div', { style: { marginBottom: '8px' } }, 'HP ', live.hp, '　MP ', live.mp),
-    el('button', { class: 'primary', onclick: () => { app.sleepNow('bed'); update(app, true); } }, '眠る'),
+    el('div', { style: { marginBottom: '8px' } }, live.bed),
+    el('button', { class: 'primary', onclick: () => { app.sleepNow(); update(app, true); } }, '眠る'),
     ls
       ? el('div', { class: 'muted', style: { fontSize: '14px', marginTop: '8px', whiteSpace: 'pre-line' } },
-        `前回：${formatDate(ls.at)}（${ls.reason === 'defeated' ? 'やられて眠った' : '寝床で眠った'}）\n`
+        `前回：${formatDate(ls.at)}（${ls.reason === 'defeated' ? 'やられて眠った' : 'テントで眠った'}）\n`
         + `上がった熟練：${ls.up.length ? ls.up.join('・') : 'なし'}\n下がった熟練：${ls.down.length ? ls.down.join('・') : 'なし'}`)
       : null,
   ];
@@ -235,7 +236,7 @@ const PANELS = { shop: shopPanel, guild: guildPanel, home: homePanel };
 
 function buildPanel(app) {
   const t = app.town;
-  live = { gold: el('span'), hp: el('b'), mp: el('b'), buttons: [] };
+  live = { gold: el('span'), hp: el('b'), mp: el('b'), bed: el('span'), buttons: [] };
   const f = t.facilities.find((x) => x.id === view);
   let title, sprite, body;
   if (view === 'hero') {
@@ -283,4 +284,6 @@ export function update(app, force) {
   live.hp.textContent = `${Math.ceil(s.hero.hp)}/${hs.maxHp}`;
   live.mp.textContent = `${Math.floor(s.hero.mp)}/${hs.maxMp}`;
   for (const b of live.buttons) b.btn.disabled = s.gold < b.price;
+  const now = s.adventure.floor, back = bedFloor(s);
+  live.bed.textContent = now > back ? `今は${now}階層。眠ると${back}階層に戻る` : '今は1階層。眠ると1階層の最初から';
 }

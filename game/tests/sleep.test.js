@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sleep, genreState, heroStats } from '../js/sim.js';
+import { sleep, sleepAtBed, bedFloor, genreState, heroStats, spawnGroup, challengeMidboss, challengeableMidboss, tick } from '../js/sim.js';
 import { balance, makeCtx, newGame, seqRng } from './helpers.js';
 
 function setup() {
@@ -47,4 +47,42 @@ test('睡眠：10時間進んで全回復し、「解いたか」が消える。
   assert.equal(s.hero.hp, heroStats(s, makeCtx()).maxHp);
   assert.equal(s.knowledge.genres['生物'].level, 5);
   assert.equal(s.knowledge.genres['生物'].studied, false);
+});
+
+test('寝床（テント）で眠ると、1つ手前の階層の最初に戻って全回復する', () => {
+  const s = newGame(0);
+  const ctx = makeCtx();
+  s.adventure.floor = 5;
+  s.adventure.kills = 3;
+  spawnGroup(s, ctx, []);
+  s.hero.hp = 1;
+  s.hero.mp = 0;
+  const hours = s.life.gameHours;
+  assert.equal(bedFloor(s), 4);
+  const r = sleepAtBed(s, ctx);
+  assert.equal(s.adventure.floor, 4, '1つ手前の階層');
+  assert.equal(s.adventure.kills, 0, '階層の最初から');
+  assert.deepEqual(s.adventure.enemies, [], '戦っていた群れは退く');
+  const hs = heroStats(s, ctx);
+  assert.equal(s.hero.hp, hs.maxHp);
+  assert.equal(s.hero.mp, hs.maxMp);
+  assert.equal(s.life.gameHours, hours + balance.sleep.gameHours, '睡眠の時間が進む');
+  assert.equal(r.reason, 'bed');
+  assert.equal(r.floor, 4);
+  // 少しすると戻った階層の群れが出る
+  const ev = tick(s, balance.floor.spawnDelaySec + 0.01, ctx);
+  assert.ok(ev.some((e) => e.type === 'spawn' && e.floor === 4));
+});
+
+test('寝床（テント）：1階層で眠ると1階層の最初から。中ボスと戦っている途中なら中ボスは退き、また挑戦できる', () => {
+  const s = newGame(7);
+  const ctx = makeCtx();
+  assert.equal(bedFloor(s), 1);
+  s.knowledge.totalCorrect = 99;
+  const mb = challengeMidboss(s, ctx, []);
+  assert.ok(mb, '中ボスに挑戦できる年齢');
+  sleepAtBed(s, ctx);
+  assert.equal(s.adventure.floor, 1);
+  assert.deepEqual(s.adventure.enemies, []);
+  assert.equal(challengeableMidboss(s, ctx).id, mb.monsterId, 'また挑戦できる');
 });

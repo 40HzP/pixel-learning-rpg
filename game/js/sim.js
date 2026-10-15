@@ -585,15 +585,32 @@ export function gainExp(state, amount, ctx, events) {
   }
 }
 
-/** やられたとき：階層だけ1に戻る。強さ・装備・仲間はそのまま。睡眠と同じ処理が起きる */
-function heroDefeated(state, ctx, events) {
+/** その階層の最初からやり直す（撃破数0。戦っていた敵の群れや中ボスは退き、少しして新しい群れが出る） */
+function restartFloor(state, floor, ctx) {
   const adv = state.adventure;
-  adv.floor = 1;
+  adv.floor = floor;
   adv.kills = 0;
   adv.enemies = [];
   adv.spawnTimer = ctx.balance.floor.spawnDelaySec;
+}
+
+/** やられたとき：階層だけ1に戻る。強さ・装備・仲間はそのまま。睡眠と同じ処理が起きる */
+function heroDefeated(state, ctx, events) {
+  restartFloor(state, 1, ctx);
   const summary = sleep(state, ctx, 'defeated');
   events.push({ type: 'heroDefeated', sleep: summary });
+}
+
+/** 寝床（テント）で眠ったときに戻る階層：1つ手前（1階層なら1階層） */
+export const bedFloor = (state) => Math.max(1, state.adventure.floor - 1);
+
+/**
+ * 寝床（テント）で眠る：1つ手前の階層に戻り、その最初から始める（1階層なら1階層の最初から）。
+ * 戦っていた敵の群れや中ボスは退く。そのあと睡眠の処理（全回復・熟練の判定）が起きる
+ */
+export function sleepAtBed(state, ctx) {
+  restartFloor(state, bedFloor(state), ctx);
+  return sleep(state, ctx, 'bed');
 }
 
 /* ================= 睡眠 ================= */
@@ -621,7 +638,7 @@ export function sleep(state, ctx, reason = 'bed') {
     }
     g.studied = false;
   }
-  state.lastSleep = { reason, up, down, hours: s.gameHours, at: state.life.gameHours };
+  state.lastSleep = { reason, up, down, hours: s.gameHours, at: state.life.gameHours, floor: state.adventure.floor };
   return state.lastSleep;
 }
 
