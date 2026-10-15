@@ -1,14 +1,15 @@
 {
   "time": { "gameHoursPerRealSecond": 58.4, "maxFrameSeconds": 1 },
   "hero": {
-    "base": { "hp": 30, "mp": 10, "atk": 5, "def": 2, "wis": 3, "agi": 3, "luck": 3 },
-    "perLevel": { "hp": 18, "mp": 6, "atk": 4.5, "def": 2.4, "wis": 3, "agi": 1.8, "luck": 1.2 },
+    "base": { "hp": 14, "mp": 10, "atk": 2, "def": 2, "wis": 3, "agi": 3, "luck": 3 },
+    "perLevel": { "hp": 14, "mp": 12, "atk": 3.8, "def": 2.4, "wis": 2, "agi": 1.8, "luck": 1.2 },
     "wisPerCorrect": 1.5,
     "expBonusPerCorrect": 0.02,
-    "attackIntervalSec": 1.0
+    "attackIntervalSec": 0.5
   },
   "stats": {
-    "agiSpeedPerPoint": 0.0067,
+    "evadePerAgi": 0.002,
+    "evadeMax": 0.5,
     "critChancePerLuck": 0.0017,
     "critChanceMax": 0.5,
     "critMultiplier": 1.5,

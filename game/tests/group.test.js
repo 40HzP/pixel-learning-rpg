@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  tick, spawnGroup, damageEnemy, heroStats, heroAttackInterval, critChance, goldWithLuck,
+  tick, spawnGroup, damageEnemy, heroStats, heroAttackInterval, evadeChance, critChance, goldWithLuck,
   sanitizeName, renameHero, startGame, createState, genreState,
 } from '../js/sim.js';
 import { createSession, presentQuestion, answer } from '../js/quiz.js';
@@ -60,14 +60,36 @@ test('ひらめき：敵が1体ならMPがあっても普通に攻撃する', ()
   assert.ok(ev.some((e) => e.type === 'attack' && e.by === 'hero'));
 });
 
-test('すばやさが高いほど攻撃の間隔が短い', () => {
-  const ctx = makeCtx();
-  const slow = heroStats(newGame(0), ctx);
-  const fastState = newGame(0);
-  fastState.hero.level = 30;
-  const fast = heroStats(fastState, ctx);
-  assert.ok(fast.agi > slow.agi);
-  assert.ok(heroAttackInterval(fast, balance) < heroAttackInterval(slow, balance));
+test('主人公の攻撃は秒間2回で決まっている（すばやさでは変わらない）', () => {
+  assert.equal(heroAttackInterval(balance), 0.5);
+  const s = newGame(0);
+  const ctx = makeCtx(constRng(0.5));
+  s.hero.level = 80;
+  const e = spawnGroup(s, ctx, [], ['sanbyoukingyo'])[0];
+  e.maxHp = e.hp = 1e9; e.cd = 1e9; // 倒れず、攻撃もしてこない的
+  s.adventure.heroCd = 0;
+  const hits = tick(s, 10, ctx).filter((x) => x.type === 'attack' && x.by === 'hero').length;
+  assert.equal(hits, 20, '10秒で20回');
+});
+
+test(`すばやさ：回避率（すばやさ×${balance.stats.evadePerAgi}、上限${balance.stats.evadeMax * 100}%）が上がり、敵の攻撃をその割合でかわす（運でぶれない）`, () => {
+  const ctx = makeCtx(constRng(0.5));
+  const at = (lv) => { const s = newGame(0); s.hero.level = lv; return heroStats(s, ctx); };
+  assert.ok(evadeChance(at(30), balance) > evadeChance(at(1), balance));
+  assert.equal(evadeChance(at(1), balance), at(1).agi * balance.stats.evadePerAgi);
+  assert.equal(evadeChance(at(1000), balance), balance.stats.evadeMax, '上限で止まる');
+  // 100回攻撃されると、回避率の分だけちょうどかわす
+  const s = newGame(0);
+  s.hero.level = 40;
+  const p = evadeChance(heroStats(s, ctx), balance);
+  const e = spawnGroup(s, ctx, [], ['sanbyoukingyo'])[0];
+  e.maxHp = e.hp = 1e9; e.atk = 1;
+  s.adventure.heroCd = 1e9; // 主人公は攻撃しない
+  const ev = [];
+  for (let i = 0; i < 100; i++) { e.cd = 0.05; s.hero.hp = 1e9; ev.push(...tick(s, 0.1, ctx).filter((x) => x.type === 'attack' && x.target === 'hero')); }
+  assert.equal(ev.length, 100);
+  assert.equal(ev.filter((x) => x.evaded).length, Math.floor(100 * p + 1e-9), `回避率 ${(p * 100).toFixed(1)}%`);
+  assert.ok(ev.filter((x) => x.evaded).every((x) => x.dmg === 0));
 });
 
 test('運の良さ：会心の一撃が出て、もらえるゴールドが増える', () => {

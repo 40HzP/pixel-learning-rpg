@@ -37,6 +37,8 @@ const DIGITS = {
   6: ['111', '100', '111', '101', '111'], 7: ['111', '001', '001', '010', '010'],
   8: ['111', '101', '111', '101', '111'], 9: ['111', '101', '111', '001', '111'],
   '+': ['000', '010', '111', '010', '000'],
+  // 回避（MISS）
+  M: ['101', '111', '111', '101', '101'], I: ['111', '010', '010', '010', '111'], S: ['011', '100', '010', '001', '110'],
 };
 
 // 世界の切り替えの暗転。step(今の世界, 時刻) が { shown: 描く世界, dark: 暗さ 0〜1 } を返す。
@@ -122,7 +124,8 @@ export function createRenderer(canvas, app) {
         else fx.push({ type: 'slash', cx: p.cx, cy: p.cy, t0: now, crit: !!e.crit });
       } else if (e.type === 'attack' && e.target === 'hero') {
         enemyAttackAt.set(e.uid, now);
-        addNumber({ text: String(e.dmg), x: X.hero + 8, y: FEET_Y - 22, t0: now, color: col('d') });
+        // かわしたときは MISS（すばやさの回避率）
+        addNumber({ text: e.evaded ? 'MISS' : String(e.dmg), x: X.hero + 8, y: FEET_Y - 22, t0: now, color: e.evaded ? col('3') : col('d') });
       } else if (e.type === 'heal' && e.target === 'hero' && e.amount > 0) {
         allyAt.set(e.allyId, now);
         addNumber({ text: '+' + e.amount, x: X.hero + 8, y: FEET_Y - 26, t0: now, color: col('j') });

@@ -32,7 +32,7 @@ export function createState(balance) {
     allies: [],                                     // 中ボス：{ id, name, atk, maxHp, hp, cd }／契約：{ id, name, hired: true, cd, paidUntil }
     companies: [],                                  // 起業した会社：{ uid, industry, foundedAt, staff: [{ id, grade, paidUntil }] }（業種ごとに1社まで）
     nextCompanyUid: 1,
-    adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1, baseFloor: null }, // enemies：今出ている群れ（先頭が狙う相手）。baseFloor：拠点（構造工学）
+    adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1, baseFloor: null, evadeAcc: 0 }, // enemies：今出ている群れ（先頭が狙う相手）。baseFloor：拠点（構造工学）。evadeAcc：ためた回避率
     knowledge: {                                    // 転生で引き継ぐ前提のもの（第2段階）
       genres: {},                                   // ジャンル名 → { level, progress, correct, studied }
       totalCorrect: 0,
@@ -260,8 +260,11 @@ export function heroStats(state, ctx) {
 /** 経験値の倍率：勉強で正解するたびに上がる（1 ＋ 累計の正解数 × expBonusPerCorrect） */
 export const expMultiplier = (state, balance) => 1 + state.knowledge.totalCorrect * (balance.hero.expBonusPerCorrect || 0);
 
-/** すばやさ：攻撃の間隔 ＝ attackIntervalSec ÷（1 ＋ すばやさ × agiSpeedPerPoint） */
-export const heroAttackInterval = (stats, balance) => balance.hero.attackIntervalSec / (1 + stats.agi * balance.stats.agiSpeedPerPoint);
+/** 主人公の攻撃の間隔（秒）。すばやさでは変わらない（balance.hero.attackIntervalSec。0.5なら秒間2回） */
+export const heroAttackInterval = (balance) => balance.hero.attackIntervalSec;
+
+/** すばやさ：回避率（敵の攻撃をかわす割合）＝ すばやさ × evadePerAgi（上限あり） */
+export const evadeChance = (stats, balance) => Math.min(balance.stats.evadeMax, stats.agi * balance.stats.evadePerAgi);
 
 /** 運の良さ：会心の一撃の出やすさ（上限あり） */
 export const critChance = (stats, balance) => Math.min(balance.stats.critChanceMax, stats.luck * balance.stats.critChancePerLuck);
@@ -449,7 +452,7 @@ export function spawnGroup(state, ctx, events, monsterIds = null) {
   adv.enemies = list.map((m, i) => makeEnemy(m, state, ctx, i));
   // 全員が同時に殴らないよう、最初の攻撃をずらす
   adv.enemies.forEach((e, i) => { e.cd = b.monster.attackIntervalSec * (0.5 + i / adv.enemies.length); });
-  adv.heroCd = heroAttackInterval(heroStats(state, ctx), b) / 2;
+  adv.heroCd = heroAttackInterval(b) / 2;
   for (const e of adv.enemies) {
     raiseZukan(state, e.monsterId, 1, events);
     let first = false;
@@ -512,7 +515,7 @@ function combatStep(state, dt, ctx, events) {
   state.hero.mp = Math.min(hs.maxMp, state.hero.mp + b.spell.mpRegenPerSec * dt);
   adv.heroCd -= dt;
   if (adv.heroCd <= 0) {
-    adv.heroCd += heroAttackInterval(hs, b);
+    adv.heroCd += heroAttackInterval(b);
     heroAct(state, hs, ctx, events);
     if (!adv.enemies.length) return;
   }
@@ -529,6 +532,14 @@ function combatStep(state, dt, ctx, events) {
     e.cd -= dt;
     if (e.cd > 0) continue;
     e.cd += b.monster.attackIntervalSec;
+    // すばやさ：回避率の分だけ、敵の攻撃をかわす。運でぶれないよう、攻撃を受けるたびに回避率をためていき、
+    // 1になったらかわす（回避率30%なら10回に3回。中ボスに勝てるかどうかが運で大きく変わらないように）
+    adv.evadeAcc = (adv.evadeAcc || 0) + evadeChance(hs, b);
+    if (adv.evadeAcc >= 1) {
+      adv.evadeAcc -= 1;
+      events.push({ type: 'attack', by: 'enemy', target: 'hero', uid: e.uid, slot: e.slot, dmg: 0, evaded: true });
+      continue;
+    }
     const dmg = calcDamage(e.atk, hs.def, b, ctx.rng);
     state.hero.hp = Math.max(0, state.hero.hp - dmg);
     events.push({ type: 'attack', by: 'enemy', target: 'hero', uid: e.uid, slot: e.slot, dmg });

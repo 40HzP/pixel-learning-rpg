@@ -2,7 +2,7 @@
 // 入れる施設：店・仲間が集まる場所・寝床・会社・ロケット発射場・専攻の付け替え・拠点（構造工学を解放するまで準備中）。
 // 広場に立っている主人公をタップすると、主人公のステータスと名前の変更
 import {
-  shopList, buyItem, bedFloor, heroTitles, inParty, setInParty, partyAllies, partyMax, partyFull, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, heroAttackInterval, expMultiplier,
+  shopList, buyItem, bedFloor, heroTitles, inParty, setInParty, partyAllies, partyMax, partyFull, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, evadeChance, expMultiplier,
   recruitList, hireRecruit, dismissRecruit, monthlyContractCost, HOURS_PER_MONTH, HOURS_PER_YEAR,
   canFound, foundCompany, closeCompany, companiesProfit, industryList, industryOutlook, generationMultiplier, ageYears, payRocketBuildCost, rocketSteps,
   hireStaff, dismissStaff, bestStaffGrade, staffCost, staffBonus, buildBase, baseActive,
@@ -553,10 +553,10 @@ function heroPanel(app) {
     el('div', { class: 'stats' },
       stat('HP', live.hp, baseActive(s, app.ctx) ? `0になるとやられて1階層（拠点より深い階層なら${s.adventure.baseFloor}階層）に戻る` : '0になるとやられて1階層に戻る'),
       stat('MP', live.mp, `敵が2体以上いると「${b.spell.name}」（MP${b.spell.mpCost}・敵全体）を使う`),
-      stat('攻撃', hs.atk, '1体を叩く強さ'),
+      stat('攻撃', hs.atk, `1体を叩く強さ（秒間${+(1 / b.hero.attackIntervalSec).toFixed(1)}回）`),
       stat('防御', hs.def, '受けるダメージが減る'),
       stat('賢さ', hs.wis, `「${b.spell.name}」の強さ。勉強で正解するほど上がる`),
-      stat('すばやさ', hs.agi, `攻撃の速さ（${heroAttackInterval(hs, b).toFixed(2)}秒に1回）`),
+      stat('すばやさ', hs.agi, `回避率 ${(evadeChance(hs, b) * 100).toFixed(1)}%（敵の攻撃をかわす。上限${Math.round(b.stats.evadeMax * 100)}%）`),
       stat('運の良さ', hs.luck, `会心の一撃 ${(critChance(hs, b) * 100).toFixed(1)}%・ゴールドが増える`),
       stat('経験値倍率', `×${expMultiplier(s, b).toFixed(2)}`, `勉強で正解するたびに +${Math.round((b.hero.expBonusPerCorrect || 0) * 100)}%`),
       // 称号は学際分野でたくさん増えるので、幅いっぱいに並べる

@@ -1,7 +1,7 @@
 // 起動・画面切り替え・ループ・セーブ
 import {
   createState, startGame, tick, clockFrame, createClock, HOURS_PER_YEAR,
-  createRateTracker, trackTime, trackGain, sleepAtBed, stageFor, fitParty, lifespanFor, generationMultiplier,
+  createRateTracker, trackTime, trackGain, sleepAtBed, stageFor, fitParty, lifespanFor, generationMultiplier, heroStats,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
 import { forgetMissingQuestions } from './quiz.js';
@@ -121,6 +121,10 @@ async function boot() {
   app.state = loadSave(balance, notify);
   forgetMissingQuestions(app.state, ctx); // 同期で外した問題が過去問復習に残らないように
   const benchedOnLoad = fitParty(app.state, ctx); // パーティーは5人まで（前のセーブで超えていたら控えに回す）
+  // 伸び率を変えた版では、前のセーブのHP・MPが今の最大を超えていることがある
+  const hsOnLoad = heroStats(app.state, ctx);
+  app.state.hero.hp = Math.min(app.state.hero.hp, hsOnLoad.maxHp);
+  app.state.hero.mp = Math.min(app.state.hero.mp, hsOnLoad.maxMp);
   app.renderer = createRenderer(document.getElementById('scene'), app);
 
   for (const s of Object.values(screens)) s.init(app);
