@@ -161,7 +161,7 @@ game/
     genres.js            … 29ジャンル
     sprites.js           … スプライトJSONの読み込みと描画
     render.js            … 冒険画面の描画（90×160）
-    ui/                  … 画面ごとの表示（adventure / study / facility（街） / zukan / debug / dom / movie（ミニムービー））
+    ui/                  … 画面ごとの表示（adventure / study / facility（街） / zukan / debug / dom / movie（ミニムービー） / nande（孫の「なんで？」））
   data/
     balance.json         … 数値（ここを書き換えるだけで調整できる）
     monsters.json        … 魔物・小ボス・中ボス
@@ -208,8 +208,9 @@ tools/check-questions.mjs … questions.json の検査
   | 孫 | 60 | 80 | 150 |
 
   - 13歳から先の強さは、1分に1問正解しながら遊ぶ人が「出てきてから7〜8分後」に届くレベルを目安に決め、計算で合わせた（目標のレベルで約9割勝ち、1〜2つ下では勝てたり負けたり）。経験値・ゴールドは目標レベルの2乗÷10。`midboss.test.js` が「目標のレベルでほぼ勝てて、3つ下ではほぼ勝てない」を確かめる。強さを変えたら `intro` の「レベル◯くらい」も合わせる
-  - 孫は `ally: false`（倒しても仲間にならない）と `title`（称号「生き字引」）を持つ。称号は主人公のステータスと図鑑に出る（`sim.js` の `heroTitles`）。設計ページの「全ジャンルからランダムに『なんで？』と聞いてくる」は、今は説明の文だけ（仕組みは入れていない）
-- 中ボスを倒したときのミニムービー：`monsters.json` の `defeatMovie`（文の並び）がある中ボスを倒すと、画面全体が暗転して、主人公とその中ボスが向き合う絵（今の世界の背景を切り抜いたもの）の下に文を1つずつ出す。文字は少しずつ出て、タップで進む（途中でタップすると全部出る）。最後の文のあとタップで暗転して戻る。流れている間はゲームの時間を止め、知らせは終わってから出す（`ui/movie.js`、`main.js` の `startMovie`）。冒険で倒しても勉強の正解で倒しても流れる。小学校教師の2つの文は 40HzP の依頼。ほかの8人の文は、小学校教師の「次は中学校教師と…」に続く形で Claude Code が書いた仮の文（40HzP が直してよい）。デバッグ画面から流し直せる
+  - 孫は `ally: false`（倒しても仲間にならない）と `title`（称号「生き字引」）を持つ。称号は主人公のステータスと図鑑に出る（`sim.js` の `heroTitles`）
+  - 孫の「なんで？」（`nande: true`。40HzP の依頼。設計ページ「全ジャンルからランダムに『なんで？』と聞いてくる」）：孫と戦っている間、出てから `balance.json` の `nande.firstSec` 秒後、以後 `intervalSec` 秒ごとに、全ジャンルから1問（勉強のクイズと同じ選び方）を画面全体に出す。出している間はゲームの時間が止まる。答えはふつうの勉強と同じに数える（熟練・累計正解数・過去問復習）。正解すると孫に中ボスへの正解のダメージ（最大HPの10%。防御が崩れる前は0）、間違い・時間切れだと孫のHPが最大HP×`wrongHealRatio` 回復する（`sim.js` の `askWhy`・`nandeUnanswered`、`ui/nande.js`）。孫はふつうの攻撃もする
+- 中ボスを倒したときのミニムービー：`monsters.json` の `defeatMovie`（文の並び）がある中ボスを倒すと、画面全体が暗転して、主人公とその中ボスが向き合う絵（今の世界の背景を切り抜いたもの）の下に文を1つずつ出す。文字は少しずつ出て、タップで進む（途中でタップすると全部出る）。最後の文のあとタップで暗転して戻る。流れている間はゲームの時間を止め、知らせは終わってから出す（`ui/movie.js`、`main.js` の `startMovie`）。ムービーと孫の「なんで？」は `main.js` の `runOverlay` が1つずつ順に出す（「なんで？」の正解で倒したときは、閉じてからムービー）。冒険で倒しても勉強の正解で倒しても流れる。小学校教師の2つの文は 40HzP の依頼。ほかの8人の文は、小学校教師の「次は中学校教師と…」に続く形で Claude Code が書いた仮の文（40HzP が直してよい）。デバッグ画面から流し直せる
 - `quiz.midbossDamageRatio` 中ボスへの正解のダメージ（最大HPに対する割合。0.1＝10%）。ザコ・小ボスへは `correctDamageRatio`（50%）のまま
 - 中ボスの防御は、累計の正解数（`knowledge.totalCorrect`。中ボスが出る前の正解も数える）が `monsters.json` の `unlockCorrect` に届くと崩れる（設計書4.7の「出てから5問正解」を 40HzP の依頼で変えた）。足りていれば出てきた時点で攻撃が効く
 - 設計書に無い項目：
@@ -221,6 +222,7 @@ tools/check-questions.mjs … questions.json の検査
   - `stats.agiSpeedPerPoint` すばやさ1あたり攻撃が速くなる割合（間隔＝attackIntervalSec÷(1＋すばやさ×この値)）
   - `stats.critChancePerLuck`・`critChanceMax`・`critMultiplier` 運の良さによる会心の一撃、`stats.goldBonusPerLuck` 運の良さ1あたりゴールドが増える割合
   - `spell` 主人公の全体攻撃「ひらめき」：敵が `minTargets` 体以上でMPが `mpCost` 以上あると使う。ダメージ＝賢さ×`power`（防御は効かない）。MPは毎秒 `mpRegenPerSec` 回復し、眠ると全回復
+  - `nande` 孫の「なんで？」の間隔（`firstSec`・`intervalSec`）と、答えられなかったときに孫が回復する割合（`wrongHealRatio`）
   - `boss` 小ボスの強さ：その階層のザコの数値に `hpMultiplier`・`atkMultiplier`・`defMultiplier`・`expMultiplier`・`goldMultiplier` を掛ける
 - 主人公の名前は `hero.name`（8文字まで。最初の案内と施設で決める）
 - 品物は `items.json`、魔物は `monsters.json`、契約できる仲間は `recruits.json`

@@ -457,6 +457,7 @@ function combatStep(state, dt, ctx, events) {
     allyAct(state, ally, r, hs, ctx, events);
     if (!adv.enemies.length) return;
   }
+  askWhy(state, dt, ctx, events);
   for (const e of [...adv.enemies]) {
     e.cd -= dt;
     if (e.cd > 0) continue;
@@ -466,6 +467,33 @@ function combatStep(state, dt, ctx, events) {
     events.push({ type: 'attack', by: 'enemy', target: 'hero', uid: e.uid, slot: e.slot, dmg });
     if (state.hero.hp <= 0) { heroDefeated(state, ctx, events); return; }
   }
+}
+
+/* ================= 孫の「なんで？」 ================= */
+
+/** monsters.json で nande: true の魔物（孫）。戦っている間、全ジャンルから「なんで？」と聞いてくる */
+const asksWhy = (ctx, monsterId) => !!(ctx.monsters.find((m) => m.id === monsterId) || {}).nande;
+
+/**
+ * 孫が戦いに出てから balance.nande.firstSec 秒後、以後 intervalSec 秒ごとに nande の知らせを出す。
+ * 画面（main.js）はこれを受けて、時間を止めて問題を出す（ui/nande.js）
+ */
+function askWhy(state, dt, ctx, events) {
+  const nb = ctx.balance.nande;
+  for (const e of state.adventure.enemies) {
+    if (!asksWhy(ctx, e.monsterId)) continue;
+    e.nandeCd = (e.nandeCd ?? nb.firstSec) - dt;
+    if (e.nandeCd > 0) continue;
+    e.nandeCd += nb.intervalSec;
+    events.push({ type: 'nande', uid: e.uid, monsterId: e.monsterId, name: e.name });
+  }
+}
+
+/** 孫の「なんで？」に答えられなかった（間違えた・時間切れ）：孫は納得せず、HPが最大HP×wrongHealRatio 回復する */
+export function nandeUnanswered(state, ctx, events) {
+  const e = state.adventure.enemies.find((x) => asksWhy(ctx, x.monsterId));
+  if (!e) return 0;
+  return healEnemy(state, e.maxHp * ctx.balance.nande.wrongHealRatio, events, e);
 }
 
 /**

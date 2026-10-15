@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tick, spawnGroup, chooseNextMonster, midbossState, challengeableMidboss, challengeMidboss, retreatMidboss, heroStats, heroTitles, HOURS_PER_YEAR } from '../js/sim.js';
+import { tick, spawnGroup, chooseNextMonster, midbossState, challengeableMidboss, challengeMidboss, retreatMidboss, heroStats, heroTitles, nandeUnanswered, HOURS_PER_YEAR } from '../js/sim.js';
 import { createSession, presentQuestion, answer } from '../js/quiz.js';
 import { balance, monsters, makeCtx, newGame, questions, constRng, seededRng } from './helpers.js';
 
@@ -297,4 +297,39 @@ test('孫は倒しても仲間にならず、称号「生き字引」がもら�
   assert.ok(!s.allies.some((a) => a.id === 'grandchild'));
   assert.deepEqual(heroTitles(s, ctx), ['生き字引']);
   assert.equal(challengeableMidboss(s, ctx), null, 'もう挑む中ボスはいない');
+});
+
+test('孫は戦っている間、firstSec 秒後から intervalSec 秒ごとに「なんで？」と聞いてくる（ほかの中ボスは聞かない）', () => {
+  const nb = balance.nande;
+  const count = (id) => {
+    const s = readyFor(id);
+    const ctx = makeCtx(constRng(0.5));
+    s.hero.level = 400; s.hero.hp = 1e9; // 倒されないように（防御は崩れていないので倒しもしない）
+    challengeMidboss(s, ctx, []);
+    const times = [];
+    for (let t = 0; t < nb.firstSec + nb.intervalSec * 2 + 0.5; t += 0.25) {
+      for (const e of tick(s, 0.25, ctx)) if (e.type === 'nande') times.push(t + 0.25);
+    }
+    return times;
+  };
+  const times = count('grandchild');
+  assert.equal(times.length, 3);
+  assert.ok(Math.abs(times[0] - nb.firstSec) < 0.3, `最初は${nb.firstSec}秒後（${times[0]}）`);
+  assert.ok(Math.abs(times[1] - times[0] - nb.intervalSec) < 0.3, `次は${nb.intervalSec}秒後`);
+  assert.deepEqual(count('tax_inspector'), [], '税務調査官は聞かない');
+});
+
+test('孫の「なんで？」に答えられないと、孫のHPが回復する。正解すると勉強と同じにダメージ', () => {
+  const s = readyFor('grandchild');
+  const ctx = makeCtx(constRng(0.5));
+  s.knowledge.totalCorrect = 1000; // 防御は崩れている
+  const kid = challengeMidboss(s, ctx, []);
+  kid.hp = kid.maxHp - Math.round(kid.maxHp * 0.3);
+  const before = kid.hp;
+  const healed = nandeUnanswered(s, ctx, []);
+  assert.equal(healed, Math.round(kid.maxHp * balance.nande.wrongHealRatio));
+  assert.equal(kid.hp, before + healed);
+  const res = correctOnce(s, ctx);
+  assert.equal(res.damage, Math.ceil(kid.maxHp * balance.quiz.midbossDamageRatio));
+  assert.equal(nandeUnanswered(readyFor('grandchild'), ctx, []), 0, '孫がいなければ何もしない');
 });
