@@ -144,7 +144,7 @@ EOF
   - ゲームは `pixel/sprites/*.json` と `pixel/palette.json` を **読むだけ**。`_original/` と `export/` は読まない
   - スプライトをゲーム用にコピー・変換して置かない（手直しした瞬間にゲームへ反映されるようにする）
   - ゲームが読むスプライトは `monsters.json`・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`、`stages.json` の `background`、`hero_idle` / `hero_attack` だけ（ブラウザはフォルダの中身を一覧できないため）
-- 計算（`sim.js`・`quiz.js`・`save.js`・`genres.js`）はブラウザの機能（DOM・localStorage）に触らない。乱数は `ctx.rng` で渡す（テストで固定するため）
+- 計算（`sim.js`・`quiz.js`・`fields.js`・`save.js`・`genres.js`）はブラウザの機能（DOM・localStorage）に触らない。乱数は `ctx.rng` で渡す（テストで固定するため）
 - 対象はスマホのブラウザ（縦画面）とデスクトップ版 Chrome。将来ストアアプリ化するので、ブラウザ固有の機能に頼りすぎない
 
 ## フォルダ
@@ -157,6 +157,7 @@ game/
     main.js              … 起動・画面切り替え・ループ・セーブ（localStorage）
     sim.js               … ゲームの計算（時間・戦闘・階層・睡眠・店・中ボス）
     quiz.js              … 出題・判定・熟練・干渉
+    fields.js            … 学際分野（解放・専攻・休眠）
     save.js              … セーブの文字列化・読み込み・版の移行
     genres.js            … 29ジャンル
     sprites.js           … スプライトJSONの読み込みと描画
@@ -170,6 +171,7 @@ game/
     town.json            … 施設画面の街（背景、施設の外観の名前と置く位置、主人公の立つ位置）
     stages.json          … 10階層ごとの世界（始まる階層・名前・ジャンル・背景）
     business.json        … 会社の業種（元手・利益・よく効く社員・関係するジャンル）と起業できる条件
+    fields.json          … 学際分野（2つのジャンルの組み合わせ・称号・効果の説明）とロケット計画の工程
     questions.json       … 問題（Notion から生成。手で編集しない）
   fonts/                 … DotGothic16 と OFL.txt
   tests/                 … node --test 用
@@ -224,7 +226,8 @@ tools/check-questions.mjs … questions.json の検査
   - `stats.agiSpeedPerPoint` すばやさ1あたり攻撃が速くなる割合（間隔＝attackIntervalSec÷(1＋すばやさ×この値)）
   - `stats.critChancePerLuck`・`critChanceMax`・`critMultiplier` 運の良さによる会心の一撃、`stats.goldBonusPerLuck` 運の良さ1あたりゴールドが増える割合
   - `spell` 主人公の全体攻撃「ひらめき」：敵が `minTargets` 体以上でMPが `mpCost` 以上あると使う。ダメージ＝賢さ×`power`（防御は効かない）。MPは毎秒 `mpRegenPerSec` 回復し、眠ると全回復
-  - `life` 寿命（`lifespanYears`±`lifespanSpread` 歳）、`reincarnation.multiplier` 世代ごとの倍率、`reincarnation.proficiencyCapStep` 生まれ変わるたびに上がる熟練Lvの上限、`rocket.buildCost` ロケットの建造費
+  - `life` 寿命（`lifespanYears`±`lifespanSpread` 歳）、`reincarnation.multiplier` 世代ごとの倍率、`reincarnation.proficiencyCapStep` 生まれ変わるたびに上がる熟練Lvの上限、`rocket.buildCost` ロケットの建造費、`rocket.stepYears` ロケットの工程1つにかかるゲーム内の年数
+  - `fields` 学際分野：`unlockLevel` 解放と休眠の境目の熟練Lv、`shopDiscount` 行動経済学の店の値引き（0.2＝2割引）
   - `nande` 孫の「なんで？」の間隔（`firstSec`・`intervalSec`）と、答えられなかったときに孫が回復する割合（`wrongHealRatio`）
   - `boss` 小ボスの強さ：その階層のザコの数値に `hpMultiplier`・`atkMultiplier`・`defMultiplier`・`expMultiplier`・`goldMultiplier` を掛ける
 - 主人公の名前は `hero.name`（8文字まで。最初の案内と施設で決める）
@@ -274,7 +277,7 @@ tools/check-questions.mjs … questions.json の検査
 
 - 寿命は生まれるたびに `balance.json` の `life.lifespanYears`（80）±`lifespanSpread`（3）歳で決まる（`lifespanFor`）。寿命の年齢になると生まれ変わる（`sim.js` の `reincarnate`）。80歳は現実で約3時間20分
 - 最初からになるもの：Lv・経験値・ゴールド（40HzP の依頼）。あわせて、品物と装備・仲間（中ボスだった仲間も契約も）・会社・中ボス（また7歳から会う）・階層・年齢も最初から（新しい人生なので）
-- 引き継ぐもの：知識（熟練・累計正解数・過去問復習・直近の出題）・図鑑・倒した小ボス・称号（`legacy.titles`）・名前・ロケット計画の工程（`legacy.rocket`）
+- 引き継ぐもの：知識（熟練・累計正解数・過去問復習・直近の出題・解放した学際分野と専攻）・図鑑・倒した小ボス・称号（`legacy.titles`）・名前・ロケット計画の工程（`legacy.rocket`）。拠点は階層と一緒に無くなる
 - 世代の倍率（40HzP の依頼）：生まれ変わるたびに `reincarnation.multiplier`（1.5）倍。2世代目は1.5倍、3世代目は2.25倍。掛かるのは、ステータスの伸び（`hero.perLevel` の全部と `wisPerCorrect`。初期値の `base` には掛けない）・敵を倒したときの経験値とゴールド・会社の利益（`generationMultiplier`）。セーブの `life.generation`
 - 熟練Lvの上限（40HzP の依頼）：1世代目は5（`genres.js` の `MAX_PROFICIENCY`）。生まれ変わるたびに `reincarnation.proficiencyCapStep`（5）ずつ上がる（2世代目10・3世代目15…。`sim.js` の `proficiencyCap`）。勉強の正解でも睡眠でも上限まで上がる。業種は経営学Lv5、社員の質は心理学Lv5（伝説）でいちばん上なので、6から先は関係するジャンルとしての会社の利益（`genreBonusPerLevel`）が増え続ける。難易度の出し方は Lv5 の割合のまま
 - 寿命が来たら、ミニムービーで前世をふり返り（何歳・Lv・最高階層・残したゴールド）、最初の案内（年齢と名前を選ぶ）をもう一度出す。案内の上に「◯世代目。前世の記憶を受け継いだ。…◯倍」を出し、名前は前世のものを入れておく。年齢を選ぶまで時間は止まる
@@ -283,15 +286,46 @@ tools/check-questions.mjs … questions.json の検査
 
 ## ロケット発射場
 
-- 設計ページ「ロケット計画」の工程を並べる。今払えるのは建造費（`balance.json` の `rocket.buildCost`＝3000億G。40HzP の依頼）だけ。払った工程は生まれ変わっても残る（設計ページ「工程ごとに完了を保存する」）。ゴールドは生まれ変わると無くなるので、建造費は1つの人生のうちに貯めて払う（`sim.js` の `payRocketBuildCost`）
-- ほかの工程（機体設計・エンジン・推進剤・軌道計算・打ち上げ許可）と、ロケットで行く月面の階層は、学際分野の仕組みができてから作る
+- 設計ページ「ロケット計画」の工程を並べる。工程は生まれ変わっても残る（設計ページ「工程ごとに完了を保存する」「転生をまたいでもよい」。`legacy.rocket`）
+- 建造費（`balance.json` の `rocket.buildCost`＝3000億G。40HzP の依頼）はゴールドで払う。ゴールドは生まれ変わると無くなるので、1つの人生のうちに貯めて払う（`sim.js` の `payRocketBuildCost`）
+- 機体設計（航空宇宙工学）・エンジン・推進剤（燃焼工学）・軌道計算（軌道力学）・打ち上げ許可（宇宙法）は、その学際分野を専攻にしていて休眠していない間、ゲーム内の時間で進み、`rocket.stepYears`（5年、現実で約5分）で完了する。専攻は2枠なので同時に2つまで。工程と学際分野の対応は `fields.json` の `rocketSteps`（`sim.js` の `rocketSteps`・`advanceRocket`）。進み具合は `legacy.rocket.steps`（工程id → 進んだゲーム内の時間）
+- 打ち上げ・成功率（確率論）・有人（生化学）と、ロケットで行く月面の階層はまだ作っていない（全部の工程が終わると「これから作る」と出る）
 - 大きな数は「◯億」「◯兆」で出す（`ui/dom.js` の `fmt`）
+
+## 学際分野（ジャンルの組み合わせ）
+
+40HzP の依頼。設計ページ「特定のジャンルマスターの組み合わせでしかできない機能」を形にした。計算は `fields.js`（解放・専攻・休眠）と、効果ごとに `sim.js`・`quiz.js`。データは `fields.json`
+
+- 2つのジャンルの熟練がどちらも `balance.json` の `fields.unlockLevel`（3）以上になると、その組み合わせの学際分野が解放され、称号（`title`）がもらえる。一度解放すると、熟練が下がっても解放と称号は残る（`knowledge.fields`）。解放の判定は毎回の `tick` で行う（`updateFields`。熟練が勉強・睡眠・デバッグのどこで変わっても拾う）
+- 効果が出るのは主専攻・副専攻の2枠（`knowledge.majors`）に入れたものだけ。街の「専攻の付け替え」で、いつでも何度でも付け替えられる（設計ページ「転生ごとに選び直せる」は、いつでも選び直せる形にした。Claude Code の判断）
+- 休眠：専攻に入れた学際分野のジャンルが睡眠などで Lv3 を下回ると、効果が止まる。戻すと復活する。どちらも知らせる
+- 未解放の学際分野は「？？？」と、片方のジャンル（熟練の高いほう）と効果の説明だけ見せる。隠し（`group: "hidden"`）は解放するまで出さず、称号だけで専攻にはできない
+- 解放と専攻は知識なので、生まれ変わっても残る
+- 今ある10個（設計ページの中から、今のゲームの仕組みで効果を出せるものを選んだ）
+
+  | 学際分野 | ジャンル | 効果 |
+  |---|---|---|
+  | 構造工学 | 物理＋建築 | 街の「拠点」で今いる階層に拠点を建てる。拠点より深い階層でやられると拠点の階層から再開（拠点の階層そのものでやられたら1階層から。勝てない階層でやられ続けないように）。拠点は1つで、建て直すと移る。生まれ変わると無くなる（`buildBase`・`respawnFloor`・`adventure.baseFloor`） |
+  | 航空宇宙工学 | 流体力学＋建築 | ロケット計画の「機体設計」が進む |
+  | 燃焼工学 | 熱力学＋化学 | 「エンジン・推進剤」が進む |
+  | 軌道力学 | 天体力学＋数学 | 「軌道計算」が進む |
+  | 宇宙法 | 法学＋政治経済 | 「打ち上げ許可」が進む |
+  | 行動経済学 | 心理学＋経済学 | 経済系の俗説の魔物（`genres` が `blockGenres` の経済学・経営学・政治経済）が問題に口を挟めない（騙されても回復しない）。店が `shopDiscount` 引き（`itemPrice`） |
+  | 計量経済学 | 統計学＋経済学 | 会社で、起業できる業種ごとに期待値（得になる社員をいま雇える質で雇ったときの1か月の手取りと、元手を取り戻すまでの期間）を出し、手取りがいちばん大きい・いちばん早く取り戻せる業種に印を付ける（`industryOutlook`） |
+  | 科学史 | 科学＋世界史 | 小ボスと戦っている間、問題の誤答（俗説の枠ではないもの）が1つ消えて3択になる（`quiz.js` の `trimChoices`） |
+  | 心理統計学 | 心理学＋統計学 | 勉強画面のメニューに、騙された回数の多い俗説・騙されやすいジャンル・間違えたままの問題のジャンルを出す（`fooledAnalysis`） |
+  | 音声学（隠し） | 言語学＋音響工学 | 称号だけ |
+
+- まだ作っていないもの（効果に要る仕組みがまだ無い）：古文書学（隠し階層）・建築音響（隠し部屋）・対照言語学（異国の魔物）・確率論（ドロップ率・打ち上げの成功率）・生化学（調合・有人ロケット）・法と経済学（法人化と税金）・政治学（選挙ルート）・国際関係論（トーナメント）・歴史言語学（語源）・民族音楽学（BGM）・作問権。仕組みを作ったら `fields.json` に1件足し、効果を書く
+- 称号の名前は一般的な呼び方で付けた（設計ページ「称号・図鑑に載せる前に名称を確認する」）。直すときは `fields.json` の `title`
+- 学際分野を足すとき：`fields.json` に1件足す（`genres` は29ジャンルの名前2つ。同じ組み合わせは1つまで）。`fields.test.js` が組み合わせと説明を確かめる。効果は id で `fieldActive(state, ctx, id)` を見て書く
+- デバッグ画面の「学際分野を全部解放する」で、組み合わせのジャンルを全部 Lv3 以上にできる
 
 ## 施設画面（街）
 
 - 施設画面は「街」。`bg_town`（90×160）の上に施設の外観（`town_<施設>`、32×32、category `building`）を並べ、広場に主人公が立つ。設計ページ「施設画面の表示」の「施設を並べる」を、40HzP の依頼で街の見た目にした
 - 並べる位置は `town.json` の `x`・`y`（街の左上からのドット数）。建物の前の道と広場は `bg_town` に描いてあるので、位置を変えるときは背景も合わせる。`town.test.js` が「街の中に収まる・重ならない・スプライトがある」を確かめる
-- 建物をタップするとその施設に入る（上に「← 街へ」）。中身があるのは店（`shop`）・仲間が集まる場所（`guild`）・寝床（`home`）・会社（`company`）・ロケット発射場（`rocket`）。それ以外（専攻の付け替え・拠点）は「準備中」と `desc` を出す。中身は `facility.js` の `PANELS`
+- 建物をタップするとその施設に入る（上に「← 街へ」）。中身があるのは店（`shop`）・仲間が集まる場所（`guild`）・寝床（`home`）・会社（`company`）・ロケット発射場（`rocket`）・専攻の付け替え（`major`）・拠点（`base`）。中身は `facility.js` の `PANELS`。条件を満たすまで「準備中」と `desc` を出す施設（会社・拠点）は `LOCKS`
 - 広場の主人公をタップすると、主人公のステータスと名前の変更。街の上の帯に所持金と版を出す
 - 寝床（`home`）の見た目はテント（`town_home`）。眠ると冒険は1つ手前の階層（`bedFloor`）の最初に戻り、そのあと睡眠の処理（HP・MPの全回復、ゲーム内10時間、熟練の判定）が起きる。1階層なら1階層の最初から。戦っていた群れや中ボスは退く（`sim.js` の `sleepAtBed`）。設計書4.5の寝床は階層を変えなかったのを、40HzP の依頼で変えた。デバッグ画面の「すぐ眠る」も同じ
 - 施設の中にいるときは、知らせを画面の下に出す（上の「← 街へ」を隠さない）

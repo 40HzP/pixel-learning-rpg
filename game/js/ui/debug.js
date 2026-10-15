@@ -62,7 +62,15 @@ export function init(app) {
     el('div', { class: 'section' }, el('h2', {}, '熟練'),
       el('div', {}, genre, level, el('button', {
         onclick: () => { genreState(app.state, genre.value).level = Number(level.value); app.notify(`${genre.value}を Lv ${level.value} にした`); },
-      }, '設定'))),
+      }, '設定')),
+      el('div', {}, el('button', {
+        onclick: () => {
+          // 学際分野の2つのジャンルを、どちらも解放の条件（Lv3）以上にする。解放の知らせは次の tick で出る
+          const need = ctx.balance.fields.unlockLevel;
+          for (const f of ctx.fields.fields) for (const g of f.genres) { const st = genreState(app.state, g); st.level = Math.max(st.level, need); }
+          app.notify(`学際分野のジャンルを全部 Lv${need} 以上にした`);
+        },
+      }, '学際分野を全部解放する'))),
     el('div', { class: 'section' }, el('h2', {}, '敵の群れを出す（選んだ魔物が先頭。干渉の確認用）'),
       el('div', {}, monster, el('button', {
         onclick: () => {

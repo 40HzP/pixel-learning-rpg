@@ -1,6 +1,7 @@
 // 勉強画面（設計ページ「勉強画面の表示」）
-import { createSession, nextQuestion, answer, interferingMonster, MODES } from '../quiz.js';
+import { createSession, nextQuestion, answer, interferingMonster, blockedInterference, fooledAnalysis, MODES } from '../quiz.js';
 import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap } from '../sim.js';
+import { fieldById, fieldActive } from '../fields.js';
 import { GENRES } from '../genres.js';
 import { spriteCanvas } from '../sprites.js';
 import { el, stars } from './dom.js';
@@ -41,14 +42,19 @@ function renderInfo(app) {
   const per = app.ctx.balance.quiz.correctPerProficiencyLevel;
   const cap = proficiencyCap(app.state, app.ctx.balance); // 生まれ変わるたびに上がる
   const next = g.level >= cap ? '最大' : `${g.progress}/${per}回`;
-  const key = `${genre}|${g.level}|${next}|${cap}`;
+  // 専攻（学際分野）。休眠しているものは（休眠）
+  const majors = app.state.knowledge.majors.map((id) => {
+    const f = id && fieldById(app.ctx, id);
+    return f ? f.name + (fieldActive(app.state, app.ctx, id) ? '' : '（休眠）') : '—';
+  }).join(' ／ ');
+  const key = `${genre}|${g.level}|${next}|${cap}|${majors}`;
   if (refs.info.dataset.key === key) return;
   refs.info.dataset.key = key;
   refs.info.replaceChildren(
     el('div', {}, 'ジャンル ', el('b', {}, genre)),
     el('div', {}, '熟練 ', el('b', {}, `Lv ${g.level}`), ` / ${cap}`),
     el('div', {}, '次のLvまで ', el('b', {}, next)),
-    el('div', { class: 'muted' }, '専攻 — ／ —'),
+    el('div', { class: 'muted' }, `専攻 ${majors}`),
   );
 }
 
@@ -78,7 +84,23 @@ function renderMenu(app) {
           el('span', {}, s.level >= cap ? '最大' : `${s.progress}/${per}`),
         ];
       })),
+    analysisBox(app),
   );
+}
+
+/** 心理統計学（学際分野）：どの俗説に騙されやすいか */
+function analysisBox(app) {
+  const f = fieldById(app.ctx, 'psych_statistics');
+  if (!f || !fieldActive(app.state, app.ctx, f.id)) return null;
+  const a = fooledAnalysis(app.state, app.ctx);
+  const join = (xs, unit) => xs.slice(0, 5).map((x) => `${x.genre} ${x.count}${unit}`).join('・');
+  return el('div', { class: 'analysis' },
+    el('h3', { class: 'subhead' }, `${f.name}：騙されやすい俗説`),
+    a.total
+      ? [el('ol', {}, a.myths.slice(0, 5).map((x) => el('li', {}, `${x.monster.name}「${x.monster.myth}」に${x.fooled}回`))),
+        el('div', {}, `騙されやすいジャンル：${join(a.genres, '回')}`)]
+      : el('div', { class: 'muted' }, 'まだ俗説に騙されたことがない'),
+    a.review.length ? el('div', {}, `間違えたままの問題：${join(a.review, '問')}（過去問復習で解き直せる）`) : null);
 }
 
 function start(app, mode, genre = null) {
@@ -99,14 +121,26 @@ function ask(app) {
   renderBody(app);
 }
 
+/** 干渉の枠の中身が変わったかを見る印（口を挟んでいる魔物か、学際分野で封じた魔物） */
+function interferenceKey(app, q) {
+  const m = interferingMonster(app.state, q, app.ctx);
+  if (m) return m.id;
+  const b = blockedInterference(app.state, q, app.ctx);
+  return b ? `blocked:${b.monster.id}` : null;
+}
+
 function interferenceBanner(app, q) {
   const m = interferingMonster(app.state, q, app.ctx);
-  view.interferingId = m ? m.id : null;
+  const b = m ? null : blockedInterference(app.state, q, app.ctx);
+  view.interferingId = interferenceKey(app, q);
   // 干渉が無いときも同じ高さの枠を置く（出たり消えたりしても解答ボタンの位置を変えない）
-  if (!m) return el('div', { class: 'interfere off', id: 'interfere', 'aria-hidden': 'true' });
-  const sp = (app.monsterSprites[m.id] || {}).idle || null;
+  if (!m && !b) return el('div', { class: 'interfere off', id: 'interfere', 'aria-hidden': 'true' });
+  const who = m || b.monster;
+  const sp = (app.monsterSprites[who.id] || {}).idle || null;
   // 枠の高さは変えない（小ボスの 32×32 は等倍で入れる）
-  return el('div', { class: 'interfere', id: 'interfere' }, spriteCanvas(sp, sp && sp.h > 16 ? 1 : 2, app.palette), el('span', {}, `${m.name}が口を挟んでいる`));
+  return el('div', { class: 'interfere' + (b ? ' blocked' : ''), id: 'interfere' }, spriteCanvas(sp, sp && sp.h > 16 ? 1 : 2, app.palette),
+    b ? el('span', {}, el('span', { class: 'line' }, `${who.name}は口を挟めない`), el('small', { class: 'line' }, `${b.field.name}で封じている`))
+      : el('span', {}, `${who.name}が口を挟んでいる`));
 }
 
 function renderQuestion(app) {
@@ -116,7 +150,7 @@ function renderQuestion(app) {
   const progress = s.total > 1 ? `${MODES[s.mode]} ${s.index + 1}/${s.total}問目` : MODES[s.mode];
   refs.body.replaceChildren(
     interferenceBanner(app, q),
-    el('div', { class: 'qmeta' }, `${stars(q.difficulty)}　${progress}`),
+    el('div', { class: 'qmeta' }, `${stars(q.difficulty)}　${progress}`, cur.trimmedBy ? el('span', { class: 'good' }, `　${cur.trimmedBy}で誤答が1つ消えた`) : null),
     el('div', { class: 'qtext' }, q.question),
     el('div', { class: 'timebar', id: 'timebar' }, el('i', { style: { width: '100%' } })),
     el('div', { class: 'choices' }, cur.choices.map((c, i) => el('button', { onclick: () => submit(app, i) }, c.text))),
@@ -161,6 +195,7 @@ function effectLines(app, r) {
     if (r.fooled) lines.push(['bad', `${r.targetName}に騙された！　${r.targetName}が${r.healed}回復した`]);
     lines.push(['', '過去問復習に入った']);
   }
+  if (r.blocked) lines.push(['good', `${r.blocked.field}で、${r.blocked.name}の口出しを封じていた`]);
   return lines;
 }
 function renderResult(app) {
@@ -226,8 +261,7 @@ export function update(app, force) {
   if (force) { renderBody(app); return; }
   if (view.phase === 'question') {
     // 干渉中の魔物は、戦っている敵が変わると変わる
-    const m = interferingMonster(app.state, view.session.current.question, app.ctx);
-    if ((m ? m.id : null) !== view.interferingId) {
+    if (interferenceKey(app, view.session.current.question) !== view.interferingId) {
       document.getElementById('interfere').replaceWith(interferenceBanner(app, view.session.current.question));
     }
   }

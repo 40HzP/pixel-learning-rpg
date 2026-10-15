@@ -3,6 +3,7 @@
 
 import { GENRES } from './genres.js';
 import { genreState, raiseZukan, zukanEntry, breakMidbosses, damageEnemy, healEnemy, proficiencyCap } from './sim.js';
+import { fieldActive, fieldById } from './fields.js';
 
 export { GENRES };
 
@@ -100,7 +101,22 @@ export function nextQuestion(state, session, ctx) {
   const avoid = [...state.knowledge.recent, ...session.asked];
   const q = pickQuestion(cands, level, avoid, ctx);
   if (!q) { session.current = null; return null; }
-  return presentQuestion(session, q, ctx);
+  const cur = presentQuestion(session, q, ctx);
+  trimChoices(state, cur, ctx);
+  return cur;
+}
+
+/**
+ * 科学史（学際分野）：小ボス（かつての学説）と戦っている間、誤答が1つ消える。
+ * 消すのは俗説の枠（誤答1）ではない誤答。消したら current.trimmedBy に学際分野の名前を入れる
+ */
+function trimChoices(state, cur, ctx) {
+  const id = 'history_of_science';
+  if (!fieldActive(state, ctx, id) || !state.adventure.enemies.some((e) => e.kind === 'boss')) return;
+  const wrong = cur.choices.filter((c) => c.kind === 'wrong');
+  if (!wrong.length) return;
+  cur.choices.splice(cur.choices.indexOf(wrong[Math.floor(ctx.rng() * wrong.length)]), 1);
+  cur.trimmedBy = fieldById(ctx, id).name;
 }
 
 /** 決まった問題を出す（nextQuestion の中身。テストでも使う） */
@@ -114,12 +130,33 @@ export function presentQuestion(session, q, ctx) {
   return session.current;
 }
 
-/** この問題に口を挟んでいる敵（今の群れの中に関連する魔物がいるとき）。いなければ null */
-export function interferingEnemy(state, question, ctx) {
+/** この問題に関連する魔物が今の群れにいれば、その敵（口を挟めるかどうかは問わない） */
+function relatedEnemy(state, question, ctx) {
   if (!question.monster) return null;
   const m = ctx.monsters.find((x) => x.name === question.monster);
   if (!m) return null;
   return state.adventure.enemies.find((e) => e.monsterId === m.id) || null;
+}
+
+/** 行動経済学（学際分野）：経済系の俗説の魔物（genres が blockGenres に入る）は口を挟めない。封じた学際分野を返す */
+function blockedBy(state, monsterId, ctx) {
+  const f = fieldById(ctx, 'behavioral_economics');
+  if (!f || !fieldActive(state, ctx, f.id)) return null;
+  const m = ctx.monsters.find((x) => x.id === monsterId);
+  return m && (m.genres || []).some((g) => (f.blockGenres || []).includes(g)) ? f : null;
+}
+
+/** この問題に口を挟んでいる敵（今の群れの中に関連する魔物がいるとき。学際分野で封じた魔物は除く）。いなければ null */
+export function interferingEnemy(state, question, ctx) {
+  const e = relatedEnemy(state, question, ctx);
+  return e && !blockedBy(state, e.monsterId, ctx) ? e : null;
+}
+
+/** 口を挟もうとしたが学際分野で封じられた魔物：{ monster, field }（いなければ null） */
+export function blockedInterference(state, question, ctx) {
+  const e = relatedEnemy(state, question, ctx);
+  const f = e && blockedBy(state, e.monsterId, ctx);
+  return f ? { monster: ctx.monsters.find((m) => m.id === e.monsterId), field: f } : null;
 }
 
 /** この問題に口を挟んでいる魔物（monsters.json の定義）。いなければ null */
@@ -153,11 +190,13 @@ export function answer(state, session, choiceIndex, ctx) {
   const g = genreState(state, q.genre);
   const relatedMonster = q.monster ? ctx.monsters.find((m) => m.name === q.monster) || null : null;
   const interferer = interferingEnemy(state, q, ctx);
+  const blocked = blockedInterference(state, q, ctx);
   const target = interferer || state.adventure.enemies[0] || null;
   const events = [];
   const res = {
     correct, timeout: choiceIndex == null, chose: choice ? choice.kind : null,
     interfered: !!interferer, monsterId: relatedMonster ? relatedMonster.id : null,
+    blocked: blocked ? { name: blocked.monster.name, field: blocked.field.name } : null, // 学際分野で口出しを封じた魔物
     targetName: target ? target.name : null,
     targetMidboss: target && target.kind === 'midboss' ? target.monsterId : null,
     levelUp: null, fooled: false, damage: 0, healed: 0, defeated: false, midbossBroken: false,
@@ -204,4 +243,26 @@ export function answer(state, session, choiceIndex, ctx) {
   session.index++;
   session.current = null;
   return res;
+}
+
+/* ================= 心理統計学（学際分野） ================= */
+
+/**
+ * どの俗説に騙されやすいか。図鑑の騙された回数を多い順に並べ、魔物のジャンルごとにも合計する。
+ * review は過去問復習に残っている（間違えたままの）問題の数をジャンルごとに数えたもの
+ */
+export function fooledAnalysis(state, ctx) {
+  const myths = ctx.monsters
+    .map((m) => ({ monster: m, fooled: (state.knowledge.zukan[m.id] || {}).fooled || 0 }))
+    .filter((x) => x.fooled > 0)
+    .sort((a, b) => b.fooled - a.fooled);
+  const count = (pairs) => Object.entries(pairs.reduce((acc, [k, n]) => ({ ...acc, [k]: (acc[k] || 0) + n }), {}))
+    .map(([genre, n]) => ({ genre, count: n })).sort((a, b) => b.count - a.count);
+  const reviewQs = state.knowledge.review.map((id) => ctx.questions.find((q) => q.id === id)).filter(Boolean);
+  return {
+    total: myths.reduce((sum, x) => sum + x.fooled, 0),
+    myths,
+    genres: count(myths.flatMap((x) => (x.monster.genres || []).map((g) => [g, x.fooled]))),
+    review: count(reviewQs.map((q) => [q.genre, 1])),
+  };
 }

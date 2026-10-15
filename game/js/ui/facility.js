@@ -1,12 +1,13 @@
 // 施設画面＝街。bg_town の上に施設の外観を並べ（並べる位置は data/town.json）、建物をタップするとその施設に入る。
-// 入れる施設：店・仲間が集まる場所・寝床・会社。ロケット発射場・専攻の付け替え・拠点は準備中。
+// 入れる施設：店・仲間が集まる場所・寝床・会社・ロケット発射場・専攻の付け替え・拠点（構造工学を解放するまで準備中）。
 // 広場に立っている主人公をタップすると、主人公のステータスと名前の変更
 import {
   shopList, buyItem, bedFloor, heroTitles, inParty, setInParty, partyAllies, partyMax, partyFull, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, heroAttackInterval, expMultiplier,
-  recruitList, hireRecruit, dismissRecruit, monthlyContractCost, HOURS_PER_MONTH,
-  canFound, foundCompany, closeCompany, companiesProfit, industryList, generationMultiplier, ageYears, payRocketBuildCost,
-  hireStaff, dismissStaff, bestStaffGrade, staffCost, staffBonus,
+  recruitList, hireRecruit, dismissRecruit, monthlyContractCost, HOURS_PER_MONTH, HOURS_PER_YEAR,
+  canFound, foundCompany, closeCompany, companiesProfit, industryList, industryOutlook, generationMultiplier, ageYears, payRocketBuildCost, rocketSteps,
+  hireStaff, dismissStaff, bestStaffGrade, staffCost, staffBonus, buildBase, baseActive,
 } from '../sim.js';
+import { fieldList, fieldById, fieldActive, isUnlocked, setMajor, MAJOR_SLOTS } from '../fields.js';
 import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor } from '../sprites.js';
 import { el, fmt } from './dom.js';
 
@@ -50,7 +51,14 @@ const LOCKS = {
     if (s.companies.length || canFound(s, app.ctx)) return null;
     return `今の${u.genre}の熟練レベル：${genreLv(s, u.genre)}（勉強で${u.genre}の問題に正解すると上がる）`;
   },
+  // 拠点：構造工学（学際分野）を解放するまで準備中
+  base: (app) => {
+    const f = fieldById(app.ctx, STRUCTURAL);
+    if (!f || isUnlocked(app.state, f.id)) return null;
+    return `今の熟練レベル：${f.genres.map((g) => `${g} Lv${genreLv(app.state, g)}`).join('・')}（どちらもLv${app.ctx.balance.fields.unlockLevel}で${f.name}が解放される）`;
+  },
 };
+const STRUCTURAL = 'structural_engineering';
 const lockText = (app, id) => (LOCKS[id] ? LOCKS[id](app) : null);
 const isSoon = (app, id) => !PANELS[id] || !!lockText(app, id);
 const soonKey = (app) => app.town.facilities.filter((f) => isSoon(app, f.id)).map((f) => f.id).join(',');
@@ -152,11 +160,14 @@ function shopPanel(app) {
       },
     }, it.owned ? (it.equipped ? '装備中' : '持っている') : `${fmt(it.price)}G`);
     if (!it.owned) live.buttons.push({ btn, price: it.price });
-    return el('div', { class: 'item' }, el('div', { class: 'name' }, it.name, el('small', {}, itemStat(it))), btn);
+    const off = !it.owned && it.price < it.listPrice ? el('small', { style: { color: 'var(--good)' } }, `値引き（定価 ${fmt(it.listPrice)}G）`) : null;
+    return el('div', { class: 'item' }, el('div', { class: 'name' }, it.name, el('small', {}, itemStat(it)), off), btn);
   });
+  const be = fieldById(ctx, 'behavioral_economics');
   return [
     el('div', { style: { marginBottom: '6px' } }, '所持金 ', live.gold, 'G'),
     note(`武器：${eq('weapon')}　防具：${eq('armor')}`),
+    be && fieldActive(s, ctx, be.id) ? note(`${be.name}で値引き交渉ができる（${pct(ctx.balance.fields.shopDiscount)}引き）`) : null,
     el('div', { class: 'list' }, rows),
   ];
 }
@@ -328,6 +339,24 @@ function companyPanel(app) {
   const psych = genreLv(s, biz.staffGenre);
   const best = bestStaffGrade(s, ctx);
   const next = biz.staffGrades[best + 1];
+  // 計量経済学：起業できる業種ごとの収益の期待値（手取りがいちばん大きい・元手をいちばん早く取り戻せる業種に印を付ける）
+  const econ = fieldActive(s, ctx, 'econometrics') ? fieldById(ctx, 'econometrics') : null;
+  const outlooks = {};
+  if (econ) for (const ind of industryList(s, ctx)) if (ind.unlocked && !ind.founded) outlooks[ind.id] = industryOutlook(s, ind, ctx);
+  const ols = Object.entries(outlooks);
+  const topNet = ols.length ? ols.reduce((a, b) => (b[1].net > a[1].net ? b : a))[0] : null;
+  const fastest = ols.filter(([, o]) => o.paybackMonths != null).reduce((a, b) => (!a || b[1].paybackMonths < a[1].paybackMonths ? b : a), null);
+  const monthSec = HOURS_PER_MONTH / ctx.balance.time.gameHoursPerRealSecond;
+  const outlookLine = (ind) => {
+    const o = outlooks[ind.id];
+    if (!o) return null;
+    const marks = [ind.id === topNet ? '★手取りがいちばん大きい' : '', fastest && ind.id === fastest[0] ? '★元手をいちばん早く取り戻せる' : ''].filter(Boolean).join('　');
+    const back = o.paybackMonths == null ? '元手は取り戻せない'
+      : `元手は約${o.paybackMonths >= 24 ? `${(o.paybackMonths / 12).toFixed(1)}年` : `${Math.ceil(o.paybackMonths)}か月`}で取り戻せる（現実の約${realSpan(o.paybackMonths * monthSec)}）`;
+    return el('div', { class: 'outlook' },
+      `期待値：手取り 1か月 ${fmt(o.net)}G（社員${o.staff.length ? `${o.staff.length}人を「${gradeName(ctx, o.grade)}」で雇った場合` : 'なし'}）。${back}`,
+      marks ? el('b', {}, marks) : null);
+  };
   const cards = industryList(s, ctx).filter((i) => !i.founded).map((ind) => {
     const btn = el('button', {
       class: 'primary', disabled: !ind.unlocked,
@@ -347,6 +376,7 @@ function companyPanel(app) {
       el('div', {}, ind.desc),
       el('small', {}, `元手 ${fmt(ind.cost)}G　利益 1か月 ${fmt(ind.monthlyProfit)}G（社員なし）`),
       el('small', {}, `よく効く社員：${special}　関係するジャンル：${ind.genres.join('・')}（熟練Lv1ごとに利益 +${pct(biz.genreBonusPerLevel)}）`),
+      outlookLine(ind),
       btn);
   });
   return [
@@ -358,16 +388,19 @@ function companyPanel(app) {
     ...all.companies.map((p) => companyCard(app, p)),
     cards.length ? el('h3', { class: 'subhead' }, '起業する') : null,
     cards.length ? note(`会社はいくつでも持てる（同じ業種は1つまで）。${biz.unlock.genre}の熟練が上がると、利益の大きい業種が解放される（今 Lv${lv}）。利益は時間がたつと少しずつ所持金に入る`) : null,
+    cards.length && econ ? note(`${econ.name}：起業できる業種ごとに、収益の期待値（社員を雇ったときの1か月の手取りと、元手を取り戻すまでの期間）を出している`) : null,
     cards.length ? el('div', { class: 'list' }, cards) : null,
   ];
 }
 
 /**
- * ロケット発射場：ロケット計画の工程（設計ページ「ロケット計画」）。今払えるのは建造費だけ。
- * 払った工程は生まれ変わっても残る。ゴールドは生まれ変わると無くなるので、建造費は1つの人生のうちに貯める
+ * ロケット発射場：ロケット計画の工程（設計ページ「ロケット計画」）。建造費はゴールドで払い、
+ * ほかの工程（機体設計・エンジン・軌道計算・打ち上げ許可）は、工程の学際分野を専攻にしている間に進む。
+ * 工程は生まれ変わっても残る。ゴールドは生まれ変わると無くなるので、建造費は1つの人生のうちに貯める
  */
 function rocketPanel(app) {
   const s = app.state;
+  const ctx = app.ctx;
   const cost = app.ctx.balance.rocket.buildCost;
   const paid = s.legacy.rocket.buildCostPaid;
   const ratio = Math.min(1, s.gold / cost);
@@ -383,21 +416,121 @@ function rocketPanel(app) {
     },
   }, paid ? '払った' : `建造費を払う（${fmt(cost)}G）`);
   if (!paid) live.buttons.push({ btn, price: cost });
-  const step = (name, how, done) => el('div', { class: 'item' + (done ? '' : ' locked') },
-    el('div', { class: 'name' }, name, el('small', {}, how)),
-    el('span', { class: done ? 'good' : 'muted' }, done ? '済' : '準備中'));
+  const steps = rocketSteps(s, ctx);
+  const rows = steps.map((st) => {
+    const f = st.fieldDef;
+    const bar = el('i');
+    const text = el('small');
+    live.rocket.push({ id: st.id, bar, text });
+    let how;
+    if (st.done) how = '';
+    else if (st.active) how = '専攻にしているので進んでいる';
+    else if (!isUnlocked(s, f.id)) how = `${f.name}を解放すると進められる`;
+    else if (s.knowledge.majors.includes(f.id)) how = `${f.name}が休眠しているので止まっている`;
+    else how = `${f.name}を専攻にすると進む（専攻の付け替え）`;
+    return el('div', { class: 'item rocket-step' + (st.done ? '' : st.active ? '' : ' locked') },
+      el('div', { class: 'name' }, st.name, el('small', {}, `${f.name}（${f.genres.join('＋')}）`),
+        el('div', { class: 'timebar' }, bar), text, how ? el('small', { class: st.active ? 'good' : '' }, how) : null),
+      el('span', { class: st.done ? 'good' : 'muted' }, st.done ? '済' : st.active ? '進行中' : '未'));
+  });
+  const allDone = paid && steps.every((st) => st.done);
   return [
-    note('ロケットができると、月面の階層に行ける（月面はこれから作る）。払った工程は生まれ変わっても残る。ゴールドは生まれ変わると無くなるので、建造費は1つの人生のうちに貯めて払う'),
+    note('ロケットができると、月面の階層に行ける。工程は生まれ変わっても残る。ゴールドは生まれ変わると無くなるので、建造費は1つの人生のうちに貯めて払う'),
     el('h3', { class: 'subhead' }, '建造費'),
     el('div', { class: 'profit' }, '所持金 ', live.gold, `G ／ ${fmt(cost)}G`),
     el('div', { class: 'timebar' }, el('i', { style: { width: `${(paid ? 1 : ratio) * 100}%` } })),
     el('div', { class: 'btnrow' }, btn),
-    el('h3', { class: 'subhead' }, 'ほかの工程（学際分野の仕組みができてから）'),
-    el('div', { class: 'list' },
-      step('機体設計', '航空宇宙工学（流体力学＋建築）', false),
-      step('エンジン・推進剤', '燃焼工学（熱力学＋化学）', false),
-      step('軌道計算', '軌道力学（天体力学＋数学）', false),
-      step('打ち上げ許可', '宇宙法（法学＋政治経済）', false)),
+    el('h3', { class: 'subhead' }, '工程（学際分野を専攻にしている間に進む）'),
+    note(`1つの工程に ゲーム内で${ctx.balance.rocket.stepYears}年かかる。専攻は2枠なので、同時に進むのは2つまで。工程ごとに専攻を付け替える`),
+    el('div', { class: 'list' }, rows),
+    el('h3', { class: 'subhead' }, '打ち上げ'),
+    note(allDone ? '建造費とすべての工程が終わった！　打ち上げと月面の階層はこれから作る' : '建造費とすべての工程が終わると打ち上げられる（打ち上げと月面の階層はこれから作る）'),
+  ];
+}
+
+/** 年数の表示（ロケットの工程） */
+const years = (hours) => `${(hours / HOURS_PER_YEAR).toFixed(1)}年`;
+/** 現実の時間の表示 */
+const realSpan = (sec) => (sec >= 5400 ? `${(sec / 3600).toFixed(1)}時間` : sec >= 90 ? `${Math.round(sec / 60)}分` : `${Math.max(1, Math.round(sec))}秒`);
+
+/**
+ * 専攻の付け替え：解放した学際分野を主専攻・副専攻の2枠に入れる。効果が出るのは専攻に入れたものだけ。
+ * 未解放の学際分野は名前を伏せ、片方のジャンルだけ見せる（隠しの学際分野は解放するまで出さない）
+ */
+function majorPanel(app) {
+  const s = app.state;
+  const ctx = app.ctx;
+  const need = ctx.balance.fields.unlockLevel;
+  const list = fieldList(s, ctx);
+  const byId = Object.fromEntries(list.map((f) => [f.id, f]));
+  const change = (slot, id, msg) => () => {
+    const r = setMajor(app.state, slot, id, ctx);
+    if (!r.ok) { app.notify(r.reason, 'bad'); return; }
+    app.notify(msg, 'good');
+    app.save();
+    update(app, true);
+  };
+  const dormantText = (f) => `休眠中（${f.low.map((x) => `${x.genre} Lv${x.level}`).join('・')}。Lv${need}に戻すと復活する）`;
+  const slots = MAJOR_SLOTS.map((label, i) => {
+    const f = byId[s.knowledge.majors[i]];
+    return el('div', { class: 'item field-slot' },
+      el('div', { class: 'name' }, el('span', { class: 'muted' }, `${label}　`), f ? f.name : '—',
+        el('small', {}, f ? f.desc : '下の一覧から選ぶ'),
+        f && f.dormant ? el('small', { class: 'bad' }, dormantText(f)) : null),
+      f ? el('button', { onclick: change(i, null, `${label}の${f.name}を外した`) }, '外す') : null);
+  });
+  const row = (f) => {
+    if (!f.unlocked) {
+      return el('div', { class: 'item field locked' },
+        el('div', { class: 'name' }, '？？？', el('small', {}, `${f.hint.genre}＋？（今 ${f.hint.genre} Lv${f.hint.level}）`), el('small', {}, f.desc)));
+    }
+    const btns = [];
+    if (f.group !== 'hidden') {
+      if (f.slot >= 0) btns.push(el('button', { onclick: change(f.slot, null, `${MAJOR_SLOTS[f.slot]}の${f.name}を外した`) }, '外す'));
+      else MAJOR_SLOTS.forEach((label, i) => btns.push(el('button', { class: i === 0 ? 'primary' : '', onclick: change(i, f.id, `${f.name}を${label}にした`) }, `${label}に`)));
+    }
+    let status = null;
+    if (f.dormant) status = el('small', { class: 'bad' }, dormantText(f));
+    else if (f.slot >= 0) status = el('small', { style: { color: 'var(--good)' } }, `${MAJOR_SLOTS[f.slot]}にしている（効果が出ている）`);
+    return el('div', { class: 'item field' + (f.slot >= 0 ? ' on' : '') },
+      el('div', { class: 'name' }, f.name, el('small', {}, `${f.genres.join('＋')}　称号「${f.title}」`), el('small', {}, f.desc), status),
+      btns.length ? el('div', { class: 'btns' }, btns) : null);
+  };
+  const got = list.filter((f) => f.unlocked).length;
+  return [
+    note(`2つのジャンルの熟練がどちらもLv${need}以上になると、その組み合わせの学際分野が解放され、称号がもらえる。効果が出るのは主専攻・副専攻に入れた2つだけ（いつでも付け替えられる）。熟練がLv${need}より下がると休眠して止まり、戻すと復活する`),
+    el('div', { class: 'list' }, slots),
+    el('h3', { class: 'subhead' }, `学際分野（解放 ${got}／${list.length}）`),
+    ...ctx.fields.groups.flatMap((g) => {
+      const fs = list.filter((f) => f.group === g.id);
+      return fs.length ? [el('div', { class: 'field-group muted' }, g.name), el('div', { class: 'list' }, fs.map(row))] : [];
+    }),
+  ];
+}
+
+/** 拠点（構造工学）：今いる階層に拠点を建てる。拠点より深い階層でやられると、拠点の階層から再開する */
+function basePanel(app) {
+  const s = app.state;
+  const ctx = app.ctx;
+  const f = fieldById(ctx, STRUCTURAL);
+  const on = fieldActive(s, ctx, f.id);
+  const btn = el('button', {
+    class: 'primary',
+    onclick: () => {
+      const r = buildBase(app.state, ctx);
+      if (!r.ok) { app.notify(r.reason, 'bad'); return; }
+      app.notify(`${r.floor}階層に拠点を建てた！`, 'good');
+      app.save();
+      update(app, true);
+    },
+  });
+  live.base = { btn };
+  const bf = s.adventure.baseFloor;
+  return [
+    el('div', { class: 'profit' }, '拠点 ', el('b', {}, bf ? `${bf}階層` : 'まだない'), bf && !baseActive(s, ctx) ? el('span', { class: 'bad' }, '（働いていない）') : null),
+    on ? null : note(`${f.name}が専攻に入っていない（または休眠している）ので、拠点は建てられず、働かない。街の「専攻の付け替え」で主専攻か副専攻にする`),
+    el('div', { class: 'btnrow' }, btn),
+    note('拠点より深い階層でやられると、拠点の階層の最初から再開する（拠点の階層そのものでやられたときは1階層から）。建て直すと拠点は移る。生まれ変わると拠点は無くなる'),
   ];
 }
 
@@ -418,7 +551,7 @@ function heroPanel(app) {
   return [
     el('div', { class: 'rename' }, nameInput, el('button', { onclick: rename }, '名前を変える')),
     el('div', { class: 'stats' },
-      stat('HP', live.hp, '0になるとやられて1階層に戻る'),
+      stat('HP', live.hp, baseActive(s, app.ctx) ? `0になるとやられて1階層（拠点より深い階層なら${s.adventure.baseFloor}階層）に戻る` : '0になるとやられて1階層に戻る'),
       stat('MP', live.mp, `敵が2体以上いると「${b.spell.name}」（MP${b.spell.mpCost}・敵全体）を使う`),
       stat('攻撃', hs.atk, '1体を叩く強さ'),
       stat('防御', hs.def, '受けるダメージが減る'),
@@ -426,7 +559,8 @@ function heroPanel(app) {
       stat('すばやさ', hs.agi, `攻撃の速さ（${heroAttackInterval(hs, b).toFixed(2)}秒に1回）`),
       stat('運の良さ', hs.luck, `会心の一撃 ${(critChance(hs, b) * 100).toFixed(1)}%・ゴールドが増える`),
       stat('経験値倍率', `×${expMultiplier(s, b).toFixed(2)}`, `勉強で正解するたびに +${Math.round((b.hero.expBonusPerCorrect || 0) * 100)}%`),
-      titles.length ? stat('称号', titles.join('・'), '中ボスを倒してもらった') : null,
+      // 称号は学際分野でたくさん増えるので、幅いっぱいに並べる
+      titles.length ? el('div', { class: 'stat wide' }, el('span', {}, '称号'), el('b', {}, titles.join('・')), el('small', {}, '中ボスを倒したり、学際分野を解放したりするともらえる')) : null,
       stat('世代', `${s.life.generation}世代目`, `ステータスの伸び・経験値・ゴールド ×${generationMultiplier(s, b)}（生まれ変わるたびに ×${b.reincarnation.multiplier}）`),
       stat('寿命', `${b.life.lifespanYears}歳前後`, `今${ageYears(s)}歳。寿命が来ると、前世の記憶（熟練・図鑑・称号）を受け継いで生まれ変わる。Lv・ゴールド・装備・仲間・会社は最初から`)),
     s.legacy.lives.length
@@ -436,11 +570,11 @@ function heroPanel(app) {
 }
 
 // 中に入れる施設（town.json の id → 中身）。ここに無い施設は「準備中」
-const PANELS = { shop: shopPanel, guild: guildPanel, home: homePanel, company: companyPanel, rocket: rocketPanel };
+const PANELS = { shop: shopPanel, guild: guildPanel, home: homePanel, company: companyPanel, rocket: rocketPanel, major: majorPanel, base: basePanel };
 
 function buildPanel(app) {
   const t = app.town;
-  live = { gold: el('span'), hp: el('b'), mp: el('b'), bed: el('span'), buttons: [] };
+  live = { gold: el('span'), hp: el('b'), mp: el('b'), bed: el('span'), buttons: [], rocket: [], base: null };
   const f = t.facilities.find((x) => x.id === view);
   let title, sprite, body;
   if (view === 'hero') {
@@ -483,7 +617,9 @@ export function update(app, force) {
     return;
   }
   town = null;
-  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched]), s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket, s.life.generation]);
+  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched]), s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket.buildCostPaid, s.life.generation,
+    // 学際分野（解放・休眠・専攻・熟練）と拠点・ロケットの工程（進み具合は作り直さずに書き換える）
+    fieldList(s, app.ctx).map((f) => [f.unlocked, f.dormant, f.slot, f.levels]), s.adventure.baseFloor, rocketSteps(s, app.ctx).map((st) => [st.done, st.active])]);
   // 名前を入力している途中は作り直さない（入力が消えないように）
   const typing = root.contains(document.activeElement) && document.activeElement.tagName === 'INPUT';
   if (force || ((k !== key || !live) && !typing)) { key = k; buildPanel(app); }
@@ -494,4 +630,17 @@ export function update(app, force) {
   for (const b of live.buttons) b.btn.disabled = s.gold < b.price;
   const now = s.adventure.floor, back = bedFloor(s);
   live.bed.textContent = now > back ? `今は${now}階層。眠ると${back}階層に戻る` : '今は1階層。眠ると1階層の最初から';
+  if (live.rocket.length) {
+    const steps = Object.fromEntries(rocketSteps(s, app.ctx).map((st) => [st.id, st]));
+    for (const r of live.rocket) {
+      const st = steps[r.id];
+      r.bar.style.width = `${(st.hours / st.need) * 100}%`;
+      r.text.textContent = `${years(st.hours)}／${years(st.need)}`;
+    }
+  }
+  if (live.base) {
+    const on = fieldActive(s, app.ctx, STRUCTURAL);
+    live.base.btn.textContent = s.adventure.baseFloor === now ? `${now}階層に拠点がある` : `今いる${now}階層に拠点を建てる`;
+    live.base.btn.disabled = !on || s.adventure.baseFloor === now;
+  }
 }

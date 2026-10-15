@@ -5,6 +5,7 @@ import {
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
 import { forgetMissingQuestions } from './quiz.js';
+import { MAJOR_SLOTS } from './fields.js';
 import { loadPalette, loadSprite } from './sprites.js';
 import { createRenderer, SCENE_W, SCENE_H } from './render.js';
 import * as adventure from './ui/adventure.js';
@@ -50,13 +51,14 @@ function loadSave(balance, notify) {
 
 async function boot() {
   const params = new URLSearchParams(location.search);
-  let balance, monsters, items, questions, recruits, town, stages, business;
+  let balance, monsters, items, questions, recruits, town, stages, business, fields;
   try {
-    [balance, { monsters }, { items }, { questions }, { recruits }, town, { stages }, business] = await Promise.all([
+    [balance, { monsters }, { items }, { questions }, { recruits }, town, { stages }, business, fields] = await Promise.all([
       fetchJSON('data/balance.json'), fetchJSON('data/monsters.json'),
       fetchJSON('data/items.json'), fetchJSON('data/questions.json'),
       fetchJSON('data/recruits.json'), fetchJSON('data/town.json'),
       fetchJSON('data/stages.json'), fetchJSON('data/business.json'),
+      fetchJSON('data/fields.json'),
     ]);
   } catch (e) {
     document.querySelector('#loading .dialog').textContent = 'ゲームのデータを読めませんでした。\n' + e.message;
@@ -85,7 +87,7 @@ async function boot() {
     ...town.facilities.map(async (f) => { townSprites[f.id] = await load(f.sprite); }),
   ]);
 
-  const ctx = { balance, monsters, items, questions, recruits, business, rng: Math.random };
+  const ctx = { balance, monsters, items, questions, recruits, business, fields, rng: Math.random };
   const app = {
     ctx, palette, monsterSprites, recruitSprites,
     heroSprites: { idle: heroIdle, attack: heroAttack },
@@ -138,7 +140,7 @@ async function boot() {
   }
   function notifySleep(r, from = null) {
     const name = app.state.hero.name;
-    const lines = [r.reason === 'defeated' ? `${name}はやられた…　1階層に戻って眠った`
+    const lines = [r.reason === 'defeated' ? (r.floor > 1 ? `${name}はやられた…　拠点のある${r.floor}階層に戻って眠った` : `${name}はやられた…　1階層に戻って眠った`)
       : from > r.floor ? `${name}はテントで眠った。${r.floor}階層に戻って、HPとMPが全回復した`
         : `${name}はテントで眠った。HPとMPが全回復した`];
     lines.push(r.up.length ? `熟練が上がった：${r.up.join('・')}` : '熟練が上がったジャンルはなかった');
@@ -187,6 +189,7 @@ async function boot() {
   function handleEvents(events) {
     app.renderer.onEvents(events, performance.now() / 1000);
     const met = [];
+    const found = []; // 新しく解放した学際分野（まとめて知らせる）
     for (const e of events) {
       if (e.type === 'defeat') {
         trackGain(app.rate, e.exp, e.gold);
@@ -209,6 +212,10 @@ async function boot() {
       else if (e.type === 'allyJoined') notify(e.benched ? `${e.name}が仲間になった！\nパーティーがいっぱいなので控えにいる（仲間が集まる場所で入れ替えられる）` : `${e.name}が仲間になった！`, 'good');
       else if (e.type === 'titleGained') notify(`称号「${e.title}」を手に入れた！`, 'good');
       else if (e.type === 'contractEnded') notify(`ゴールドが足りず、${e.name}との契約が切れた`, 'bad');
+      else if (e.type === 'fieldUnlocked') found.push(e);
+      else if (e.type === 'fieldDormant') notify(`${MAJOR_SLOTS[e.slot]}の${e.name}が休眠した（${e.low.map((x) => `${x.genre} Lv${x.level}`).join('・')}）\n熟練をLv${balance.fields.unlockLevel}に戻すと復活する`, 'bad');
+      else if (e.type === 'fieldAwake') notify(`${e.name}が休眠から復活した！`, 'good');
+      else if (e.type === 'rocketStepDone') notify(`ロケット計画：「${e.name}」が完了した！\n（生まれ変わっても残る）`, 'good');
       else if (e.type === 'zukan' && e.stage === 1) {
         const m = monsters.find((x) => x.id === e.monsterId);
         if (m && !met.includes(m.name)) met.push(m.name);
@@ -216,6 +223,10 @@ async function boot() {
     }
     // 群れで初めて会った魔物は1つの知らせにまとめる
     if (met.length) notify(`図鑑に載った：${met.join('・')}`);
+    // 学際分野の解放（前のセーブで、もう条件を満たしていたときは一度にいくつも来る）
+    if (found.length === 1 && found[0].hidden) notify(`隠しの学際分野「${found[0].name}」を見つけた！\n称号「${found[0].title}」を手に入れた`, 'good');
+    else if (found.length === 1) notify(`学際分野「${found[0].name}」を解放した！（${found[0].genres.join('＋')}）\n称号「${found[0].title}」を手に入れた。街の「専攻の付け替え」で専攻にすると効果が出る`, 'good');
+    else if (found.length) notify(`学際分野を解放した：${found.map((e) => e.name).join('・')}\n称号も手に入れた。街の「専攻の付け替え」で専攻にすると効果が出る`, 'good');
   }
 
   /* ---------- セーブ ---------- */

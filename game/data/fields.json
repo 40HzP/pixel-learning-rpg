@@ -1,0 +1,97 @@
+{
+  "groups": [
+    { "id": "adventure", "name": "冒険" },
+    { "id": "strategy", "name": "ストラテジー" },
+    { "id": "study", "name": "勉強" },
+    { "id": "hidden", "name": "隠し" }
+  ],
+  "fields": [
+    {
+      "id": "structural_engineering",
+      "name": "構造工学",
+      "title": "構造工学者",
+      "genres": ["物理", "建築"],
+      "group": "adventure",
+      "desc": "街の「拠点」で、今いる階層に拠点を建てられる。拠点より深い階層でやられても、拠点の階層から再開する"
+    },
+    {
+      "id": "aerospace",
+      "name": "航空宇宙工学",
+      "title": "航空宇宙工学者",
+      "genres": ["流体力学", "建築"],
+      "group": "adventure",
+      "desc": "ロケット計画の「機体設計」が進む（空気抵抗と機体の構造）"
+    },
+    {
+      "id": "combustion",
+      "name": "燃焼工学",
+      "title": "燃焼工学者",
+      "genres": ["熱力学", "化学"],
+      "group": "adventure",
+      "desc": "ロケット計画の「エンジン・推進剤」が進む"
+    },
+    {
+      "id": "astrodynamics",
+      "name": "軌道力学",
+      "title": "軌道力学の専門家",
+      "genres": ["天体力学", "数学"],
+      "group": "adventure",
+      "desc": "ロケット計画の「軌道計算」が進む"
+    },
+    {
+      "id": "space_law",
+      "name": "宇宙法",
+      "title": "宇宙法の専門家",
+      "genres": ["法学", "政治経済"],
+      "group": "adventure",
+      "desc": "ロケット計画の「打ち上げ許可」が進む（日本では打ち上げに国の許可が要る）"
+    },
+    {
+      "id": "behavioral_economics",
+      "name": "行動経済学",
+      "title": "行動経済学者",
+      "genres": ["心理学", "経済学"],
+      "group": "strategy",
+      "desc": "経済系の俗説の魔物（経済学・経営学・政治経済）が、問題に口を挟めなくなる。店で値引き交渉ができる",
+      "blockGenres": ["経済学", "経営学", "政治経済"]
+    },
+    {
+      "id": "econometrics",
+      "name": "計量経済学",
+      "title": "計量経済学者",
+      "genres": ["統計学", "経済学"],
+      "group": "strategy",
+      "desc": "会社で、業種ごとの収益の期待値（社員を雇ったときの1か月の手取りと、元手を取り戻すまでの期間）を比べられる"
+    },
+    {
+      "id": "history_of_science",
+      "name": "科学史",
+      "title": "科学史家",
+      "genres": ["科学", "世界史"],
+      "group": "study",
+      "desc": "小ボス（かつての学説）と戦っている間、問題の誤答が1つ消える"
+    },
+    {
+      "id": "psych_statistics",
+      "name": "心理統計学",
+      "title": "心理統計学者",
+      "genres": ["心理学", "統計学"],
+      "group": "study",
+      "desc": "自分がどの俗説に騙されやすいかを分析して、勉強画面に出す"
+    },
+    {
+      "id": "phonetics",
+      "name": "音声学",
+      "title": "音声学者",
+      "genres": ["言語学", "音響工学"],
+      "group": "hidden",
+      "desc": "言葉の音を、耳と物理の両方から調べる。隠しの学際分野（称号だけ）"
+    }
+  ],
+  "rocketSteps": [
+    { "id": "airframe", "name": "機体設計", "field": "aerospace" },
+    { "id": "engine", "name": "エンジン・推進剤", "field": "combustion" },
+    { "id": "orbit", "name": "軌道計算", "field": "astrodynamics" },
+    { "id": "permit", "name": "打ち上げ許可", "field": "space_law" }
+  ]
+}

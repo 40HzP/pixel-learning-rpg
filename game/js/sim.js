@@ -1,13 +1,16 @@
 // ゲームの計算（描画しない・ブラウザの機能に触らない）。
 // 乱数は ctx.rng（0以上1未満を返す関数）で受け取る。テストで固定できるようにするため。
 //
-// ctx = { balance, monsters, items, recruits, rng }
+// ctx = { balance, monsters, items, recruits, business, fields, rng }
 //   balance  … data/balance.json
 //   monsters … data/monsters.json の monsters 配列
 //   items    … data/items.json の items 配列
 //   recruits … data/recruits.json の recruits 配列（仲間が集まる場所で契約できる仲間）
+//   business … data/business.json（会社の業種）
+//   fields   … data/fields.json（学際分野。計算は fields.js）
 
 import { GENRES, MAX_PROFICIENCY } from './genres.js';
+import { fieldActive, fieldById, fieldTitles, updateFields } from './fields.js';
 
 export const HOURS_PER_YEAR = 8760;
 export const HOURS_PER_MONTH = HOURS_PER_YEAR / 12; // 契約料を払う間隔（ゲーム内の1か月）
@@ -29,13 +32,15 @@ export function createState(balance) {
     allies: [],                                     // 中ボス：{ id, name, atk, maxHp, hp, cd }／契約：{ id, name, hired: true, cd, paidUntil }
     companies: [],                                  // 起業した会社：{ uid, industry, foundedAt, staff: [{ id, grade, paidUntil }] }（業種ごとに1社まで）
     nextCompanyUid: 1,
-    adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1 }, // enemies：今出ている群れ（先頭が狙う相手）
+    adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1, baseFloor: null }, // enemies：今出ている群れ（先頭が狙う相手）。baseFloor：拠点（構造工学）
     knowledge: {                                    // 転生で引き継ぐ前提のもの（第2段階）
       genres: {},                                   // ジャンル名 → { level, progress, correct, studied }
       totalCorrect: 0,
       review: [],                                   // 過去問復習の問題id
       recent: [],                                   // 直近に出した問題id
       zukan: {},                                    // 魔物id → { stage: 0|1|2, fooled }
+      fields: {},                                   // 解放した学際分野：学際分野id → { at, generation, dormant }（fields.js）
+      majors: [null, null],                         // 主専攻・副専攻（学際分野id）
     },
     midbosses: {},                                  // 中ボスid → { status: waiting|appeared|broken|defeated, announced }
     bosses: {},                                     // 小ボスid → { status: waiting|appeared|defeated }（一度倒した小ボスは復活しない）
@@ -43,7 +48,7 @@ export function createState(balance) {
     legacy: {                                       // 転生しても残るもの
       titles: [],                                   // 前世までにもらった称号
       lives: [],                                    // 前世のまとめ：{ generation, name, age, level, maxFloor, gold }
-      rocket: { buildCostPaid: false },             // ロケット計画の工程（建造費を払ったか）
+      rocket: { buildCostPaid: false, steps: {} },  // ロケット計画の工程（建造費を払ったか・工程ごとに進んだゲーム内の時間）
     },
   };
 }
@@ -92,7 +97,8 @@ export const generationMultiplier = (state, balance) => balance.reincarnation.mu
 /**
  * 寿命で亡くなり、次の世代に生まれ変わる。
  * 最初からになるもの：Lv・経験値・ゴールド・品物と装備・仲間（契約も）・会社・中ボス・階層・年齢。
- * 引き継ぐもの：知識（熟練・累計正解数・過去問復習・図鑑）・倒した小ボス・称号・名前・ロケット計画の工程。
+ * 引き継ぐもの：知識（熟練・累計正解数・過去問復習・図鑑・学際分野と専攻）・倒した小ボス・称号・名前・ロケット計画の工程。
+ * 拠点（adventure.baseFloor）は階層と一緒に無くなる。
  * 年齢を選ぶまで（meta.startAge＝null）時間は止まる。前世のまとめを返す
  */
 export function reincarnate(state, ctx) {
@@ -401,10 +407,11 @@ function announceMidbosses(state, ctx, events) {
   events.push({ type: 'midbossReady', monsterId: m.id, name: m.name });
 }
 
-/** 中ボスを倒してもらった称号（monsters.json の title。仲間にならない中ボス＝孫） */
+/** 称号：中ボスを倒してもらったもの（monsters.json の title。仲間にならない中ボス＝孫）と、解放した学際分野のもの */
 export const heroTitles = (state, ctx) => [...new Set([
   ...state.legacy.titles,
   ...ctx.monsters.filter((m) => m.kind === 'midboss' && m.title && midbossState(state, m.id).status === 'defeated').map((m) => m.title),
+  ...fieldTitles(state, ctx),
 ])];
 
 /** 次に出る敵を1体決める。その階層の未撃破の小ボスが先（中ボスは自動では出ない） */
@@ -480,6 +487,8 @@ export function tick(state, dt, ctx) {
   }
   payContracts(state, ctx, events);
   earnCompany(state, dt, ctx);
+  updateFields(state, ctx, events);
+  advanceRocket(state, dt, ctx, events);
   announceMidbosses(state, ctx, events);
   breakMidbosses(state, ctx, events);
   let remaining = dt;
@@ -693,11 +702,36 @@ function restartFloor(state, floor, ctx) {
   adv.spawnTimer = ctx.balance.floor.spawnDelaySec;
 }
 
-/** やられたとき：階層だけ1に戻る。強さ・装備・仲間はそのまま。睡眠と同じ処理が起きる */
+/** やられたとき：階層だけ戻る（1階層か、拠点の階層）。強さ・装備・仲間はそのまま。睡眠と同じ処理が起きる */
 function heroDefeated(state, ctx, events) {
-  restartFloor(state, 1, ctx);
+  restartFloor(state, respawnFloor(state, ctx), ctx);
   const summary = sleep(state, ctx, 'defeated');
   events.push({ type: 'heroDefeated', sleep: summary });
+}
+
+/* ---------- 拠点（構造工学） ---------- */
+
+const STRUCTURAL = 'structural_engineering';
+
+/** 拠点が働いているか：拠点があり、構造工学を専攻にしていて休眠していない */
+export const baseActive = (state, ctx) => state.adventure.baseFloor != null && fieldActive(state, ctx, STRUCTURAL);
+
+/** 今いる階層に拠点を建てる（構造工学を専攻にしているとき）。拠点は1つで、建て直すと移る */
+export function buildBase(state, ctx) {
+  if (!fieldActive(state, ctx, STRUCTURAL)) return { ok: false, reason: `${(fieldById(ctx, STRUCTURAL) || {}).name || '構造工学'}を専攻にすると建てられる` };
+  const floor = state.adventure.floor;
+  if (state.adventure.baseFloor === floor) return { ok: false, reason: `もう${floor}階層に拠点がある` };
+  state.adventure.baseFloor = floor;
+  return { ok: true, floor };
+}
+
+/**
+ * やられたときに戻る階層：拠点が働いていて、拠点より深い階層でやられたら拠点の階層。それ以外は1階層
+ * （拠点の階層そのものでやられたら1階層。勝てない階層でやられ続けないように）
+ */
+export function respawnFloor(state, ctx) {
+  const b = state.adventure.baseFloor;
+  return baseActive(state, ctx) && state.adventure.floor > b ? b : 1;
 }
 
 /** 寝床（テント）で眠ったときに戻る階層：1つ手前（1階層なら1階層） */
@@ -975,6 +1009,22 @@ export function companyProfit(state, company, ctx) {
   return { company, industry: ind, base: ind.monthlyProfit, staff, staffBonus: bonus, genreLevels, genreBonus, generation: gm, total: Math.round(ind.monthlyProfit * (1 + bonus) * (1 + genreBonus) * gm) };
 }
 
+/**
+ * 計量経済学：その業種を今起業したときの収益の期待値（1か月あたり）。
+ * 社員は、いま雇えるいちばん優秀な質で、雇うと契約料より利益が増える役だけ雇う前提。
+ * profit＝利益、cost＝社員の契約料、net＝手取り、paybackMonths＝元手を取り戻すまでの月数（手取りが0以下なら null）
+ */
+export function industryOutlook(state, ind, ctx) {
+  const grade = bestStaffGrade(state, ctx);
+  const plain = companyProfit(state, { industry: ind.id, staff: [] }, ctx);
+  const perBonus = plain.base * (1 + plain.genreBonus) * plain.generation; // 社員の効果1あたりの利益
+  const staff = (ctx.recruits || []).filter((r) => isStaff(r) && perBonus * staffBonus(ctx, ind, r.id, grade) > staffCost(ctx, r.id, grade));
+  const p = companyProfit(state, { industry: ind.id, staff: staff.map((r) => ({ id: r.id, grade })) }, ctx);
+  const cost = staff.reduce((sum, r) => sum + staffCost(ctx, r.id, grade), 0);
+  const net = p.total - cost;
+  return { grade, staff: staff.map((r) => r.name), profit: p.total, cost, net, paybackMonths: net > 0 ? ind.cost / net : null };
+}
+
 /** 全部の会社の利益（1か月あたり）。companies は会社ごとの内訳 */
 export function companiesProfit(state, ctx) {
   const companies = state.companies.map((c) => companyProfit(state, c, ctx)).filter(Boolean);
@@ -990,8 +1040,29 @@ function earnCompany(state, dt, ctx) {
 /* ================= ロケット計画 ================= */
 
 /**
- * ロケットの建造費（balance.rocket.buildCost）を払う。払った工程は転生しても残る（設計ページ「工程ごとに完了を保存する」）。
- * ほかの工程（機体設計・エンジン・軌道計算・打ち上げ許可）は学際分野の仕組みができてから
+ * ロケット計画の工程（fields.json の rocketSteps：機体設計・エンジン・軌道計算・打ち上げ許可）。
+ * 工程の学際分野を専攻にしていて休眠していない間、ゲーム内の時間で進み、balance.rocket.stepYears 年で完了する。
+ * 進み具合は legacy.rocket.steps に残る（生まれ変わっても残る）
+ */
+export function rocketSteps(state, ctx) {
+  const need = ctx.balance.rocket.stepYears * HOURS_PER_YEAR;
+  return ((ctx.fields && ctx.fields.rocketSteps) || []).map((st) => {
+    const hours = state.legacy.rocket.steps[st.id] || 0;
+    return { ...st, fieldDef: fieldById(ctx, st.field), hours, need, done: hours >= need, active: fieldActive(state, ctx, st.field) };
+  });
+}
+
+function advanceRocket(state, dt, ctx, events) {
+  const hours = dt * ctx.balance.time.gameHoursPerRealSecond;
+  for (const st of rocketSteps(state, ctx)) {
+    if (st.done || !st.active) continue;
+    state.legacy.rocket.steps[st.id] = Math.min(st.need, st.hours + hours);
+    if (state.legacy.rocket.steps[st.id] >= st.need) events.push({ type: 'rocketStepDone', id: st.id, name: st.name });
+  }
+}
+
+/**
+ * ロケットの建造費（balance.rocket.buildCost）を払う。払った工程は転生しても残る（設計ページ「工程ごとに完了を保存する」）
  */
 export function payRocketBuildCost(state, ctx) {
   const cost = ctx.balance.rocket.buildCost;
@@ -1004,9 +1075,18 @@ export function payRocketBuildCost(state, ctx) {
 
 /* ================= 店 ================= */
 
+/** 品物の値段。行動経済学を専攻にしていると値引き交渉ができる（balance.fields.shopDiscount 引き） */
+export function itemPrice(state, item, ctx) {
+  const off = fieldActive(state, ctx, 'behavioral_economics') ? ctx.balance.fields.shopDiscount : 0;
+  return Math.max(1, Math.round(item.price * (1 - off)));
+}
+
+/** 店の品揃え。price は値引き後の値段、listPrice は元の値段 */
 export function shopList(state, ctx) {
   return ctx.items.map((it) => ({
     ...it,
+    price: itemPrice(state, it, ctx),
+    listPrice: it.price,
     unlocked: state.knowledge.totalCorrect >= it.unlockCorrect,
     owned: state.owned.includes(it.id),
     equipped: state.equipment[it.slot] === it.id,
@@ -1021,8 +1101,9 @@ export function buyItem(state, itemId, ctx) {
   if (!it) return { ok: false, reason: 'ない品物です' };
   if (state.owned.includes(it.id)) return { ok: false, reason: 'もう持っています' };
   if (state.knowledge.totalCorrect < it.unlockCorrect) return { ok: false, reason: 'まだ入荷していません' };
-  if (state.gold < it.price) return { ok: false, reason: 'ゴールドが足りません' };
-  state.gold -= it.price;
+  const price = itemPrice(state, it, ctx);
+  if (state.gold < price) return { ok: false, reason: 'ゴールドが足りません' };
+  state.gold -= price;
   state.owned.push(it.id);
   const current = itemById(ctx.items, state.equipment[it.slot]);
   const equipped = slotPower(it) > slotPower(current);
