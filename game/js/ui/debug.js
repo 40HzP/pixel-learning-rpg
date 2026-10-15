@@ -1,7 +1,7 @@
 // デバッグ画面（URL に ?debug=1 を付けたときだけ出る）
 import { HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel } from '../sim.js';
 import { SAVE_KEY, serialize, deserialize } from '../save.js';
-import { GENRES, MAX_PROFICIENCY } from '../genres.js';
+import { GENRES } from '../genres.js';
 import { el } from './dom.js';
 
 let root = null;
@@ -23,7 +23,8 @@ export function init(app) {
     app.notify(`${app.state.hero.name}を Lv ${lv} にした（HP・MP満タン）`);
   };
   const genre = el('select', {}, GENRES.map((g) => el('option', { value: g }, g)));
-  const level = el('select', {}, Array.from({ length: MAX_PROFICIENCY + 1 }, (_, i) => el('option', { value: i }, `Lv ${i}`)));
+  // 熟練Lvの上限は生まれ変わるたびに上がるので、デバッグでは多めに選べるようにしておく
+  const level = el('select', {}, Array.from({ length: 31 }, (_, i) => el('option', { value: i }, `Lv ${i}`)));
   const monster = el('select', {}, ctx.monsters.map((m) => el('option', { value: m.id }, m.name)));
   const text = el('textarea', { placeholder: 'ここにセーブの文字列が出ます／貼り付けて読み込めます' });
 

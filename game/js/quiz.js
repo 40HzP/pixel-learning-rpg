@@ -1,8 +1,8 @@
 // 出題・判定・熟練（描画しない・ブラウザの機能に触らない）。
 // ctx = { balance, monsters, items, questions, rng }（questions は questions.json の questions 配列）
 
-import { GENRES, MAX_PROFICIENCY } from './genres.js';
-import { genreState, raiseZukan, zukanEntry, breakMidbosses, damageEnemy, healEnemy } from './sim.js';
+import { GENRES } from './genres.js';
+import { genreState, raiseZukan, zukanEntry, breakMidbosses, damageEnemy, healEnemy, proficiencyCap } from './sim.js';
 
 export { GENRES };
 
@@ -170,7 +170,7 @@ export function answer(state, session, choiceIndex, ctx) {
   if (correct) {
     g.correct++;
     k.totalCorrect++;
-    if (g.level < MAX_PROFICIENCY) {
+    if (g.level < proficiencyCap(state, ctx.balance)) {
       g.progress++;
       if (g.progress >= qb.correctPerProficiencyLevel) {
         g.progress = 0;

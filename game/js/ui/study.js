@@ -1,7 +1,7 @@
 // 勉強画面（設計ページ「勉強画面の表示」）
 import { createSession, nextQuestion, answer, interferingMonster, MODES } from '../quiz.js';
-import { genreState, midbossState, midbossLeft, expMultiplier } from '../sim.js';
-import { GENRES, MAX_PROFICIENCY } from '../genres.js';
+import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap } from '../sim.js';
+import { GENRES } from '../genres.js';
 import { spriteCanvas } from '../sprites.js';
 import { el, stars } from './dom.js';
 
@@ -39,13 +39,14 @@ function renderInfo(app) {
   const genre = cur ? cur.genre || cur.question.genre : view.genre;
   const g = app.state.knowledge.genres[genre] || { level: 0, progress: 0 };
   const per = app.ctx.balance.quiz.correctPerProficiencyLevel;
-  const next = g.level >= MAX_PROFICIENCY ? '最大' : `${g.progress}/${per}回`;
-  const key = `${genre}|${g.level}|${next}`;
+  const cap = proficiencyCap(app.state, app.ctx.balance); // 生まれ変わるたびに上がる
+  const next = g.level >= cap ? '最大' : `${g.progress}/${per}回`;
+  const key = `${genre}|${g.level}|${next}|${cap}`;
   if (refs.info.dataset.key === key) return;
   refs.info.dataset.key = key;
   refs.info.replaceChildren(
     el('div', {}, 'ジャンル ', el('b', {}, genre)),
-    el('div', {}, '熟練 ', el('b', {}, `Lv ${g.level}`), ` / ${MAX_PROFICIENCY}`),
+    el('div', {}, '熟練 ', el('b', {}, `Lv ${g.level}`), ` / ${cap}`),
     el('div', {}, '次のLvまで ', el('b', {}, next)),
     el('div', { class: 'muted' }, '専攻 — ／ —'),
   );
@@ -59,6 +60,7 @@ function renderMenu(app) {
     list.map((x) => el('option', { value: x.genre, selected: x.genre === view.genre }, `${x.genre}（${x.count}問）`)));
   const prof = GENRES.filter((g) => list.some((x) => x.genre === g) || (k.genres[g] && k.genres[g].level > 0));
   const per = app.ctx.balance.quiz.correctPerProficiencyLevel;
+  const cap = proficiencyCap(app.state, app.ctx.balance);
   refs.body.replaceChildren(
     el('div', { class: 'modes' },
       el('button', { onclick: () => start(app, 'quiz') }, 'クイズ', el('small', {}, '全ジャンルから1問')),
@@ -73,7 +75,7 @@ function renderMenu(app) {
         return [
           el('span', {}, g, s.studied ? el('span', { class: 'muted' }, '（解いた）') : ''),
           el('span', {}, `Lv ${s.level}`),
-          el('span', {}, s.level >= MAX_PROFICIENCY ? '最大' : `${s.progress}/${per}`),
+          el('span', {}, s.level >= cap ? '最大' : `${s.progress}/${per}`),
         ];
       })),
   );
@@ -153,7 +155,7 @@ function effectLines(app, r) {
     if (r.defeated) lines.push(['good', `${r.targetName}を倒した！`]);
     lines.push(['good', `経験値の倍率が ×${expMultiplier(app.state, app.ctx.balance).toFixed(2)} になった`]);
     if (r.levelUp) lines.push(['good', `${r.levelUp.genre}の熟練が Lv ${r.levelUp.level} になった！`]);
-    else if (g && g.level < MAX_PROFICIENCY) lines.push(['', `${r.question.genre}：次のLvまで ${g.progress}/${per}回`]);
+    else if (g && g.level < proficiencyCap(app.state, app.ctx.balance)) lines.push(['', `${r.question.genre}：次のLvまで ${g.progress}/${per}回`]);
     for (const z of r.zukan) lines.push(['good', `図鑑：${name(z.monsterId)}の正体が判明した`]);
   } else {
     if (r.fooled) lines.push(['bad', `${r.targetName}に騙された！　${r.targetName}が${r.healed}回復した`]);

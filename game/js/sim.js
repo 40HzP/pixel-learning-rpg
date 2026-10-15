@@ -83,6 +83,9 @@ export function startGame(state, startAge, name, lifespan) {
 export const lifespanFor = (balance, rng) =>
   balance.life.lifespanYears + Math.round((rng() * 2 - 1) * balance.life.lifespanSpread);
 
+/** 熟練Lvの上限：1世代目は MAX_PROFICIENCY（5）。生まれ変わるたびに reincarnation.proficiencyCapStep（5）ずつ上がる（2世代目10・3世代目15…） */
+export const proficiencyCap = (state, balance) => MAX_PROFICIENCY + (balance.reincarnation.proficiencyCapStep || 0) * (state.life.generation - 1);
+
 /** 世代の倍率：ステータスの伸び・獲得経験値・獲得ゴールドに掛かる（1世代目は1、2世代目は1.5、3世代目は2.25…） */
 export const generationMultiplier = (state, balance) => balance.reincarnation.multiplier ** (state.life.generation - 1);
 
@@ -728,7 +731,7 @@ export function sleep(state, ctx, reason = 'bed') {
     const g = state.knowledge.genres[genre];
     if (!g) continue;
     if (g.studied) {
-      if (ctx.rng() < s.upChance && g.level < MAX_PROFICIENCY) { g.level++; up.push(genre); }
+      if (ctx.rng() < s.upChance && g.level < proficiencyCap(state, ctx.balance)) { g.level++; up.push(genre); }
     } else if (g.level >= 1) {
       if (ctx.rng() < s.downChance) { g.level--; down.push(genre); }
     }

@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import {
   tick, heroStats, lifespanFor, generationMultiplier, reincarnate, heroTitles, payRocketBuildCost, startGame,
   genreState, midbossState, foundCompany, companiesProfit, spawnGroup, damageEnemy, ageYears, HOURS_PER_YEAR,
-  buyItem, shopList, hireRecruit, recruitList, industryList, hireStaff, bestStaffGrade, staffCost,
+  buyItem, shopList, hireRecruit, recruitList, industryList, hireStaff, bestStaffGrade, staffCost, proficiencyCap, sleep,
 } from '../js/sim.js';
-import { balance, makeCtx, newGame, constRng, seededRng } from './helpers.js';
+import { createSession, presentQuestion, answer } from '../js/quiz.js';
+import { balance, questions, makeCtx, newGame, constRng, seededRng } from './helpers.js';
 
 const M = balance.reincarnation.multiplier;
 
@@ -105,8 +106,8 @@ test('ロケットの建造費（3000億G）を払うと、その工程は生ま
 });
 
 /**
- * 1〜3世代を通しで遊ぶ（勉強の進み方は仮定：1世代目は経営学が12歳でLv1・以後12年ごとに+1、心理学は14年ごと、
- * 業種に関係するジャンルは20年ごと。2世代目からは引き継いだ知識から始める）。
+ * 1〜3世代を通しで遊ぶ（勉強の進み方は仮定：経営学は12年ごとに+1（1世代目は12歳でLv1）、心理学は14年ごと、
+ * 業種に関係するジャンルは20年ごと。2世代目からは引き継いだ知識から、熟練Lvの上限（5・10・15）まで上がり続ける）。
  * 届く業種のうち利益の一番大きいものを起業し、社員はいちばん優秀な質で雇う
  */
 function playGenerations() {
@@ -121,9 +122,10 @@ function playGenerations() {
     for (let t = 1; s.meta.startAge != null; t++) {
       if (t % 60 === 0) s.knowledge.totalCorrect++;
       const age = ageYears(s);
-      k = gen === 1
-        ? { biz: Math.min(5, Math.floor(age / 12)), psy: Math.min(5, Math.floor(age / 14)), oth: Math.min(5, Math.floor(age / 20)) }
-        : { biz: 5, psy: 5, oth: Math.min(5, prev.oth + Math.floor(age / 20)) };
+      // 前世の最後のLvから同じ速さで上がり続ける（上限は世代ごとの熟練Lvの上限）
+      const cap = proficiencyCap(s, ctx.balance);
+      const up = (p, rate) => Math.min(cap, p + Math.floor(age / rate));
+      k = { biz: up(prev.biz, 12), psy: up(prev.psy, 14), oth: up(prev.oth, 20) };
       genreState(s, '経営学').level = k.biz;
       genreState(s, '心理学').level = k.psy;
       for (const g of others) if (g !== '経営学' && g !== '心理学') genreState(s, g).level = k.oth;
@@ -147,10 +149,42 @@ function playGenerations() {
   return { best, paidAt };
 }
 
-test('会社の利益の目安：勉強を続けると、3世代目の60〜75歳ごろにロケットの建造費（3000億G）に届く。2世代目では届かない', () => {
+test('会社の利益の目安：勉強を続けると、3世代目の50〜75歳ごろにロケットの建造費（3000億G）に届く。2世代目では届かない', () => {
   const { best, paidAt } = playGenerations();
   const cost = balance.rocket.buildCost;
   assert.ok(best[1] < cost * 0.2, `1世代目は遠い（最高 ${Math.round(best[1] / 1e8)}億）`);
   assert.ok(best[2] < cost && best[2] > cost * 0.4, `2世代目は届かないが近づく（最高 ${Math.round(best[2] / 1e8)}億）`);
-  assert.ok(paidAt && paidAt.gen === 3 && paidAt.age >= 60 && paidAt.age <= 75, `3世代目の60〜75歳で届く（${JSON.stringify(paidAt)}）`);
+  assert.ok(paidAt && paidAt.gen === 3 && paidAt.age >= 50 && paidAt.age <= 75, `3世代目の50〜75歳で届く（${JSON.stringify(paidAt)}）`);
+});
+
+test('熟練Lvの上限は生まれ変わるたびに5ずつ上がる（1世代目5・2世代目10・3世代目15）。勉強でも睡眠でも上限まで上がる', () => {
+  const ctx = makeCtx(constRng(0.01)); // 睡眠では必ず上がる
+  const s = newGame(7);
+  assert.equal(proficiencyCap(s, balance), 5);
+  const q = questions[0];
+  const g = genreState(s, q.genre);
+  const correct = () => {
+    const sess = createSession(s, 'quiz', ctx);
+    const cur = presentQuestion(sess, q, ctx);
+    return answer(s, sess, cur.choices.findIndex((c) => c.kind === 'answer'), ctx);
+  };
+  g.level = 5; g.progress = balance.quiz.correctPerProficiencyLevel - 1;
+  correct();
+  assert.equal(g.level, 5, '1世代目は5で止まる');
+  reincarnate(s, ctx);
+  assert.equal(s.life.generation, 2);
+  assert.equal(proficiencyCap(s, balance), 10);
+  assert.equal(g.level, 5, '熟練は引き継ぐ');
+  g.progress = balance.quiz.correctPerProficiencyLevel - 1;
+  const r = correct();
+  assert.equal(g.level, 6, '2世代目は5を超えて上がる');
+  assert.deepEqual(r.levelUp, { genre: q.genre, level: 6 });
+  g.level = 9; g.studied = true;
+  sleep(s, ctx);
+  assert.equal(g.level, 10, '睡眠でも上限の10まで');
+  g.studied = true;
+  sleep(s, ctx);
+  assert.equal(g.level, 10, '10で止まる');
+  s.life.generation = 3;
+  assert.equal(proficiencyCap(s, balance), 15);
 });
