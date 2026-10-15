@@ -38,6 +38,22 @@ function enter(app, id) {
 
 /* ================= 街 ================= */
 
+/**
+ * 条件を満たすまで「準備中」にする施設（id → まだなら解放の条件の文、もう入れるなら null）。
+ * 会社：経営学の熟練レベルが1以上で解放（town.json の説明にも書く。もう会社があれば、あとで熟練が下がっても入れる）
+ */
+const LOCKS = {
+  company: (app) => {
+    const s = app.state;
+    const u = app.ctx.business.unlock;
+    if (s.company || canFound(s, app.ctx)) return null;
+    return `今の${u.genre}の熟練レベル：${genreLv(s, u.genre)}（勉強で${u.genre}の問題に正解すると上がる）`;
+  },
+};
+const lockText = (app, id) => (LOCKS[id] ? LOCKS[id](app) : null);
+const isSoon = (app, id) => !PANELS[id] || !!lockText(app, id);
+const soonKey = (app) => app.town.facilities.filter((f) => isSoon(app, f.id)).map((f) => f.id).join(',');
+
 function buildTown(app) {
   const t = app.town;
   const canvas = el('canvas', { class: 'pixel', width: TOWN_W, height: TOWN_H });
@@ -45,7 +61,7 @@ function buildTown(app) {
   g.imageSmoothingEnabled = false;
   const gold = el('span');
   const spots = t.facilities.map((f) => {
-    const soon = !PANELS[f.id];
+    const soon = isSoon(app, f.id);
     const btn = el('button', {
       class: 'spot' + (soon ? ' soon' : ''),
       'aria-label': f.name + (soon ? '（準備中）' : ''),
@@ -66,7 +82,7 @@ function buildTown(app) {
     spots.map((s) => s.btn));
   root.className = 'screen town-screen';
   root.replaceChildren(box);
-  town = { box, canvas, g, scale: 0, gold, heroLabel, spots };
+  town = { box, canvas, g, scale: 0, gold, heroLabel, spots, soon: soonKey(app) };
   layoutTown();
 }
 
@@ -356,14 +372,18 @@ function buildPanel(app) {
     title = app.state.hero.name;
     sprite = app.heroSprites.idle;
     body = heroPanel(app);
-  } else if (f && PANELS[f.id]) {
+  } else if (f && PANELS[f.id] && !lockText(app, f.id)) {
     title = f.name;
     sprite = t.sprites[f.id];
     body = [note(f.desc || ''), ...PANELS[f.id](app)];
   } else {
+    // 準備中（中身がまだ無い施設と、解放の条件を満たしていない施設）
+    const lock = f ? lockText(app, f.id) : null;
     title = f ? f.name : '準備中';
     sprite = f ? t.sprites[f.id] : null;
-    body = [el('div', { class: 'soon-box' }, el('b', {}, '準備中'), el('div', {}, f ? f.desc || '' : ''))];
+    body = [el('div', { class: 'soon-box' }, el('b', {}, '準備中'), el('div', {}, f ? f.desc || '' : ''),
+      lock ? el('div', { class: 'unlock' }, lock) : null)];
+    if (lock && f.id === 'company') body.push(el('div', { class: 'muted', style: { fontSize: '14px', marginTop: '8px' } }, `解放されると選べる業種：${app.ctx.business.industries.map((x) => x.name).join('・')}`));
   }
   root.className = 'screen pad';
   root.replaceChildren(
@@ -380,7 +400,7 @@ function buildPanel(app) {
 export function update(app, force) {
   const s = app.state;
   if (view === 'town') {
-    if (force || key !== 'town' || !town) { key = 'town'; live = null; buildTown(app); }
+    if (force || key !== 'town' || !town || town.soon !== soonKey(app)) { key = 'town'; live = null; buildTown(app); }
     if (!town.scale) layoutTown();
     drawTown(app, performance.now() / 1000);
     town.gold.textContent = fmt(s.gold);

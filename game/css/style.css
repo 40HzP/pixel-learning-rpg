@@ -216,6 +216,7 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .industry small { color: var(--muted); font-size: 12px; }
 .industry button { align-self: flex-start; margin-top: 4px; }
 .industry.locked { opacity: .7; }
+.soon-box .unlock { margin-top: 8px; color: var(--accent); }
 .profit { font-size: 18px; margin: 4px 0 6px; }
 .profit b { color: var(--good); }
 .rename { display: flex; gap: 8px; margin-bottom: 10px; }
