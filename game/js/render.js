@@ -26,6 +26,8 @@ const FORMATION = [
 const slotPos = (slot) => FORMATION[(slot || 0) % FORMATION.length];
 // 大きい敵（小ボス 32×32 など）は群れの並びを使わず、右寄りに1体で立たせる
 const BIG_FEET = 141;
+// 世界が変わるときの暗転（前半で暗くなり、真っ暗の瞬間に背景を入れ替え、後半で明るくなる）
+const STAGE_FADE_SEC = 0.5;
 
 // 3×5 のドット数字（ダメージ表示用）
 const DIGITS = {
@@ -36,6 +38,26 @@ const DIGITS = {
   8: ['111', '101', '111', '101', '111'], 9: ['111', '101', '111', '001', '111'],
   '+': ['000', '010', '111', '010', '000'],
 };
+
+// 世界の切り替えの暗転。step(今の世界, 時刻) が { shown: 描く世界, dark: 暗さ 0〜1 } を返す。
+// 最初の1回（起動・読み込み直後）は暗転しない。暗転の途中で行き先が変わったら、今の暗さから続ける
+export function createStageFade(sec = STAGE_FADE_SEC) {
+  let shown;
+  let fade = null; // { t0, to }
+  const darkness = (t) => (t < 0.5 ? t * 2 : Math.max(0, (1 - t) * 2));
+  return function step(stage, now) {
+    if (shown === undefined) { shown = stage; return { shown, dark: 0 }; }
+    if (stage !== (fade ? fade.to : shown)) {
+      const d = fade ? darkness((now - fade.t0) / sec) : 0;
+      fade = { t0: now - (d * sec) / 2, to: stage };
+    }
+    if (!fade) return { shown, dark: 0 };
+    const t = (now - fade.t0) / sec;
+    if (t >= 0.5) shown = fade.to;
+    if (t >= 1) { fade = null; return { shown, dark: 0 }; }
+    return { shown, dark: darkness(t) };
+  };
+}
 
 export function createRenderer(canvas, app) {
   const g = canvas.getContext('2d');
@@ -48,6 +70,7 @@ export function createRenderer(canvas, app) {
   const enemyAttackAt = new Map(); // uid → 時刻
   const enemyHitAt = new Map();    // uid → 時刻
   const dying = [];                // { monsterId, slot, t0 }
+  const stageFade = createStageFade();
 
   function textWidth(s) { return s.length * 4 - 1; }
   function drawNumber(s, x, y, color) {
@@ -140,7 +163,8 @@ export function createRenderer(canvas, app) {
 
   function draw(state, now) {
     g.clearRect(0, 0, SCENE_W, SCENE_H);
-    const stage = stageFor(state.adventure.floor, app.stages);   // 10階層ごとに背景が変わる
+    // 10階層ごとに背景が変わる（変わるときは暗転を挟む）
+    const { shown: stage, dark } = stageFade(stageFor(state.adventure.floor, app.stages), now);
     if (stage && stage.bg) drawSprite(g, stage.bg, 0, 0, 0);
     else { g.fillStyle = col('o', '#a6d8f2'); g.fillRect(0, 0, SCENE_W, SCENE_H); g.fillStyle = col('j', '#6fb042'); g.fillRect(0, 98, SCENE_W, 62); }
 
@@ -225,6 +249,13 @@ export function createRenderer(canvas, app) {
           g.fillRect(cx + dx * (r - 1), cy + dy * (r - 1), 1, 1);
         }
       }
+    }
+    // 暗転（キャンバスの上に黒を重ねる。ステータスの表示はキャンバスの外なので暗くならない）
+    if (dark > 0) {
+      g.globalAlpha = dark;
+      g.fillStyle = '#000';
+      g.fillRect(0, 0, SCENE_W, SCENE_H);
+      g.globalAlpha = 1;
     }
   }
 
