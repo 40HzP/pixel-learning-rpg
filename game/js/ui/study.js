@@ -1,10 +1,11 @@
 // 勉強画面（設計ページ「勉強画面の表示」）
 import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES } from '../quiz.js';
-import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap } from '../sim.js';
+import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap, ageYears } from '../sim.js';
 import { fieldById, fieldActive } from '../fields.js';
 import { GENRES } from '../genres.js';
 import { spriteCanvas } from '../sprites.js';
 import { el, stars } from './dom.js';
+import { teacherForAge } from './tear.js';
 
 // phase：menu・question（クイズ・過去問復習の1問）・result・summary・sheet（テストの用紙に答えている）・testResult（テストの採点）
 const fresh = () => ({ phase: 'menu', session: null, remaining: 0, result: null, chosen: null, genre: null, interferingId: null, picks: [], testResults: null, sheetMeta: [] });
@@ -118,7 +119,7 @@ function start(app, mode, genre = null) {
   else ask(app);
 }
 
-/* ---------- テスト（時間制限なしで、1枚の用紙にまとめて出す。40HzP の依頼） ---------- */
+/* ---------- テスト（時間制限なしで、1枚の用紙にまとめて出す。白い紙に黒い字。40HzP の依頼） ---------- */
 function startTest(app) {
   const sheet = presentTest(app.state, view.session, app.ctx);
   if (!sheet.length) { view.phase = 'menu'; renderBody(app); return; }
@@ -172,12 +173,32 @@ function renderSheet(app) {
   });
   showLeft();
   refs.body.replaceChildren(
-    el('div', { class: 'test-head' }, `テスト（${s.genre}）${s.total}問`, el('small', {}, '時間制限なし。全部答えたら「提出する」。提出するまで答えは選び直せる')),
-    ...cards,
+    el('div', { class: 'paper' },
+      paperHead(app, s),
+      el('div', { class: 'paper-note' }, `全${s.total}問・時間制限なし。答えは提出するまで選び直せる`),
+      ...cards),
     el('div', { class: 'test-submit' }, left, el('button', { class: 'primary', onclick: () => submitTest(app) }, '提出する'),
-      el('button', { onclick: () => { if (confirm('テストをやめますか？（答えは数えません）')) { view.phase = 'menu'; view.session = null; renderBody(app); } } }, 'やめる')),
+      el('button', { onclick: () => tearTest(app) }, '破りすてる')),
   );
   refreshSheetMeta(app);
+}
+
+/** 用紙のいちばん上（ジャンル・名前） */
+const paperHead = (app, s) => el('div', { class: 'paper-head' },
+  el('span', { class: 'paper-title' }, `${s.genre}　テスト`), el('span', { class: 'paper-name' }, `名前　${app.state.hero.name}`));
+
+/**
+ * 分からないときは用紙を破りすてる（答えは数えない）。破れて落ちていき、主人公の年齢の学校の先生が怒る
+ * （ミニモーション。ui/tear.js）。設計ページ「分からないテスト用紙は破けるが、破くと後で先生に怒られる」
+ */
+function tearTest(app) {
+  if (view.phase !== 'sheet') return;
+  if (!confirm('テスト用紙を破りすてますか？（答えは数えません）')) return;
+  view.phase = 'menu';
+  view.session = null;
+  renderBody(app);
+  scrollTop();
+  app.tearTest(teacherForAge(ageYears(app.state)));
 }
 
 function submitTest(app) {
@@ -205,7 +226,7 @@ function renderTestResult(app) {
     ['', g.level < cap ? `${s.genre}：熟練 Lv ${g.level}　次のLvまで ${g.progress}/${per}回` : `${s.genre}：熟練 Lv ${g.level}（最大）`],
   ].filter(Boolean);
   const cards = rs.map((r, i) => el('div', { class: 'test-q' },
-    el('div', { class: 'result-mark ' + (r.correct ? 'good' : 'bad') }, `${i + 1}問目　${r.correct ? '○ 正解' : r.timeout ? '× 答えていない' : '× 不正解'}`),
+    el('div', { class: 'result-mark' }, el('b', {}, r.correct ? '○' : '×'), `${i + 1}問目　${r.correct ? '正解' : r.timeout ? '答えていない' : '不正解'}`),
     el('div', { class: 'qtext' }, r.question.question),
     el('div', { class: 'choices' }, r.choices.map((c, j) => el('button', {
       disabled: true,
@@ -216,10 +237,13 @@ function renderTestResult(app) {
   const buttons = () => el('div', { class: 'btnrow' },
     el('button', { class: 'primary', onclick: () => start(app, 'test', s.genre) }, 'もう一度'),
     el('button', { onclick: () => { view.phase = 'menu'; view.session = null; renderBody(app); } }, 'メニューへ'));
+  // 採点した答案も同じ紙のまま。先生の赤ペンで○×と点数を付ける
   refs.body.replaceChildren(
-    el('div', { class: 'result-head' }, `テスト結果：${rs.length}問中${ok}問正解`),
-    el('ul', { class: 'effects' }, summary.map(([cls, t]) => el('li', { class: cls }, t))),
-    ...cards,
+    el('div', { class: 'paper graded' },
+      paperHead(app, s),
+      el('div', { class: 'paper-score' }, `${rs.length}問中${ok}問正解`),
+      el('ul', { class: 'effects' }, summary.map(([cls, t]) => el('li', { class: cls }, t))),
+      ...cards),
     buttons(),
   );
 }

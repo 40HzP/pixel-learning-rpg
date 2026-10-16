@@ -200,20 +200,86 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .choices button { text-align: left; min-height: 52px; line-height: 1.4; }
 .choices button.correct { border-color: var(--good); background: #1f4a3a; }
 .choices button.wrong { border-color: var(--bad); background: #6e1f2e; }
-/* テスト：1枚の用紙に全部の問題を並べる。選んだ答えは提出するまで選び直せる */
-.test-head { font-size: 18px; margin: 4px 0 10px; }
-.test-head small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
-.test-q { background: var(--panel); border: 2px solid var(--line); padding: 10px; margin-bottom: 12px; }
-.test-q .qmeta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.test-q .qtext { margin: 4px 0 8px; }
-.test-q .explain { background: var(--panel2); margin: 10px 0 6px; }
-.test-q .effects { margin-bottom: 0; }
-.choices button.picked { border-color: var(--accent); background: #4a3a14; box-shadow: inset 4px 0 0 var(--accent); }
-.meddle { color: #c9a0e8; }
-.result-mark { font-size: 17px; }
+/* テスト：1枚の白い用紙に全部の問題を黒い字で並べる。選んだ答えは提出するまで選び直せる。採点した答案も同じ紙（赤ペンで○×） */
+.paper {
+  --ink: #1a1626; --ink2: #5a566a; --rule: #cfcab8; --red: #c4313b;
+  background: #fbfaf4; color: var(--ink); border: 1px solid #d8d4c4; box-shadow: 4px 4px 0 rgba(0, 0, 0, .45);
+  padding: 14px 14px 6px; margin-bottom: 14px;
+}
+.paper-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; border-bottom: 2px solid var(--ink); padding-bottom: 6px; }
+.paper-title { font-size: 20px; }
+.paper-name { font-size: 14px; white-space: nowrap; border-bottom: 1px solid var(--ink); padding: 0 4px; }
+.paper-note { font-size: 12px; color: var(--ink2); margin: 6px 0 4px; }
+.paper .test-q { border-bottom: 1px dashed var(--rule); padding: 10px 0 12px; }
+.paper .test-q:last-child { border-bottom: none; }
+.paper .qmeta { color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.paper .qtext { color: var(--ink); margin: 4px 0 8px; }
+.paper .choices button { background: #fff; color: var(--ink); border: 2px solid #9a9686; }
+.paper .choices button.picked { background: #fff1b8; border-color: var(--ink); box-shadow: inset 5px 0 0 var(--ink); }
+.paper .choices button.correct { background: #e3f1dc; border-color: #357a3a; }
+.paper .choices button.wrong { background: #fbe1e3; border-color: var(--red); }
+.paper .choices button:disabled { opacity: 1; }
+.paper .meddle { color: #6a3d8f; }
+.paper .good { color: #2a6a2e; }
+.paper .bad { color: var(--red); }
+.paper .explain { background: #f1eee3; border: 1px solid var(--rule); color: var(--ink); margin: 10px 0 6px; }
+.paper .explain .accent { color: #9a4a12; }
+.paper .effects { margin: 6px 0 0; }
+.paper-score { color: var(--red); font-size: 26px; margin: 8px 0 2px; transform: rotate(-3deg); transform-origin: left; }
+.result-mark { font-size: 17px; display: flex; align-items: center; gap: 8px; }
+.result-mark b { color: var(--red, #c4313b); font-size: 30px; line-height: 1; font-weight: normal; }
 .test-submit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 8px; }
 .test-submit span { flex: 1 1 100%; font-size: 14px; }
 .test-submit button.primary { flex: 1; }
+
+/* テスト用紙を破りすてる（ui/tear.js）：つかんでぶるぶる → まん中から破れて左右に落ちる → 先生が出てきて怒る */
+.overlay.tear { z-index: 40; flex-direction: column; gap: 14px; opacity: 0; transition: opacity .3s; cursor: pointer; user-select: none; -webkit-user-select: none; outline: none; overflow: hidden; }
+.overlay.tear.show { opacity: 1; }
+.overlay.tear.scold { animation: scold-flash .4s ease-out; }
+.tear-stage { position: relative; width: min(240px, 72vw); height: min(312px, 94vw); }
+.tear-paper {
+  position: absolute; inset: 0; background: #fbfaf4; color: #1a1626; padding: 14px; box-shadow: 4px 4px 0 rgba(0, 0, 0, .45);
+}
+.tear-paper.left { clip-path: polygon(0 0, 52% 0, 47% 9%, 54% 18%, 46% 27%, 53% 36%, 47% 45%, 55% 54%, 46% 63%, 53% 72%, 47% 81%, 54% 90%, 49% 100%, 0 100%); }
+.tear-paper.right { clip-path: polygon(52% 0, 100% 0, 100% 100%, 49% 100%, 54% 90%, 47% 81%, 53% 72%, 46% 63%, 55% 54%, 47% 45%, 53% 36%, 46% 27%, 54% 18%, 47% 9%); }
+.tear-title { display: flex; justify-content: space-between; align-items: baseline; font-size: 20px; border-bottom: 2px solid #1a1626; padding-bottom: 4px; }
+.tear-title span { font-size: 12px; }
+.tear-lines { position: absolute; left: 14px; right: 14px; top: 56px; bottom: 18px; background: repeating-linear-gradient(#fbfaf4 0 22px, #cfcab8 22px 24px); }
+.overlay.tear.grip .tear-paper { animation: tear-grip .12s linear 3; }
+.overlay.tear.torn .tear-paper.left { animation: tear-left .9s ease-in forwards; }
+.overlay.tear.torn .tear-paper.right { animation: tear-right .9s ease-in forwards; }
+.tear-teacher {
+  position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  opacity: 0; pointer-events: none;
+}
+.overlay.tear.scold .tear-teacher { animation: scold-rise .25s ease-out forwards; }
+.overlay.tear.scold .tear-teacher canvas { animation: scold-shake .3s linear .25s 4; }
+.scold-bubble {
+  position: relative; background: #fbfaf4; color: #c4313b; border: 3px solid #1a1626; padding: 8px 12px; margin-bottom: 8px;
+  font-size: min(22px, 5.2vw); white-space: nowrap;
+}
+.overlay.tear.scold .scold-bubble { animation: scold-shake .2s linear .25s 6; }
+.scold-bubble::after {
+  content: ''; position: absolute; left: 50%; bottom: -12px; margin-left: -8px;
+  border-style: solid; border-width: 12px 8px 0 8px; border-color: #1a1626 transparent transparent transparent;
+}
+.scold-name { color: var(--muted); font-size: 13px; }
+.overlay.tear .movie-hint { visibility: hidden; }
+.overlay.tear.scold .movie-hint { visibility: visible; }
+@keyframes tear-grip { 0%, 100% { transform: none; } 25% { transform: rotate(-1.5deg); } 75% { transform: rotate(1.5deg); } }
+@keyframes tear-left {
+  0% { transform: none; }
+  25% { transform: translate(-16px, 4px) rotate(-9deg); }
+  100% { transform: translate(-70px, 115vh) rotate(-38deg); }
+}
+@keyframes tear-right {
+  0% { transform: none; }
+  25% { transform: translate(16px, 4px) rotate(9deg); }
+  100% { transform: translate(70px, 115vh) rotate(38deg); }
+}
+@keyframes scold-rise { from { opacity: 0; transform: translateY(48px); } to { opacity: 1; transform: none; } }
+@keyframes scold-shake { 0%, 100% { transform: none; } 25% { transform: translate(-3px, 1px); } 50% { transform: translate(3px, -1px); } 75% { transform: translate(-2px, -1px); } }
+@keyframes scold-flash { from { background: rgba(196, 49, 59, .75); } to { background: rgba(10, 8, 18, .88); } }
 .result-head { font-size: 22px; margin: 10px 0 4px; }
 .explain { background: var(--panel); border: 2px solid var(--line); padding: 10px; margin: 10px 0; line-height: 1.7; font-size: 15px; }
 .effects { margin: 0 0 12px; padding-left: 18px; font-size: 14px; }

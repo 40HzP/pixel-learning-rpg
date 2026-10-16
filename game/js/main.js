@@ -16,6 +16,7 @@ import * as debug from './ui/debug.js';
 import { el, fmt } from './ui/dom.js';
 import { playMovie } from './ui/movie.js';
 import { askNande } from './ui/nande.js';
+import { playTear } from './ui/tear.js';
 
 const PIXEL = '../pixel/';
 const SPRITES = PIXEL + 'sprites/';
@@ -119,6 +120,7 @@ async function boot() {
     playMovie: (monsterId) => startMovie(monsters.find((m) => m.id === monsterId)),
     playAilmentMovie: (age) => startAilmentMovie(age),
     askNande: () => runOverlay(() => askNande(app)),
+    tearTest: (teacherId) => runOverlay(() => playTear(app, teacherId)), // テスト用紙を破りすてた（先生が怒る）
   };
   app.state = loadSave(balance, notify);
   forgetMissingQuestions(app.state, ctx); // 同期で外した問題が過去問復習に残らないように

@@ -196,3 +196,13 @@ test('同期で外した問題は、過去問復習と直近の出題から外�
   assert.equal(sess.total, 1);
   assert.ok(nextQuestion(s, sess, ctx), '残った問題は出る');
 });
+
+test('テスト用紙を破りすてると、主人公の年齢の学校の先生が「な に を や っ て い る ！ ！ ？」と怒る', async () => {
+  const { teacherForAge, SCOLD } = await import('../js/ui/tear.js');
+  assert.equal(SCOLD, 'な に を や っ て い る ！ ！ ？');
+  const at = (ages) => ages.map((a) => teacherForAge(a));
+  assert.deepEqual(at([0, 7, 12]), ['teacher_elementary', 'teacher_elementary', 'teacher_elementary']);
+  assert.deepEqual(at([13, 15, 16, 18, 19, 80]), ['teacher_junior', 'teacher_junior', 'teacher_high', 'teacher_high', 'professor', 'professor']);
+  const { monsters } = await import('./helpers.js');
+  for (const id of ['teacher_elementary', 'teacher_junior', 'teacher_high', 'professor']) assert.ok(monsters.some((m) => m.id === id), `${id} がいる`);
+});
