@@ -607,7 +607,7 @@
         "彼は私のことを私以上に知っていた。彼は私の一生の支えとなるだろう。",
         "次は中学校教師と心の内を語り合おうではないか。"
       ],
-      "sprites": { "idle": "teacher_elementary_idle", "attack": "teacher_elementary_attack" }
+      "sprites": { "idle": "teacher_elementary_idle", "attack": "teacher_elementary_attack", "scold": "teacher_elementary_scold" }
     },
     {
       "id": "teacher_junior",
@@ -621,7 +621,7 @@
         "彼は反抗する私を、最後まで見捨てなかった。今ならその背中の大きさが分かる。",
         "次は高校教師と将来の夢を語り合おうではないか。"
       ],
-      "sprites": { "idle": "teacher_junior_idle", "attack": "teacher_junior_attack" }
+      "sprites": { "idle": "teacher_junior_idle", "attack": "teacher_junior_attack", "scold": "teacher_junior_scold" }
     },
     {
       "id": "teacher_high",
@@ -635,7 +635,7 @@
         "彼女は私の答案に、点数より長い言葉を書いてくれた。あの言葉を私は忘れない。",
         "次は政治家とこの国の未来を語り合おうではないか。"
       ],
-      "sprites": { "idle": "teacher_high_idle", "attack": "teacher_high_attack" }
+      "sprites": { "idle": "teacher_high_idle", "attack": "teacher_high_attack", "scold": "teacher_high_scold" }
     },
     {
       "id": "politician",
@@ -663,7 +663,7 @@
         "「分からないことが分かったなら、それが研究の始まりだ」。彼はそう言って笑った。",
         "次は就職面接官と、私という人間について語り合おうではないか。"
       ],
-      "sprites": { "idle": "professor_idle", "attack": "professor_attack" }
+      "sprites": { "idle": "professor_idle", "attack": "professor_attack", "scold": "professor_scold" }
     },
     {
       "id": "interviewer",

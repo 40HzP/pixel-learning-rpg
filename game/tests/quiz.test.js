@@ -203,6 +203,33 @@ test('テスト用紙を破りすてると、主人公の年齢の学校の先�
   const at = (ages) => ages.map((a) => teacherForAge(a));
   assert.deepEqual(at([0, 7, 12]), ['teacher_elementary', 'teacher_elementary', 'teacher_elementary']);
   assert.deepEqual(at([13, 15, 16, 18, 19, 80]), ['teacher_junior', 'teacher_junior', 'teacher_high', 'teacher_high', 'professor', 'professor']);
+  // 先生は正面を向いて破れた用紙を持つ絵（32×32・2枚）で、教室（64×48）の教壇に立つ
   const { monsters } = await import('./helpers.js');
-  for (const id of ['teacher_elementary', 'teacher_junior', 'teacher_high', 'professor']) assert.ok(monsters.some((m) => m.id === id), `${id} がいる`);
+  const { readFileSync } = await import('node:fs');
+  const sprite = (name) => JSON.parse(readFileSync(new URL(`../../pixel/sprites/${name}.json`, import.meta.url), 'utf8'));
+  for (const id of ['teacher_elementary', 'teacher_junior', 'teacher_high', 'professor']) {
+    const m = monsters.find((x) => x.id === id);
+    assert.ok(m, `${id} がいる`);
+    const sp = sprite(m.sprites.scold);
+    assert.deepEqual([sp.w, sp.h, sp.frames.length], [32, 32, 2], `${m.sprites.scold}`);
+  }
+  assert.deepEqual([sprite('scene_classroom').w, sprite('scene_classroom').h], [64, 48]);
+  assert.ok(sprite('scene_lectern').w <= 64);
+});
+
+test('用紙の破れ目は、決まった形のぎざぎざではなく、毎回ちがう不規則な線（上の端から下の端まで）', async () => {
+  const { tearLine, tearClips } = await import('../js/ui/tear.js');
+  const a = tearLine(seededRng(1));
+  const b = tearLine(seededRng(2));
+  for (const pts of [a, b]) {
+    assert.equal(pts[0][1], 0, '上の端から');
+    assert.equal(pts.at(-1)[1], 100, '下の端まで');
+    assert.ok(pts.every(([x], i) => x >= 22 && x <= 78 && (i === 0 || pts[i][1] > pts[i - 1][1])), '左右の端に寄りすぎず、下へ進む');
+    // 横の揺れ幅がそろっていない（不規則）
+    const swings = pts.slice(1).map(([x], i) => Math.abs(x - pts[i][0]).toFixed(1));
+    assert.ok(new Set(swings).size > swings.length / 2);
+  }
+  assert.notDeepEqual(a, b, '毎回ちがう線');
+  const c = tearClips(a);
+  assert.ok(c.left.startsWith('polygon(0% 0%') && c.right.endsWith('100% 0%)'));
 });

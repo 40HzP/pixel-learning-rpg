@@ -232,33 +232,36 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .test-submit span { flex: 1 1 100%; font-size: 14px; }
 .test-submit button.primary { flex: 1; }
 
-/* テスト用紙を破りすてる（ui/tear.js）：つかんでぶるぶる → まん中から破れて左右に落ちる → 先生が出てきて怒る */
+/* テスト用紙を破りすてる（ui/tear.js）：つかんでぶるぶる → 不規則な線で破れて左右に落ちる → 教壇で先生が破れた用紙を見ながら怒る */
 .overlay.tear { z-index: 40; flex-direction: column; gap: 14px; opacity: 0; transition: opacity .3s; cursor: pointer; user-select: none; -webkit-user-select: none; outline: none; overflow: hidden; }
 .overlay.tear.show { opacity: 1; }
 .overlay.tear.scold { animation: scold-flash .4s ease-out; }
-.tear-stage { position: relative; width: min(240px, 72vw); height: min(312px, 94vw); }
-.tear-paper {
-  position: absolute; inset: 0; background: #fbfaf4; color: #1a1626; padding: 14px; box-shadow: 4px 4px 0 rgba(0, 0, 0, .45);
-}
-.tear-paper.left { clip-path: polygon(0 0, 52% 0, 47% 9%, 54% 18%, 46% 27%, 53% 36%, 47% 45%, 55% 54%, 46% 63%, 53% 72%, 47% 81%, 54% 90%, 49% 100%, 0 100%); }
-.tear-paper.right { clip-path: polygon(52% 0, 100% 0, 100% 100%, 49% 100%, 54% 90%, 47% 81%, 53% 72%, 46% 63%, 55% 54%, 47% 45%, 53% 36%, 46% 27%, 54% 18%, 47% 9%); }
+.tear-box { position: relative; width: min(320px, calc(100vw - 32px)); height: min(340px, 106vw); }
+.tear-sheet { position: absolute; left: 50%; top: 50%; width: min(240px, 72vw); height: min(312px, 94vw); transform: translate(-50%, -50%); }
+.tear-half { position: absolute; inset: 0; }
+.tear-paper { position: absolute; inset: 0; background: #fbfaf4; color: #1a1626; padding: 14px; }
+.tear-half.left { filter: drop-shadow(4px 4px 0 rgba(0, 0, 0, .45)); }
+/* 破れたあとは、破れ目に紙の白い繊維が見える */
+.overlay.tear.torn .tear-half.left { filter: drop-shadow(2px 0 0 #e2dccb) drop-shadow(3px 4px 0 rgba(0, 0, 0, .45)); }
+.overlay.tear.torn .tear-half.right { filter: drop-shadow(-2px 0 0 #e2dccb) drop-shadow(3px 4px 0 rgba(0, 0, 0, .45)); }
 .tear-title { display: flex; justify-content: space-between; align-items: baseline; font-size: 20px; border-bottom: 2px solid #1a1626; padding-bottom: 4px; }
 .tear-title span { font-size: 12px; }
 .tear-lines { position: absolute; left: 14px; right: 14px; top: 56px; bottom: 18px; background: repeating-linear-gradient(#fbfaf4 0 22px, #cfcab8 22px 24px); }
-.overlay.tear.grip .tear-paper { animation: tear-grip .12s linear 3; }
-.overlay.tear.torn .tear-paper.left { animation: tear-left .9s ease-in forwards; }
-.overlay.tear.torn .tear-paper.right { animation: tear-right .9s ease-in forwards; }
-.tear-teacher {
-  position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; gap: 6px;
-  opacity: 0; pointer-events: none;
+.overlay.tear.grip .tear-sheet { animation: tear-grip .12s linear 3; }
+.overlay.tear.torn .tear-half.left { animation: tear-left .9s ease-in forwards; }
+.overlay.tear.torn .tear-half.right { animation: tear-right .9s ease-in forwards; }
+.scold-scene {
+  position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 4px; opacity: 0; pointer-events: none;
 }
-.overlay.tear.scold .tear-teacher { animation: scold-rise .25s ease-out forwards; }
-.overlay.tear.scold .tear-teacher canvas { animation: scold-shake .3s linear .25s 4; }
+.overlay.tear.scold .scold-scene { animation: scold-in .3s ease-out forwards; }
+.overlay.tear.scold .scold-scene canvas { animation: scold-shake .3s linear .3s 3; }
+.scold-scene canvas { border: 2px solid #1a1626; }
 .scold-bubble {
-  position: relative; background: #fbfaf4; color: #c4313b; border: 3px solid #1a1626; padding: 8px 12px; margin-bottom: 8px;
+  position: relative; background: #fbfaf4; color: #c4313b; border: 3px solid #1a1626; padding: 8px 12px; margin-bottom: 10px;
   font-size: min(22px, 5.2vw); white-space: nowrap;
 }
-.overlay.tear.scold .scold-bubble { animation: scold-shake .2s linear .25s 6; }
+.overlay.tear.scold .scold-bubble { animation: scold-shake .2s linear .3s 6; }
 .scold-bubble::after {
   content: ''; position: absolute; left: 50%; bottom: -12px; margin-left: -8px;
   border-style: solid; border-width: 12px 8px 0 8px; border-color: #1a1626 transparent transparent transparent;
@@ -266,7 +269,7 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .scold-name { color: var(--muted); font-size: 13px; }
 .overlay.tear .movie-hint { visibility: hidden; }
 .overlay.tear.scold .movie-hint { visibility: visible; }
-@keyframes tear-grip { 0%, 100% { transform: none; } 25% { transform: rotate(-1.5deg); } 75% { transform: rotate(1.5deg); } }
+@keyframes tear-grip { 0%, 100% { transform: translate(-50%, -50%); } 25% { transform: translate(-50%, -50%) rotate(-1.5deg); } 75% { transform: translate(-50%, -50%) rotate(1.5deg); } }
 @keyframes tear-left {
   0% { transform: none; }
   25% { transform: translate(-16px, 4px) rotate(-9deg); }
@@ -277,7 +280,7 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
   25% { transform: translate(16px, 4px) rotate(9deg); }
   100% { transform: translate(70px, 115vh) rotate(38deg); }
 }
-@keyframes scold-rise { from { opacity: 0; transform: translateY(48px); } to { opacity: 1; transform: none; } }
+@keyframes scold-in { from { opacity: 0; transform: translateY(calc(-50% + 24px)); } to { opacity: 1; transform: translateY(-50%); } }
 @keyframes scold-shake { 0%, 100% { transform: none; } 25% { transform: translate(-3px, 1px); } 50% { transform: translate(3px, -1px); } 75% { transform: translate(-2px, -1px); } }
 @keyframes scold-flash { from { background: rgba(196, 49, 59, .75); } to { background: rgba(10, 8, 18, .88); } }
 .result-head { font-size: 22px; margin: 10px 0 4px; }
