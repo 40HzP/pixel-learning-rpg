@@ -19,8 +19,8 @@
   "levelExp": { "base": 1, "power": 2 },
   "floor": { "monstersPerFloor": 5, "spawnLeadSec": 0.35 },
   "monster": {
-    "base": { "hp": 12, "atk": 2, "def": 1, "exp": 3, "gold": 3 },
-    "perFloor": { "hp": 43, "atk": 2.7, "def": 1.5, "exp": 1.4, "gold": 1.4 },
+    "base": { "hp": 12, "atk": 2, "def": 0, "exp": 3, "gold": 3 },
+    "perFloor": { "hp": 49, "atk": 2.7, "def": 0.3, "exp": 1.4, "gold": 1.4 },
     "attackIntervalSec": 2.0
   },
   "damage": { "defFactor": 0.5, "variance": 0.1 },
