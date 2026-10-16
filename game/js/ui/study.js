@@ -1,12 +1,13 @@
 // 勉強画面（設計ページ「勉強画面の表示」）
-import { createSession, nextQuestion, answer, interferingMonster, blockedInterference, fooledAnalysis, MODES } from '../quiz.js';
+import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES } from '../quiz.js';
 import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap } from '../sim.js';
 import { fieldById, fieldActive } from '../fields.js';
 import { GENRES } from '../genres.js';
 import { spriteCanvas } from '../sprites.js';
 import { el, stars } from './dom.js';
 
-const fresh = () => ({ phase: 'menu', session: null, remaining: 0, result: null, chosen: null, genre: null, interferingId: null });
+// phase：menu・question（クイズ・過去問復習の1問）・result・summary・sheet（テストの用紙に答えている）・testResult（テストの採点）
+const fresh = () => ({ phase: 'menu', session: null, remaining: 0, result: null, chosen: null, genre: null, interferingId: null, picks: [], testResults: null, sheetMeta: [] });
 let view = fresh();
 let refs = null;
 
@@ -62,7 +63,8 @@ function renderInfo(app) {
 function renderMenu(app) {
   const k = app.state.knowledge;
   const list = genresWithQuestions(app);
-  const sel = el('select', { onchange: (e) => { view.genre = e.target.value; renderInfo(app); } },
+  // ジャンルを変えたらメニューを作り直す（テストの問題数の表示もジャンルで変わる）
+  const sel = el('select', { onchange: (e) => { view.genre = e.target.value; renderBody(app); } },
     list.map((x) => el('option', { value: x.genre, selected: x.genre === view.genre }, `${x.genre}（${x.count}問）`)));
   const prof = GENRES.filter((g) => list.some((x) => x.genre === g) || (k.genres[g] && k.genres[g].level > 0));
   const per = app.ctx.balance.quiz.correctPerProficiencyLevel;
@@ -71,7 +73,7 @@ function renderMenu(app) {
     el('div', { class: 'modes' },
       el('button', { onclick: () => start(app, 'quiz') }, 'クイズ', el('small', {}, '全ジャンルから1問')),
       el('div', { class: 'row' }, sel,
-        el('button', { onclick: () => start(app, 'test', view.genre) }, 'テスト', el('small', {}, `このジャンルから${app.ctx.balance.quiz.testQuestions}問`))),
+        el('button', { onclick: () => start(app, 'test', view.genre) }, 'テスト', el('small', {}, `このジャンルから${testCount(app)}問・時間制限なし`))),
       el('button', { disabled: !k.review.length, onclick: () => start(app, 'review') },
         '過去問復習', el('small', {}, k.review.length ? `間違えた問題・騙された問題（${k.review.length}問）` : 'まだありません'))),
     el('div', { class: 'prof-list' },
@@ -103,10 +105,123 @@ function analysisBox(app) {
     a.review.length ? el('div', {}, `間違えたままの問題：${join(a.review, '問')}（過去問復習で解き直せる）`) : null);
 }
 
+/** テストの問題数：testQuestions 問（選んだジャンルの問題が足りなければ、ある分だけ） */
+function testCount(app) {
+  const n = app.ctx.questions.filter((q) => q.genre === view.genre).length;
+  return Math.min(app.ctx.balance.quiz.testQuestions, n);
+}
+
 function start(app, mode, genre = null) {
   view.session = createSession(app.state, mode, app.ctx, genre);
   if (genre) view.genre = genre;
-  ask(app);
+  if (mode === 'test') startTest(app);
+  else ask(app);
+}
+
+/* ---------- テスト（時間制限なしで、1枚の用紙にまとめて出す。40HzP の依頼） ---------- */
+function startTest(app) {
+  const sheet = presentTest(app.state, view.session, app.ctx);
+  if (!sheet.length) { view.phase = 'menu'; renderBody(app); return; }
+  view.phase = 'sheet';
+  view.picks = sheet.map(() => null);
+  view.testResults = null;
+  renderBody(app);
+  scrollTop();
+}
+
+const scrollTop = () => { document.getElementById('screen-study').scrollTop = 0; };
+
+/** 用紙の問題ごとの1行（難易度・誤答が消えた・口を挟んでいる魔物）。敵の群れが変わると書き換える（update） */
+function refreshSheetMeta(app) {
+  for (const m of view.sheetMeta) {
+    const q = m.cur.question;
+    const im = interferingMonster(app.state, q, app.ctx);
+    const b = im ? null : blockedInterference(app.state, q, app.ctx);
+    const key = im ? im.id : b ? `blocked:${b.monster.id}` : '';
+    if (key === m.key) continue;
+    m.key = key;
+    m.meta.replaceChildren(`${m.i + 1}問目　${stars(q.difficulty)}`,
+      m.cur.trimmedBy ? el('span', { class: 'good' }, `　${m.cur.trimmedBy}で誤答が1つ消えた`) : '',
+      im ? el('span', { class: 'meddle' }, `　${im.name}が口を挟んでいる`) : '',
+      b ? el('span', { class: 'good' }, `　${b.monster.name}は口を挟めない（${b.field.name}）`) : '');
+  }
+}
+
+function renderSheet(app) {
+  const s = view.session;
+  const left = el('span', { class: 'muted' });
+  const showLeft = () => {
+    const n = view.picks.filter((p) => p == null).length;
+    left.textContent = n ? `まだ答えていない問題：${n}問` : '全部答えた';
+  };
+  view.sheetMeta = [];
+  const cards = s.sheet.map((cur, i) => {
+    const meta = el('div', { class: 'qmeta' });
+    view.sheetMeta.push({ meta, cur, i, key: null });
+    const buttons = cur.choices.map((c, j) => el('button', {
+      class: view.picks[i] === j ? 'picked' : '',
+      'aria-pressed': view.picks[i] === j ? 'true' : 'false',
+      onclick: () => {
+        // 提出するまで選び直せる。押した選択肢だけ印を付ける（画面は作り直さないので、読んでいる位置が動かない）
+        view.picks[i] = j;
+        buttons.forEach((b, k) => { b.classList.toggle('picked', k === j); b.setAttribute('aria-pressed', k === j ? 'true' : 'false'); });
+        showLeft();
+      },
+    }, c.text));
+    return el('div', { class: 'test-q' }, meta, el('div', { class: 'qtext' }, cur.question.question), el('div', { class: 'choices' }, buttons));
+  });
+  showLeft();
+  refs.body.replaceChildren(
+    el('div', { class: 'test-head' }, `テスト（${s.genre}）${s.total}問`, el('small', {}, '時間制限なし。全部答えたら「提出する」。提出するまで答えは選び直せる')),
+    ...cards,
+    el('div', { class: 'test-submit' }, left, el('button', { class: 'primary', onclick: () => submitTest(app) }, '提出する'),
+      el('button', { onclick: () => { if (confirm('テストをやめますか？（答えは数えません）')) { view.phase = 'menu'; view.session = null; renderBody(app); } } }, 'やめる')),
+  );
+  refreshSheetMeta(app);
+}
+
+function submitTest(app) {
+  if (view.phase !== 'sheet') return;
+  const blank = view.picks.filter((p) => p == null).length;
+  if (blank && !confirm(`まだ答えていない問題が${blank}問あります。提出しますか？（答えていない問題は不正解）`)) return;
+  const results = gradeTest(app.state, view.session, view.picks, app.ctx);
+  view.testResults = results;
+  view.phase = 'testResult'; // 先に変える（問題を解いている最中ではなくなるので、取っておいたミニムービーが出る）
+  app.handleEvents(results.flatMap((r) => r.events));
+  app.save();
+  renderBody(app);
+  scrollTop();
+}
+
+function renderTestResult(app) {
+  const s = view.session;
+  const rs = view.testResults;
+  const ok = rs.filter((r) => r.correct).length;
+  const g = app.state.knowledge.genres[s.genre] || { level: 0, progress: 0 };
+  const per = app.ctx.balance.quiz.correctPerProficiencyLevel;
+  const cap = proficiencyCap(app.state, app.ctx.balance);
+  const summary = [
+    ok ? ['good', `経験値の倍率が ×${expMultiplier(app.state, app.ctx.balance).toFixed(2)} になった`] : null,
+    ['', g.level < cap ? `${s.genre}：熟練 Lv ${g.level}　次のLvまで ${g.progress}/${per}回` : `${s.genre}：熟練 Lv ${g.level}（最大）`],
+  ].filter(Boolean);
+  const cards = rs.map((r, i) => el('div', { class: 'test-q' },
+    el('div', { class: 'result-mark ' + (r.correct ? 'good' : 'bad') }, `${i + 1}問目　${r.correct ? '○ 正解' : r.timeout ? '× 答えていない' : '× 不正解'}`),
+    el('div', { class: 'qtext' }, r.question.question),
+    el('div', { class: 'choices' }, r.choices.map((c, j) => el('button', {
+      disabled: true,
+      class: c.kind === 'answer' ? 'correct' : j === r.chosen ? 'wrong' : '',
+    }, c.text))),
+    el('div', { class: 'explain' }, el('div', { class: 'accent' }, `正解：${r.question.answer}`), r.question.explanation),
+    el('ul', { class: 'effects' }, effectLines(app, r, true).map(([cls, t]) => el('li', { class: cls }, t)))));
+  const buttons = () => el('div', { class: 'btnrow' },
+    el('button', { class: 'primary', onclick: () => start(app, 'test', s.genre) }, 'もう一度'),
+    el('button', { onclick: () => { view.phase = 'menu'; view.session = null; renderBody(app); } }, 'メニューへ'));
+  refs.body.replaceChildren(
+    el('div', { class: 'result-head' }, `テスト結果：${rs.length}問中${ok}問正解`),
+    el('ul', { class: 'effects' }, summary.map(([cls, t]) => el('li', { class: cls }, t))),
+    ...cards,
+    buttons(),
+  );
 }
 
 /* ---------- 出題中 ---------- */
@@ -173,7 +288,8 @@ function submit(app, index) {
 }
 
 /* ---------- 解答後 ---------- */
-function effectLines(app, r) {
+/** 答えたあとに起きたこと。brief なら、経験値の倍率と熟練の進み具合は出さない（テストはまとめて上に出す） */
+function effectLines(app, r, brief = false) {
   const lines = [];
   const name = (id) => (app.ctx.monsters.find((m) => m.id === id) || {}).name || '';
   const g = app.state.knowledge.genres[r.question.genre];
@@ -187,9 +303,9 @@ function effectLines(app, r) {
       if (st.status !== 'broken') lines.push(['', `${r.targetName}には効かない…（防御が崩れるまで 累計であと${midbossLeft(app.state, mb)}問）`]);
     }
     if (r.defeated) lines.push(['good', `${r.targetName}を倒した！`]);
-    lines.push(['good', `経験値の倍率が ×${expMultiplier(app.state, app.ctx.balance).toFixed(2)} になった`]);
+    if (!brief) lines.push(['good', `経験値の倍率が ×${expMultiplier(app.state, app.ctx.balance).toFixed(2)} になった`]);
     if (r.levelUp) lines.push(['good', `${r.levelUp.genre}の熟練が Lv ${r.levelUp.level} になった！`]);
-    else if (g && g.level < proficiencyCap(app.state, app.ctx.balance)) lines.push(['', `${r.question.genre}：次のLvまで ${g.progress}/${per}回`]);
+    else if (!brief && g && g.level < proficiencyCap(app.state, app.ctx.balance)) lines.push(['', `${r.question.genre}：次のLvまで ${g.progress}/${per}回`]);
     for (const z of r.zukan) lines.push(['good', `図鑑：${name(z.monsterId)}の正体が判明した`]);
   } else {
     if (r.fooled) lines.push(['bad', `${r.targetName}に騙された！　${r.targetName}が${r.healed}回復した`]);
@@ -238,6 +354,8 @@ function renderSummary(app) {
 function renderBody(app) {
   renderInfo(app);
   if (view.phase === 'question') renderQuestion(app);
+  else if (view.phase === 'sheet') renderSheet(app);
+  else if (view.phase === 'testResult') renderTestResult(app);
   else if (view.phase === 'result') renderResult(app);
   else if (view.phase === 'summary') renderSummary(app);
   else renderMenu(app);
@@ -247,7 +365,7 @@ function renderBody(app) {
  * 問題を解いている最中か（勉強画面に問題が出ていて、まだ答えていない）。
  * この間はミニムービーを出さず、答え終わってから出す（main.js の afterAnswering。40HzP の依頼）
  */
-export const answering = (app) => view.phase === 'question' && app.tab === 'study';
+export const answering = (app) => (view.phase === 'question' || view.phase === 'sheet') && app.tab === 'study';
 
 /* ---------- 毎フレーム（制限時間） ---------- */
 export function frame(app, realDt) {
@@ -264,7 +382,13 @@ export function frame(app, realDt) {
 
 export function update(app, force) {
   renderInfo(app);
-  if (force) { renderBody(app); return; }
+  if (force) {
+    // テストの用紙は作り直さない（選んだ答えと読んでいる位置を保つ）
+    if (view.phase === 'sheet') refreshSheetMeta(app);
+    else renderBody(app);
+    return;
+  }
+  if (view.phase === 'sheet') refreshSheetMeta(app);
   if (view.phase === 'question') {
     // 干渉中の魔物は、戦っている敵が変わると変わる
     if (interferenceKey(app, view.session.current.question) !== view.interferingId) {

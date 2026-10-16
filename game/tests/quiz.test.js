@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSession, nextQuestion, presentQuestion, answer, buildChoices, pickDifficulty, pickQuestion, averageLevel, timeLimitFor, forgetMissingQuestions } from '../js/quiz.js';
+import { createSession, nextQuestion, presentQuestion, answer, buildChoices, pickDifficulty, pickQuestion, averageLevel, timeLimitFor, forgetMissingQuestions, presentTest, gradeTest } from '../js/quiz.js';
 import { genreState, spawnEnemy } from '../js/sim.js';
 import { balance, makeCtx, newGame, questions, constRng, seededRng, questionFor } from './helpers.js';
 
@@ -86,20 +86,52 @@ test('直近5問は避け、候補が無くなったら重複を許す', () => {
   assert.equal(s.knowledge.recent.length, 5);
 });
 
-test('テストは指定ジャンルから5問。クイズは全ジャンルの平均Lvを使う', () => {
+/** テスト用の問題（そのジャンルに n 問） */
+const fakeQuestions = (genre, n) => Array.from({ length: n }, (_, i) => ({
+  id: `fake-${i}`, genre, subgenres: [], difficulty: 1 + (i % 5), question: `問題${i}`, answer: `答え${i}`,
+  wrong: [`俗説${i}`, `誤り${i}a`, `誤り${i}b`], explanation: '', monster: null,
+}));
+
+test('テストは指定ジャンルから5問を1枚の用紙にまとめて出す（同じ問題は1枚に1回だけ）。クイズは全ジャンルの平均Lvを使う', () => {
   const s = newGame(0);
-  const ctx = makeCtx(seededRng(3));
-  const sess = createSession(s, 'test', ctx, '統計学');
+  const ctx = { ...makeCtx(seededRng(3)), questions: [...questions, ...fakeQuestions('テスト用', 8)] };
+  const sess = createSession(s, 'test', ctx, 'テスト用');
+  const sheet = presentTest(s, sess, ctx);
+  assert.equal(sheet.length, balance.quiz.testQuestions);
   assert.equal(sess.total, 5);
-  let n = 0;
-  while (nextQuestion(s, sess, ctx)) {
-    assert.equal(sess.current.question.genre, '統計学');
-    answer(s, sess, 0, ctx);
-    n++;
-  }
-  assert.equal(n, 5);
+  assert.equal(new Set(sheet.map((c) => c.question.id)).size, 5, '同じ問題は出さない');
+  assert.ok(sheet.every((c) => c.question.genre === 'テスト用' && c.choices.length === 4));
+  assert.equal(sess.current, null, '用紙を出しただけでは、まだ答えていない');
+  // ジャンルの問題が5問より少なければ、ある分だけ（同じ問題をくり返さない）
+  const t = createSession(s, 'test', makeCtx(seededRng(3)), '生物');
+  const bio = presentTest(s, t, makeCtx(seededRng(3)));
+  const n = questions.filter((q) => q.genre === '生物').length;
+  assert.equal(bio.length, Math.min(5, n));
+  assert.equal(new Set(bio.map((c) => c.question.id)).size, bio.length);
+  assert.equal(t.total, bio.length);
   for (const g of ['生物', '数学', '物理']) genreState(s, g).level = 5;
   assert.equal(averageLevel(s), Math.round(15 / 29));
+});
+
+test('テストを提出すると、まとめて採点する（1問ずつ答えたのと同じに数える。答えていない問題は不正解）', () => {
+  const s = newGame(0);
+  const ctx = { ...makeCtx(seededRng(5)), questions: [...questions, ...fakeQuestions('テスト用', 8)] };
+  const sess = createSession(s, 'test', ctx, 'テスト用');
+  const sheet = presentTest(s, sess, ctx);
+  const wrongIndex = (cur) => cur.choices.findIndex((c) => c.kind === 'wrong');
+  // 1〜3問目は正解、4問目は間違い、5問目は答えていない
+  const picks = sheet.map((cur, i) => (i < 3 ? answerIndex(cur) : i === 3 ? wrongIndex(cur) : null));
+  const rs = gradeTest(s, sess, picks, ctx);
+  assert.deepEqual(rs.map((r) => r.correct), [true, true, true, false, false]);
+  assert.deepEqual(rs.map((r) => r.timeout), [false, false, false, false, true], '答えていない問題');
+  assert.deepEqual(rs.map((r) => r.question.id), sheet.map((c) => c.question.id));
+  assert.equal(rs[3].chosen, picks[3]);
+  assert.equal(s.knowledge.totalCorrect, 3);
+  assert.equal(genreState(s, 'テスト用').correct, 3);
+  assert.equal(genreState(s, 'テスト用').progress, 3);
+  assert.deepEqual(s.knowledge.review, [sheet[3].question.id, sheet[4].question.id], '間違えた問題と答えていない問題は過去問復習へ');
+  assert.equal(sess.results.length, 5);
+  assert.equal(sess.current, null);
 });
 
 test('干渉：関連する魔物と戦っているときに正解すると撃破、図鑑の正体が開く', () => {

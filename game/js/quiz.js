@@ -78,7 +78,8 @@ export const timeLimitFor = (difficulty, balance) => balance.quiz.timeLimitSec[M
 /* ================= 1回分の勉強（セッション） ================= */
 
 /**
- * mode: 'quiz'（全ジャンルから1問）| 'test'（genre から testQuestions 問）| 'review'（過去問復習、最大 testQuestions 問）
+ * mode: 'quiz'（全ジャンルから1問）| 'test'（genre から testQuestions 問を1枚の用紙で。presentTest・gradeTest）|
+ * 'review'（過去問復習、最大 testQuestions 問）
  */
 export function createSession(state, mode, ctx, genre = null) {
   let total = 1;
@@ -104,6 +105,42 @@ export function nextQuestion(state, session, ctx) {
   const cur = presentQuestion(session, q, ctx);
   trimChoices(state, cur, ctx);
   return cur;
+}
+
+/**
+ * テスト：指定ジャンルから testQuestions 問を1枚の用紙にまとめて出す（時間制限なし。40HzP の依頼）。
+ * 同じ問題は1枚に1回だけ（ジャンルの問題が足りなければ、ある分だけ出す）。直近に出した問題はなるべく避ける。
+ * 出した問題（{ question, choices }）の並びを session.sheet に入れて返す。採点は gradeTest
+ */
+export function presentTest(state, session, ctx) {
+  const level = genreState(state, session.genre).level;
+  const sheet = [];
+  while (sheet.length < session.total) {
+    const cands = candidatesFor(state, session, ctx).filter((q) => !session.asked.includes(q.id));
+    const q = pickQuestion(cands, level, state.knowledge.recent, ctx);
+    if (!q) break;
+    const cur = presentQuestion(session, q, ctx);
+    trimChoices(state, cur, ctx);
+    sheet.push(cur);
+  }
+  session.current = null;
+  session.sheet = sheet;
+  session.total = sheet.length;
+  return sheet;
+}
+
+/**
+ * テストを提出して採点する。picks[i] は i 問目で選んだ選択肢の番号（null は答えていない＝不正解）。
+ * 1問ずつ answer と同じに数える（熟練・累計正解数・過去問復習・干渉・敵へのダメージ）。干渉は提出した瞬間の敵の群れで決まる。
+ * 結果の並びを返す（answer の結果に question・choices・chosen を付ける）
+ */
+export function gradeTest(state, session, picks, ctx) {
+  return session.sheet.map((cur, i) => {
+    session.current = cur;
+    const chosen = picks[i] ?? null;
+    const r = answer(state, session, chosen, ctx);
+    return Object.assign(r, { question: cur.question, choices: cur.choices, chosen });
+  });
 }
 
 /**

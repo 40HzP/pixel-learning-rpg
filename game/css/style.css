@@ -200,6 +200,20 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .choices button { text-align: left; min-height: 52px; line-height: 1.4; }
 .choices button.correct { border-color: var(--good); background: #1f4a3a; }
 .choices button.wrong { border-color: var(--bad); background: #6e1f2e; }
+/* テスト：1枚の用紙に全部の問題を並べる。選んだ答えは提出するまで選び直せる */
+.test-head { font-size: 18px; margin: 4px 0 10px; }
+.test-head small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.test-q { background: var(--panel); border: 2px solid var(--line); padding: 10px; margin-bottom: 12px; }
+.test-q .qmeta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.test-q .qtext { margin: 4px 0 8px; }
+.test-q .explain { background: var(--panel2); margin: 10px 0 6px; }
+.test-q .effects { margin-bottom: 0; }
+.choices button.picked { border-color: var(--accent); background: #4a3a14; box-shadow: inset 4px 0 0 var(--accent); }
+.meddle { color: #c9a0e8; }
+.result-mark { font-size: 17px; }
+.test-submit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 8px; }
+.test-submit span { flex: 1 1 100%; font-size: 14px; }
+.test-submit button.primary { flex: 1; }
 .result-head { font-size: 22px; margin: 10px 0 4px; }
 .explain { background: var(--panel); border: 2px solid var(--line); padding: 10px; margin: 10px 0; line-height: 1.7; font-size: 15px; }
 .effects { margin: 0 0 12px; padding-left: 18px; font-size: 14px; }
