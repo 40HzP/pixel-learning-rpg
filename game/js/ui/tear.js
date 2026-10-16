@@ -11,7 +11,7 @@ export const pickScold = (rng = Math.random) => SCOLDS[Math.floor(rng() * SCOLDS
 
 /**
  * 先生の顔。破りすてるたびに、どちらか（40HzP の依頼）。
- * scold：怒り顔（赤い怒りの印。画面が赤く光り、吹き出しは赤い字）／puzzled：困惑顔（困り眉で目を見開き、汗と「？」。光らず、吹き出しは黒い字）
+ * scold：怒り顔（赤い怒りの印。画面が赤く光る）／puzzled：困惑顔（困り眉で目を見開き、汗と「！」。光らない）。吹き出しの字はどちらも赤
  */
 export const MOODS = ['scold', 'puzzled'];
 export const pickMood = (rng = Math.random) => MOODS[Math.floor(rng() * MOODS.length) % MOODS.length];

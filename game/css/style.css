@@ -241,9 +241,8 @@ button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 .overlay.tear { z-index: 40; flex-direction: column; gap: 14px; opacity: 0; transition: opacity .3s; cursor: pointer; user-select: none; -webkit-user-select: none; outline: none; overflow: hidden; }
 .overlay.tear.show { opacity: 1; }
 .overlay.tear.scold { animation: scold-flash .4s ease-out; }
-/* 困惑顔のときは赤く光らせず、吹き出しの字は黒 */
+/* 困惑顔のときは赤く光らせない（吹き出しの字はどちらの顔でも赤） */
 .overlay.tear.mood-puzzled.scold { animation: none; }
-.overlay.tear.mood-puzzled .scold-bubble { color: #1a1626; }
 .tear-box { position: relative; width: min(320px, calc(100vw - 32px)); height: min(340px, 106vw); }
 .tear-sheet { position: absolute; left: 50%; top: 50%; width: min(240px, 72vw); height: min(312px, 94vw); transform: translate(-50%, -50%); }
 .tear-half { position: absolute; inset: 0; }
