@@ -24,7 +24,8 @@ export const HERO_NAME_MAX = 8;
 export function createState(balance) {
   return {
     meta: { startAge: null },                       // 開始年齢の選択（null＝まだ選んでいない）
-    life: { generation: 1, gameHours: 0, lifespan: balance.life.lifespanYears, maxFloor: 1 }, // 何世代目か・0歳1月1日0時からの経過時間・寿命（歳）・この人生で一番深い階層
+    // 何世代目か・0歳1月1日0時からの経過時間・生まれたときに決まった寿命（歳）・この人生で一番深い階層・体の不調を感じ始めたか・病院で治療を受けた回数
+    life: { generation: 1, gameHours: 0, lifespan: balance.life.lifespanYears, maxFloor: 1, ailing: false, treatments: 0 },
     hero: { name: DEFAULT_HERO_NAME, level: 1, exp: 0, totalExp: 0, hp: balance.hero.base.hp, mp: balance.hero.base.mp },
     gold: 0,
     equipment: { weapon: null, armor: null },
@@ -87,6 +88,37 @@ export function startGame(state, startAge, name, lifespan) {
 /** 生まれるたびに決める寿命（lifespanYears ± lifespanSpread 歳） */
 export const lifespanFor = (balance, rng) =>
   balance.life.lifespanYears + Math.round((rng() * 2 - 1) * balance.life.lifespanSpread);
+
+/** 今の寿命（歳）：生まれたときに決まった寿命（life.lifespan）＋病院の治療で延びた分 */
+export const lifespanOf = (state, balance) => state.life.lifespan + (state.life.treatments || 0) * balance.hospital.extendYears;
+
+/** 体の不調を感じ始める年齢：生まれたときの寿命の life.ailmentYearsBefore 年前（寿命80歳なら70歳。治療で延びた分は数えない） */
+export const ailmentAge = (state, balance) => state.life.lifespan - balance.life.ailmentYearsBefore;
+
+/**
+ * 病院の治療（次の1回）。体の不調を感じ始めてから受けられ、1回ごとに寿命が hospital.extendYears 年延びる。
+ * 治療費は hospital.treatmentCosts の順（1回目・2回目…）で、1つの人生で受けられるのはその数まで
+ */
+export function treatmentInfo(state, ctx) {
+  const h = ctx.balance.hospital;
+  const count = state.life.treatments || 0;
+  const max = h.treatmentCosts.length;
+  const cost = count < max ? h.treatmentCosts[count] : null;
+  let reason = null;
+  if (!state.life.ailing) reason = '体の不調を感じ始めてから受けられる';
+  else if (cost == null) reason = 'これ以上の治療はできない';
+  else if (state.gold < cost) reason = 'ゴールドが足りません';
+  return { count, max, cost, years: h.extendYears, ok: !reason, reason };
+}
+
+/** 病院で治療を受ける：治療費を払い、寿命が hospital.extendYears 年延びる */
+export function receiveTreatment(state, ctx) {
+  const t = treatmentInfo(state, ctx);
+  if (!t.ok) return { ok: false, reason: t.reason };
+  state.gold -= t.cost;
+  state.life.treatments = t.count + 1;
+  return { ok: true, cost: t.cost, years: t.years, lifespan: lifespanOf(state, ctx.balance) };
+}
 
 /** 熟練Lvの上限：1世代目は MAX_PROFICIENCY（5）。生まれ変わるたびに reincarnation.proficiencyCapStep（5）ずつ上がる（2世代目10・3世代目15…） */
 export const proficiencyCap = (state, balance) => MAX_PROFICIENCY + (balance.reincarnation.proficiencyCapStep || 0) * (state.life.generation - 1);
@@ -481,11 +513,16 @@ export function tick(state, dt, ctx) {
   const events = [];
   if (state.meta.startAge == null || !(dt > 0)) return events;
   state.life.gameHours += dt * ctx.balance.time.gameHoursPerRealSecond;
-  if (ageYears(state) >= state.life.lifespan) {
+  if (ageYears(state) >= lifespanOf(state, ctx.balance)) {
     // 寿命：生まれ変わる（年齢を選ぶまで時間は止まる）
     const life = reincarnate(state, ctx);
     events.push({ type: 'reincarnated', life, generation: state.life.generation });
     return events;
+  }
+  if (!state.life.ailing && ageYears(state) >= ailmentAge(state, ctx.balance)) {
+    // 年を取って、体の不調を感じ始める（ミニムービー。このあと病院で治療を受けられる）
+    state.life.ailing = true;
+    events.push({ type: 'ailment', age: ageYears(state) });
   }
   payContracts(state, ctx, events);
   earnCompany(state, dt, ctx);

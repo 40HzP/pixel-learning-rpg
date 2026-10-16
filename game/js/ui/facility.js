@@ -1,11 +1,12 @@
 // 施設画面＝街。bg_town の上に施設の外観を並べ（並べる位置は data/town.json）、建物をタップするとその施設に入る。
-// 入れる施設：店・仲間が集まる場所・寝床・会社・ロケット発射場・専攻の付け替え・拠点（構造工学を解放するまで準備中）。
-// 広場に立っている主人公をタップすると、主人公のステータスと名前の変更
+// 入れる施設：店・仲間が集まる場所・寝床・会社・ロケット発射場・専攻の付け替え・拠点（構造工学を解放するまで準備中）・病院。
+// 小さな広場に立っている主人公をタップすると、主人公のステータスと名前の変更
 import {
   shopList, buyItem, bedFloor, heroTitles, inParty, setInParty, partyAllies, partyMax, partyFull, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, evadeChance, expMultiplier,
   recruitList, hireRecruit, dismissRecruit, monthlyContractCost, HOURS_PER_MONTH, HOURS_PER_YEAR,
   canFound, foundCompany, closeCompany, companiesProfit, industryList, industryOutlook, generationMultiplier, ageYears, payRocketBuildCost, rocketSteps,
   hireStaff, dismissStaff, bestStaffGrade, staffCost, staffBonus, buildBase, baseActive,
+  lifespanOf, treatmentInfo, receiveTreatment,
 } from '../sim.js';
 import { fieldList, fieldById, fieldActive, isUnlocked, setMajor, MAJOR_SLOTS } from '../fields.js';
 import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor } from '../sprites.js';
@@ -534,6 +535,47 @@ function basePanel(app) {
   ];
 }
 
+/**
+ * 病院：年を取って体の不調を感じ始めてから（寿命の life.ailmentYearsBefore 年前）、治療を受けると寿命が延びる
+ * （設計ページ「寿命は医者や生化学で延びる」）。治療は1つの人生で hospital.treatmentCosts の数まで。生まれ変わると最初から
+ */
+function hospitalPanel(app) {
+  const s = app.state;
+  const ctx = app.ctx;
+  const h = ctx.balance.hospital;
+  const t = treatmentInfo(s, ctx);
+  live.exam = el('div', { style: { marginBottom: '8px' } });
+  const btn = el('button', {
+    class: 'primary',
+    disabled: !t.ok,
+    onclick: () => {
+      if (!confirm(`${fmt(t.cost)}G を払って治療を受けますか？（寿命が${t.years}年延びる）`)) return;
+      const r = receiveTreatment(app.state, ctx);
+      if (!r.ok) { app.notify(r.reason, 'bad'); return; }
+      app.notify(`治療を受けた。寿命が${r.years}年延びた`, 'good');
+      app.save();
+      update(app, true);
+    },
+  }, t.cost == null ? '治療はすべて受けた' : `治療を受ける（${fmt(t.cost)}G）`);
+  if (s.life.ailing && t.cost != null) live.buttons.push({ btn, price: t.cost });
+  const rows = h.treatmentCosts.map((cost, i) => {
+    const done = i < t.count;
+    const nextOne = i === t.count;
+    return el('div', { class: 'item' + (done || nextOne ? '' : ' locked') },
+      el('div', { class: 'name' }, `${i + 1}回目の治療`, el('small', {}, `${fmt(cost)}G　寿命 +${h.extendYears}年`)),
+      el('span', { class: done ? 'good' : 'muted' }, done ? '済' : nextOne ? '次' : '未'));
+  });
+  return [
+    el('div', { style: { marginBottom: '6px' } }, '所持金 ', live.gold, 'G'),
+    live.exam,
+    el('div', { class: 'btnrow' }, btn),
+    s.life.ailing ? null : note(`年を取って体の不調を感じ始めると（${ctx.balance.life.lifespanYears - ctx.balance.life.ailmentYearsBefore}歳前後）、治療を受けられる`),
+    el('h3', { class: 'subhead' }, `治療（1つの人生で${t.max}回まで）`),
+    el('div', { class: 'list' }, rows),
+    note('生まれ変わると、体の不調も治療の回数も最初から'),
+  ];
+}
+
 /** 主人公：名前とステータス */
 function heroPanel(app) {
   const s = app.state;
@@ -562,7 +604,8 @@ function heroPanel(app) {
       // 称号は学際分野でたくさん増えるので、幅いっぱいに並べる
       titles.length ? el('div', { class: 'stat wide' }, el('span', {}, '称号'), el('b', {}, titles.join('・')), el('small', {}, '中ボスを倒したり、学際分野を解放したりするともらえる')) : null,
       stat('世代', `${s.life.generation}世代目`, `ステータスの伸び・経験値・ゴールド ×${generationMultiplier(s, b)}（生まれ変わるたびに ×${b.reincarnation.multiplier}）`),
-      stat('寿命', `${b.life.lifespanYears}歳前後`, `今${ageYears(s)}歳。寿命が来ると、前世の記憶（熟練・図鑑・称号）を受け継いで生まれ変わる。Lv・ゴールド・装備・仲間・会社は最初から`)),
+      stat('寿命', s.life.treatments ? `${b.life.lifespanYears}歳前後 ＋${s.life.treatments * b.hospital.extendYears}年` : `${b.life.lifespanYears}歳前後`,
+        `今${ageYears(s)}歳。${s.life.ailing ? '体の不調を感じている（街の病院で治療を受けると寿命が延びる）。' : ''}寿命が来ると、前世の記憶（熟練・図鑑・称号）を受け継いで生まれ変わる。Lv・ゴールド・装備・仲間・会社は最初から`)),
     s.legacy.lives.length
       ? note(`前世：${s.legacy.lives.slice(-3).reverse().map((p) => `${p.generation}世代目 ${p.name}（${p.age}歳・Lv${p.level}・最高${p.maxFloor}階層）`).join('　')}`)
       : null,
@@ -570,11 +613,11 @@ function heroPanel(app) {
 }
 
 // 中に入れる施設（town.json の id → 中身）。ここに無い施設は「準備中」
-const PANELS = { shop: shopPanel, guild: guildPanel, home: homePanel, company: companyPanel, rocket: rocketPanel, major: majorPanel, base: basePanel };
+const PANELS = { shop: shopPanel, guild: guildPanel, home: homePanel, company: companyPanel, rocket: rocketPanel, major: majorPanel, base: basePanel, hospital: hospitalPanel };
 
 function buildPanel(app) {
   const t = app.town;
-  live = { gold: el('span'), hp: el('b'), mp: el('b'), bed: el('span'), buttons: [], rocket: [], base: null };
+  live = { gold: el('span'), hp: el('b'), mp: el('b'), bed: el('span'), buttons: [], rocket: [], base: null, exam: null };
   const f = t.facilities.find((x) => x.id === view);
   let title, sprite, body;
   if (view === 'hero') {
@@ -617,7 +660,7 @@ export function update(app, force) {
     return;
   }
   town = null;
-  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched]), s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket.buildCostPaid, s.life.generation,
+  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched]), s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket.buildCostPaid, s.life.generation, s.life.ailing, s.life.treatments,
     // 学際分野（解放・休眠・専攻・熟練）と拠点・ロケットの工程（進み具合は作り直さずに書き換える）
     fieldList(s, app.ctx).map((f) => [f.unlocked, f.dormant, f.slot, f.levels]), s.adventure.baseFloor, rocketSteps(s, app.ctx).map((st) => [st.done, st.active])]);
   // 名前を入力している途中は作り直さない（入力が消えないように）
@@ -637,6 +680,13 @@ export function update(app, force) {
       r.bar.style.width = `${(st.hours / st.need) * 100}%`;
       r.text.textContent = `${years(st.hours)}／${years(st.need)}`;
     }
+  }
+  if (live.exam) {
+    // 病院の診察（年齢で変わるので、作り直さずに書き換える）
+    const left = lifespanOf(s, app.ctx.balance) - ageYears(s);
+    live.exam.textContent = s.life.ailing
+      ? `診察：年を重ねて、体が弱ってきている。このままだと、あと${left}年ほど（${lifespanOf(s, app.ctx.balance)}歳ごろまで）`
+      : `診察：どこも悪くない。今${ageYears(s)}歳。年を取って体の不調を感じたら、また来なさい`;
   }
   if (live.base) {
     const on = fieldActive(s, app.ctx, STRUCTURAL);

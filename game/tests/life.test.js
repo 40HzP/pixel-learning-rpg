@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   tick, heroStats, lifespanFor, generationMultiplier, reincarnate, heroTitles, payRocketBuildCost, startGame,
   genreState, midbossState, foundCompany, companiesProfit, spawnGroup, damageEnemy, ageYears, HOURS_PER_YEAR,
-  buyItem, shopList, hireRecruit, recruitList, industryList, hireStaff, bestStaffGrade, staffCost, proficiencyCap, sleep,
+  buyItem, shopList, hireRecruit, recruitList, industryList, hireStaff, bestStaffGrade, staffCost, proficiencyCap, sleep, receiveTreatment,
 } from '../js/sim.js';
 import { createSession, presentQuestion, answer } from '../js/quiz.js';
 import { balance, questions, makeCtx, newGame, constRng, seededRng } from './helpers.js';
@@ -108,9 +108,10 @@ test('ロケットの建造費（3000億G）を払うと、その工程は生ま
 /**
  * 1〜3世代を通しで遊ぶ（勉強の進み方は仮定：経営学は12年ごとに+1（1世代目は12歳でLv1）、心理学は14年ごと、
  * 業種に関係するジャンルは20年ごと。2世代目からは引き継いだ知識から、熟練Lvの上限（5・10・15）まで上がり続ける）。
- * 届く業種のうち利益の一番大きいものを起業し、社員はいちばん優秀な質で雇う
+ * 届く業種のうち利益の一番大きいものを起業し、社員はいちばん優秀な質で雇う。
+ * treat：病院の治療を受けられるだけ受けて、寿命を延ばす
  */
-function playGenerations() {
+function playGenerations({ treat = false } = {}) {
   const ctx = makeCtx(seededRng(7));
   const s = newGame(0);
   const others = new Set(ctx.business.industries.flatMap((i) => i.genres));
@@ -131,6 +132,7 @@ function playGenerations() {
       for (const g of others) if (g !== '経営学' && g !== '心理学') genreState(s, g).level = k.oth;
       tick(s, 1, ctx);
       if (s.meta.startAge == null) break;
+      if (treat) while (receiveTreatment(s, ctx).ok);
       for (const it of shopList(s, ctx)) if (it.unlocked && !it.owned && s.gold >= it.price) buyItem(s, it.id, ctx);
       for (const r of recruitList(s, ctx)) if (!r.hired && s.gold >= r.monthlyCost * 3) hireRecruit(s, r.id, ctx);
       const can = industryList(s, ctx).filter((i) => i.unlocked && !i.founded && i.cost <= s.gold).sort((a, b) => b.monthlyProfit - a.monthlyProfit);
@@ -155,6 +157,13 @@ test('会社の利益の目安：勉強を続けると、3世代目の50〜75歳
   assert.ok(best[1] < cost * 0.2, `1世代目は遠い（最高 ${Math.round(best[1] / 1e8)}億）`);
   assert.ok(best[2] < cost && best[2] > cost * 0.4, `2世代目は届かないが近づく（最高 ${Math.round(best[2] / 1e8)}億）`);
   assert.ok(paidAt && paidAt.gen === 3 && paidAt.age >= 50 && paidAt.age <= 75, `3世代目の50〜75歳で届く（${JSON.stringify(paidAt)}）`);
+});
+
+test('病院で毎回すべての治療を受けて寿命を延ばしても、ロケットの建造費に届くのは3世代目（2世代目では届かない）', () => {
+  const { best, paidAt } = playGenerations({ treat: true });
+  const cost = balance.rocket.buildCost;
+  assert.ok(best[2] < cost, `2世代目は届かない（最高 ${Math.round(best[2] / 1e8)}億）`);
+  assert.ok(paidAt && paidAt.gen === 3, `3世代目で届く（${JSON.stringify(paidAt)}）`);
 });
 
 test('熟練Lvの上限は生まれ変わるたびに5ずつ上がる（1世代目5・2世代目10・3世代目15）。勉強でも睡眠でも上限まで上がる', () => {

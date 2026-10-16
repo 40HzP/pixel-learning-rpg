@@ -143,7 +143,7 @@ EOF
   - `pixel/editor.html` とスプライトJSONの形式（`serializeSprite`）を変更しない
   - ゲームは `pixel/sprites/*.json` と `pixel/palette.json` を **読むだけ**。`_original/` と `export/` は読まない
   - スプライトをゲーム用にコピー・変換して置かない（手直しした瞬間にゲームへ反映されるようにする）
-  - ゲームが読むスプライトは `monsters.json`・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`、`stages.json` の `background`、`hero_idle` / `hero_attack` だけ（ブラウザはフォルダの中身を一覧できないため）
+  - ゲームが読むスプライトは `monsters.json`・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`、`stages.json` の `background`、`hero_idle` / `hero_attack` / `hero_old_idle`（年を取った主人公。ミニムービー用）だけ（ブラウザはフォルダの中身を一覧できないため）
 - 計算（`sim.js`・`quiz.js`・`fields.js`・`save.js`・`genres.js`）はブラウザの機能（DOM・localStorage）に触らない。乱数は `ctx.rng` で渡す（テストで固定するため）
 - 対象はスマホのブラウザ（縦画面）とデスクトップ版 Chrome。将来ストアアプリ化するので、ブラウザ固有の機能に頼りすぎない
 
@@ -168,7 +168,7 @@ game/
     monsters.json        … 魔物・小ボス・中ボス
     items.json           … 店の品物
     recruits.json        … 仲間が集まる場所で契約できる仲間
-    town.json            … 施設画面の街（背景、施設の外観の名前と置く位置、主人公の立つ位置）
+    town.json            … 施設画面の街（背景、施設の外観の名前と置く位置、主人公の立つ位置）と、体の不調のミニムービーの文（病院の `ailmentMovie`）
     stages.json          … 10階層ごとの世界（始まる階層・名前・ジャンル・背景）
     business.json        … 会社の業種（元手・利益・よく効く社員・関係するジャンル）と起業できる条件
     fields.json          … 学際分野（2つのジャンルの組み合わせ・称号・効果の説明）とロケット計画の工程
@@ -224,7 +224,7 @@ tools/check-questions.mjs … questions.json の検査
   - 図鑑の説明（`intro`）に、倒せるレベルは書かない（40HzP の依頼）
   - 孫は `ally: false`（倒しても仲間にならない）と `title`（称号「生き字引」）を持つ。称号は主人公のステータスと図鑑に出る（`sim.js` の `heroTitles`）
   - 孫の「なんで？」（`nande: true`。40HzP の依頼。設計ページ「全ジャンルからランダムに『なんで？』と聞いてくる」）：孫と戦っている間、出てから `balance.json` の `nande.firstSec` 秒後、以後 `intervalSec` 秒ごとに、全ジャンルから1問（勉強のクイズと同じ選び方）を画面全体に出す。出している間はゲームの時間が止まる。答えはふつうの勉強と同じに数える（熟練・累計正解数・過去問復習）。正解すると孫に中ボスへの正解のダメージ（最大HPの10%。防御が崩れる前は0）、間違い・時間切れだと孫のHPが最大HP×`wrongHealRatio` 回復する（`sim.js` の `askWhy`・`nandeUnanswered`、`ui/nande.js`）。孫はふつうの攻撃もする
-- 中ボスを倒したときのミニムービー：`monsters.json` の `defeatMovie`（文の並び）がある中ボスを倒すと、画面全体が暗転して、主人公とその中ボスが向き合う絵（今の世界の背景を切り抜いたもの）の下に文を1つずつ出す。文字は少しずつ出て、タップで進む（途中でタップすると全部出る）。最後の文のあとタップで暗転して戻る。流れている間はゲームの時間を止め、知らせは終わってから出す（`ui/movie.js`、`main.js` の `startMovie`）。ムービーと孫の「なんで？」は `main.js` の `runOverlay` が1つずつ順に出す（「なんで？」の正解で倒したときは、閉じてからムービー）。冒険で倒しても勉強の正解で倒しても流れる。小学校教師の2つの文は 40HzP の依頼。ほかの8人の文は、小学校教師の「次は中学校教師と…」に続く形で Claude Code が書いた仮の文（40HzP が直してよい）。デバッグ画面から流し直せる
+- 中ボスを倒したときのミニムービー（ほかに、体の不調と寿命のミニムービーがある。下の「寿命と転生」）：`monsters.json` の `defeatMovie`（文の並び）がある中ボスを倒すと、画面全体が暗転して、主人公とその中ボスが向き合う絵（今の世界の背景を切り抜いたもの）の下に文を1つずつ出す。文字は少しずつ出て、タップで進む（途中でタップすると全部出る）。最後の文のあとタップで暗転して戻る。流れている間はゲームの時間を止め、知らせは終わってから出す（`ui/movie.js`、`main.js` の `startMovie`）。ムービーと孫の「なんで？」は `main.js` の `runOverlay` が1つずつ順に出す（「なんで？」の正解で倒したときは、閉じてからムービー）。冒険で倒しても勉強の正解で倒しても流れる。小学校教師の2つの文は 40HzP の依頼。ほかの8人の文は、小学校教師の「次は中学校教師と…」に続く形で Claude Code が書いた仮の文（40HzP が直してよい）。デバッグ画面から流し直せる
 - `quiz.midbossDamageRatio` 中ボスへの正解のダメージ（最大HPに対する割合。0.1＝10%）。ザコ・小ボスへは `correctDamageRatio`（50%）のまま
 - 中ボスの防御は、累計の正解数（`knowledge.totalCorrect`。中ボスが出る前の正解も数える）が `monsters.json` の `unlockCorrect` に届くと崩れる（設計書4.7の「出てから5問正解」を 40HzP の依頼で変えた）。足りていれば出てきた時点で攻撃が効く
 - 設計書に無い項目：
@@ -236,7 +236,7 @@ tools/check-questions.mjs … questions.json の検査
   - `stats.evadePerAgi`・`evadeMax` すばやさによる回避率（回避率＝すばやさ×`evadePerAgi`、上限 `evadeMax`）。`hero.attackIntervalSec` 主人公の攻撃の間隔（0.5秒＝秒間2回。すばやさでは変わらない）
   - `stats.critChancePerLuck`・`critChanceMax`・`critMultiplier` 運の良さによる会心の一撃、`stats.goldBonusPerLuck` 運の良さ1あたりゴールドが増える割合
   - `spell` 主人公の全体攻撃「ひらめき」：敵が `minTargets` 体以上でMPが `mpCost` 以上あると使う。ダメージ＝賢さ×`power`（防御は効かない）。MPは毎秒 `mpRegenPerSec` 回復し、眠ると全回復
-  - `life` 寿命（`lifespanYears`±`lifespanSpread` 歳）、`reincarnation.multiplier` 世代ごとの倍率、`reincarnation.proficiencyCapStep` 生まれ変わるたびに上がる熟練Lvの上限、`rocket.buildCost` ロケットの建造費、`rocket.stepYears` ロケットの工程1つにかかるゲーム内の年数
+  - `life` 寿命（`lifespanYears`±`lifespanSpread` 歳）と、体の不調を感じ始める年（寿命の `ailmentYearsBefore` 年前）、`hospital` 病院の治療（1回で延びる年数 `extendYears`、治療費 `treatmentCosts`。治療費の数が受けられる回数）、`reincarnation.multiplier` 世代ごとの倍率、`reincarnation.proficiencyCapStep` 生まれ変わるたびに上がる熟練Lvの上限、`rocket.buildCost` ロケットの建造費、`rocket.stepYears` ロケットの工程1つにかかるゲーム内の年数
   - `fields` 学際分野：`unlockLevel` 解放と休眠の境目の熟練Lv、`shopDiscount` 行動経済学の店の値引き（0.2＝2割引）
   - `nande` 孫の「なんで？」の間隔（`firstSec`・`intervalSec`）と、答えられなかったときに孫が回復する割合（`wrongHealRatio`）
   - `boss` 小ボスの強さ：その階層のザコの数値に `hpMultiplier`・`atkMultiplier`・`defMultiplier`・`expMultiplier`・`goldMultiplier` を掛ける
@@ -290,7 +290,14 @@ tools/check-questions.mjs … questions.json の検査
 - 引き継ぐもの：知識（熟練・累計正解数・過去問復習・直近の出題・解放した学際分野と専攻）・図鑑・倒した小ボス・称号（`legacy.titles`）・名前・ロケット計画の工程（`legacy.rocket`）。拠点は階層と一緒に無くなる
 - 世代の倍率（40HzP の依頼）：生まれ変わるたびに `reincarnation.multiplier`（1.5）倍。2世代目は1.5倍、3世代目は2.25倍。掛かるのは、ステータスの伸び（`hero.perLevel` の全部と `wisPerCorrect`。初期値の `base` には掛けない）・敵を倒したときの経験値とゴールド・会社の利益（`generationMultiplier`）。セーブの `life.generation`
 - 熟練Lvの上限（40HzP の依頼）：1世代目は5（`genres.js` の `MAX_PROFICIENCY`）。生まれ変わるたびに `reincarnation.proficiencyCapStep`（5）ずつ上がる（2世代目10・3世代目15…。`sim.js` の `proficiencyCap`）。勉強の正解でも睡眠でも上限まで上がる。業種は経営学Lv5、社員の質は心理学Lv5（伝説）でいちばん上なので、6から先は関係するジャンルとしての会社の利益（`genreBonusPerLevel`）が増え続ける。難易度の出し方は Lv5 の割合のまま
-- 寿命が来たら、ミニムービーで前世をふり返り（何歳・Lv・最高階層・残したゴールド）、最初の案内（年齢と名前を選ぶ）をもう一度出す。案内の上に「◯世代目。前世の記憶を受け継いだ。…◯倍」を出し、名前は前世のものを入れておく。年齢を選ぶまで時間は止まる
+- 体の不調と病院（40HzP の依頼「街に病院を追加して、70歳前後で身体の不調を感じ始めるミニムービー」。設計ページ「寿命は医者や生化学で延びる」）
+  - 寿命の `life.ailmentYearsBefore`（10）年前に、体の不調を感じ始める（寿命は80±3歳なので67〜73歳。`sim.js` の `ailmentAge`）。一度だけミニムービーが流れる：年を取った主人公（`hero_old_idle`。白髪・ひげ・杖）が1人で今の世界に立ち、文を出す。文は `town.json` の病院の `ailmentMovie`（`{name}` に名前、`{age}` に年齢が入る。Claude Code が書いた仮の文なので 40HzP が直してよい）。終わったら「街に病院がある…」と知らせる（`main.js` の `startAilmentMovie`）。デバッグ画面から流し直せる
+  - 不調はムービーと表示だけで、ステータスは変わらない（Claude Code の判断。進み方を変えないため）。主人公のステータスの「寿命」に「体の不調を感じている」と出る
+  - 病院（街の右下）：不調を感じ始めてから治療を受けられる。1回ごとに寿命が `hospital.extendYears`（2）年延びる。治療費は `hospital.treatmentCosts` の順（10万・100万・1000万G）で、1つの人生で3回まで（最大+6年）。不調のあとは診察で「あと◯年ほど（◯歳ごろまで）」が分かる（`treatmentInfo`・`receiveTreatment`・`lifespanOf`）。治療の中身・回数・値段は Claude Code の判断（設計ページは「数値は試遊してから調整する」）
+  - 治療で延びるのは `life.lifespan`（生まれたときの寿命）ではなく、治療の回数 `life.treatments` から出す（不調の年齢は動かない）。セーブの `life.ailing`（不調を感じ始めたか）と `life.treatments`。前のセーブは足りない項目を既定値で埋めるので、版は上げていない。生まれ変わると両方最初から
+  - ロケットの目安への影響：毎回すべての治療を受けても、2世代目の最高所持金は約2,800億で届かず、3世代目の47歳で届く（受けないときは54歳）。`life.test.js` が「治療を受けても2世代目では届かない」を確かめる
+  - 会社を持っていない人の70歳の所持金はおよそ25万〜60万G（勉強なし〜1分に1問）なので、1回目の治療は受けられ、2回目からは会社の利益が要る
+- 寿命が来たら、ミニムービー（年を取った主人公の絵）で前世をふり返り（何歳・Lv・最高階層・残したゴールド）、最初の案内（年齢と名前を選ぶ）をもう一度出す。案内の上に「◯世代目。前世の記憶を受け継いだ。…◯倍」を出し、名前は前世のものを入れておく。年齢を選ぶまで時間は止まる
 - 前世のまとめは `legacy.lives`（主人公のステータス画面に直近3つを出す）。冒険画面の名前の横に「（◯世代目）」、主人公のステータスに「世代」と「寿命（80歳前後）」
 - 設計ページとの違い：設計ページは「前世の記憶と能力を全て引き継ぐが、仲間との関係値と戦闘ステータスは0に戻る」。Lv とゴールドを失い、世代ごとに1.5倍になるのは 40HzP の依頼。装備・仲間・会社・中ボスを最初からにしたのは Claude Code の判断（ゴールドを失うので、ゴールドで買ったものも最初から）
 
@@ -333,10 +340,10 @@ tools/check-questions.mjs … questions.json の検査
 
 ## 施設画面（街）
 
-- 施設画面は「街」。`bg_town`（90×160）の上に施設の外観（`town_<施設>`、32×32、category `building`）を並べ、広場に主人公が立つ。設計ページ「施設画面の表示」の「施設を並べる」を、40HzP の依頼で街の見た目にした
-- 並べる位置は `town.json` の `x`・`y`（街の左上からのドット数）。建物の前の道と広場は `bg_town` に描いてあるので、位置を変えるときは背景も合わせる。`town.test.js` が「街の中に収まる・重ならない・スプライトがある」を確かめる
-- 建物をタップするとその施設に入る（上に「← 街へ」）。中身があるのは店（`shop`）・仲間が集まる場所（`guild`）・寝床（`home`）・会社（`company`）・ロケット発射場（`rocket`）・専攻の付け替え（`major`）・拠点（`base`）。中身は `facility.js` の `PANELS`。条件を満たすまで「準備中」と `desc` を出す施設（会社・拠点）は `LOCKS`
-- 広場の主人公をタップすると、主人公のステータスと名前の変更。街の上の帯に所持金と版を出す
+- 施設画面は「街」。`bg_town`（90×160）の上に施設の外観（`town_<施設>`、32×32、category `building`）を並べ、真ん中の道の下の小さな広場に主人公が立つ（右下にあった噴水の広場は病院にした）。設計ページ「施設画面の表示」の「施設を並べる」を、40HzP の依頼で街の見た目にした
+- 並べる位置は `town.json` の `x`・`y`（街の左上からのドット数）。建物の前の道と広場は `bg_town` に描いてあるので、位置を変えるときは背景も合わせる。2列×4段で埋まっているので、施設をもっと足すときは街の並べ方から考え直す。`town.test.js` が「街の中に収まる・重ならない・スプライトがある」を確かめる
+- 建物をタップするとその施設に入る（上に「← 街へ」）。中身があるのは店（`shop`）・仲間が集まる場所（`guild`）・寝床（`home`）・会社（`company`）・ロケット発射場（`rocket`）・専攻の付け替え（`major`）・拠点（`base`）・病院（`hospital`）。中身は `facility.js` の `PANELS`。条件を満たすまで「準備中」と `desc` を出す施設（会社・拠点）は `LOCKS`
+- 広場の主人公をタップすると、主人公のステータスと名前の変更（いつもの姿の `hero_idle`。年を取った姿はムービーだけ）。街の上の帯に所持金と版を出す
 - 寝床（`home`）の見た目はテント（`town_home`）。眠ると冒険は1つ手前の階層（`bedFloor`）の最初に戻り、そのあと睡眠の処理（HP・MPの全回復、ゲーム内10時間、熟練の判定）が起きる。1階層なら1階層の最初から。戦っていた群れや中ボスは退く（`sim.js` の `sleepAtBed`）。設計書4.5の寝床は階層を変えなかったのを、40HzP の依頼で変えた。デバッグ画面の「すぐ眠る」も同じ
 - 施設の中にいるときは、知らせを画面の下に出す（上の「← 街へ」を隠さない）
 - 施設を足すとき：スプライトを描き（`style-guide.md` 9章）、`town.json` に1件足す。中身を作ったら `PANELS` に足す

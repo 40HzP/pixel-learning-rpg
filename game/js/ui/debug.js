@@ -1,5 +1,5 @@
 // デバッグ画面（URL に ?debug=1 を付けたときだけ出る）
-import { HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel } from '../sim.js';
+import { HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel, lifespanOf, ailmentAge, ageYears } from '../sim.js';
 import { SAVE_KEY, serialize, deserialize } from '../save.js';
 import { GENRES } from '../genres.js';
 import { el } from './dom.js';
@@ -47,7 +47,14 @@ export function init(app) {
           app.notify(`${age.value}歳にした`);
         },
       }, '設定'),
-      el('button', { onclick: () => { app.state.life.gameHours = app.state.life.lifespan * HOURS_PER_YEAR - 24; app.notify('寿命の直前にした'); } }, 'すぐ寿命にする'))),
+      el('button', {
+        onclick: () => {
+          app.state.life.ailing = false;
+          app.state.life.gameHours = ailmentAge(app.state, ctx.balance) * HOURS_PER_YEAR - 24;
+          app.notify('体の不調を感じ始める直前にした');
+        },
+      }, '体の不調の直前にする'),
+      el('button', { onclick: () => { app.state.life.gameHours = lifespanOf(app.state, ctx.balance) * HOURS_PER_YEAR - 24; app.notify('寿命の直前にした'); } }, 'すぐ寿命にする'))),
     el('div', { class: 'section' }, el('h2', {}, '階層（小ボスの確認用）'),
       el('div', {}, floor, '階層', el('button', {
         onclick: () => {
@@ -86,8 +93,9 @@ export function init(app) {
           app.handleEvents(ev);
         },
       }, '出す'))),
-    el('div', { class: 'section' }, el('h2', {}, 'ミニムービー（倒したときに流れる）'),
-      el('div', {}, ctx.monsters.filter((m) => m.defeatMovie).map((m) => el('button', { onclick: () => app.playMovie(m.id) }, m.name)))),
+    el('div', { class: 'section' }, el('h2', {}, 'ミニムービー（中ボスを倒したとき・体の不調）'),
+      el('div', {}, ctx.monsters.filter((m) => m.defeatMovie).map((m) => el('button', { onclick: () => app.playMovie(m.id) }, m.name)),
+        el('button', { onclick: () => app.playAilmentMovie(Math.max(ageYears(app.state), ailmentAge(app.state, ctx.balance))) }, '体の不調'))),
     el('div', { class: 'section' }, el('h2', {}, '睡眠'),
       el('div', {}, el('button', { onclick: () => app.sleepNow() }, 'すぐ眠る'))),
     el('div', { class: 'section' }, el('h2', {}, 'セーブ'),

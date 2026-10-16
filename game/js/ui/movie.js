@@ -1,5 +1,6 @@
 // ミニムービー：中ボスを倒したときなどに、主人公と相手の絵の下に文を1行ずつ出す（タップで進む）。
-// 文は monsters.json の defeatMovie に書く。流れている間はゲームの時間を止め、知らせは終わってから出す（main.js）
+// 文は monsters.json の defeatMovie（中ボス）・town.json の病院の ailmentMovie（体の不調）に書く。
+// 流れている間はゲームの時間を止め、知らせは終わってから出す（main.js）
 import { drawSprite, frameAt } from '../sprites.js';
 import { stageFor } from '../sim.js';
 import { el } from './dom.js';
@@ -9,12 +10,15 @@ const H = 48;          // 絵の高さ（ドット）
 const BG_X = 15;       // 背景を切り抜く左端
 const BG_TOP = 94;     // 背景を切り抜く上端（地平線の少し上から足元の下まで）
 const FEET = 42;       // 足元の行（冒険画面の足元 136 − BG_TOP）
-const X = { hero: 11, other: 33 };
+const X = { hero: 11, other: 33, alone: 22 }; // 相手がいないときは主人公を真ん中に
 const CHAR_SEC = 0.06; // 1文字を出す間隔（秒）
 const FADE_MS = 500;   // 暗転して始まり、暗転して終わる
 
-/** ミニムービーを流す。lines：出す文の並び、otherId：主人公と向き合う魔物の id。閉じると解決する Promise を返す */
-export function playMovie(app, { lines, otherId }) {
+/**
+ * ミニムービーを流す。lines：出す文の並び、otherId：主人公と向き合う魔物の id（null なら主人公だけ）、
+ * hero：主人公の絵（'idle'＝いつもの姿、'old'＝年を取った姿）。閉じると解決する Promise を返す
+ */
+export function playMovie(app, { lines, otherId, hero: heroKey = 'idle' }) {
   return new Promise((resolve) => {
     const cv = el('canvas', { class: 'pixel', width: W, height: H });
     const g = cv.getContext('2d');
@@ -41,8 +45,8 @@ export function playMovie(app, { lines, otherId }) {
       const stage = stageFor(app.state.adventure.floor, app.stages);
       if (stage && stage.bg) drawSprite(g, stage.bg, 0, -BG_X, -BG_TOP);
       else { g.fillStyle = '#6fb042'; g.fillRect(0, 0, W, H); }
-      const hero = app.heroSprites.idle;
-      if (hero) drawSprite(g, hero, frameAt(hero, now), X.hero, FEET - hero.h);
+      const hero = app.heroSprites[heroKey] || app.heroSprites.idle;
+      if (hero) drawSprite(g, hero, frameAt(hero, now), other ? X.hero : X.alone, FEET - hero.h);
       if (other) drawSprite(g, other, frameAt(other, now), X.other, FEET - other.h);
       const line = lines[index] || '';
       const n = Math.min(line.length, shown(now));

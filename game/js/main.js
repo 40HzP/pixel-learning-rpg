@@ -77,7 +77,8 @@ async function boot() {
       recruitSprites[r.id] = { idle: await load(r.sprites.idle), attack: await load(r.sprites.attack) };
     }),
   ]);
-  const [heroIdle, heroAttack] = await Promise.all([load('hero_idle'), load('hero_attack')]);
+  // hero_old_idle：年を取った主人公（体の不調と寿命のミニムービーに出る）
+  const [heroIdle, heroAttack, heroOld] = await Promise.all([load('hero_idle'), load('hero_attack'), load('hero_old_idle')]);
   // 10階層ごとの世界の背景（stages.json に書いた名前だけ読む）
   const stageList = await Promise.all(stages.map(async (st) => ({ ...st, bg: await load(st.background) })));
   // 施設画面の街：背景と施設の外観（town.json に書いた名前だけ読む）
@@ -90,7 +91,7 @@ async function boot() {
   const ctx = { balance, monsters, items, questions, recruits, business, fields, rng: Math.random };
   const app = {
     ctx, palette, monsterSprites, recruitSprites,
-    heroSprites: { idle: heroIdle, attack: heroAttack },
+    heroSprites: { idle: heroIdle, attack: heroAttack, old: heroOld },
     stages: stageList,
     town: { ...town, bg: townBg, sprites: townSprites },
     state: null,
@@ -116,6 +117,7 @@ async function boot() {
     placeNotices: () => placeNotices(),
     overlay: false,   // ミニムービー・孫の「なんで？」を出している間は true（ゲームの時間を止め、知らせを後回しにする）
     playMovie: (monsterId) => startMovie(monsters.find((m) => m.id === monsterId)),
+    playAilmentMovie: (age) => startAilmentMovie(age),
     askNande: () => runOverlay(() => askNande(app)),
   };
   app.state = loadSave(balance, notify);
@@ -174,6 +176,18 @@ async function boot() {
     runOverlay(() => playMovie(app, { lines: m.defeatMovie, otherId: m.id }));
   }
 
+  /**
+   * 年を取って体の不調を感じ始めた（寿命の life.ailmentYearsBefore 年前）：年老いた主人公のミニムービーを流す。
+   * 文は town.json の病院の ailmentMovie（{name}＝主人公の名前、{age}＝年齢）
+   */
+  function startAilmentMovie(age) {
+    const h = town.facilities.find((f) => f.id === 'hospital');
+    if (!h || !h.ailmentMovie || !h.ailmentMovie.length) return;
+    const fill = (line) => line.replaceAll('{name}', app.state.hero.name).replaceAll('{age}', age);
+    runOverlay(() => playMovie(app, { lines: h.ailmentMovie.map(fill), otherId: null, hero: 'old' })
+      .then(() => notify(`街に病院がある。治療を受けると、寿命が${balance.hospital.extendYears}年延びる（${balance.hospital.treatmentCosts.length}回まで）`, 'good')));
+  }
+
   /** 寿命で亡くなった：ムービーで前世をふり返り、生まれ変わりの案内を出す */
   function onReincarnated(e) {
     const p = e.life;
@@ -187,6 +201,7 @@ async function boot() {
         `前世の記憶を受け継いで、新しい命に生まれ変わる。${e.generation}世代目は、ステータスの伸び・経験値・ゴールドが${m}倍になる。`,
       ],
       otherId: null,
+      hero: 'old',
     }).then(() => { showIntro(); saveNow(); refreshActive(true); }));
   }
 
@@ -201,6 +216,7 @@ async function boot() {
       }
       else if (e.type === 'nande') runOverlay(() => askNande(app));
       else if (e.type === 'reincarnated') onReincarnated(e);
+      else if (e.type === 'ailment') startAilmentMovie(e.age);
       else if (e.type === 'levelUp') notify(`${app.state.hero.name}のレベルが上がった！　Lv ${e.level}`, 'good');
       else if (e.type === 'floorUp') {
         // 10階層ごとに世界が変わる。新しい世界の最初の階層では世界の名前を出す
