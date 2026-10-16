@@ -2,6 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tick, spawnGroup, chooseNextMonster, pendingBoss, bossState, monsterStats, damageEnemy, heroStats, zukanEntry } from '../js/sim.js';
 import { serialize, deserialize } from '../js/save.js';
+import { GENRES } from '../js/genres.js';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { balance, monsters, makeCtx, newGame, seededRng, constRng } from './helpers.js';
 
 const boss = monsters.find((m) => m.kind === 'boss' && m.floor === 10);
@@ -15,6 +18,36 @@ test('10階層の小ボスが monsters.json にあり、スプライトと図鑑
   assert.ok(boss, 'floor: 10 の小ボス');
   for (const k of ['name', 'myth', 'truth', 'whyBelieved', 'overturnedBy']) assert.ok(boss[k], k);
   assert.ok(boss.sprites.idle);
+});
+
+test('小ボスは設計ページの21個（かつての学説）。10階層ごとに1体ずつ（10〜210階層）。図鑑の項目と、待機・攻撃2枚ずつのスプライトがある', () => {
+  const bosses = monsters.filter((m) => m.kind === 'boss');
+  assert.equal(bosses.length, 21);
+  assert.deepEqual(bosses.map((m) => m.floor).sort((a, b) => a - b), Array.from({ length: 21 }, (_, i) => (i + 1) * 10));
+  assert.equal(new Set(bosses.map((m) => m.name)).size, 21, '名前が重ならない');
+  const sprite = (name) => JSON.parse(readFileSync(fileURLToPath(new URL(`../../pixel/sprites/${name}.json`, import.meta.url)), 'utf8'));
+  for (const b of bosses) {
+    for (const k of ['name', 'myth', 'truth', 'whyBelieved', 'overturnedBy']) assert.ok(b[k], `${b.name} の ${k}`);
+    assert.ok(b.genres.length && b.genres.every((g) => GENRES.includes(g)), `${b.name} のジャンル`);
+    assert.equal(sprite(b.sprites.idle).frames.length, 2, `${b.name} の待機`);
+    assert.equal(sprite(b.sprites.attack).frames.length, 2, `${b.name} の攻撃`);
+  }
+});
+
+test('小ボスはそれぞれ自分の階層だけに出て、倒すと次の階層へ進む（20〜210階層）', () => {
+  const ctx = makeCtx(constRng(0.3));
+  for (const b of monsters.filter((m) => m.kind === 'boss' && m.floor > 10)) {
+    const s = newGame(0);
+    s.adventure.floor = b.floor - 1;
+    assert.notEqual((pendingBoss(s, ctx) || {}).id, b.id);
+    s.adventure.floor = b.floor;
+    const ev = [];
+    const group = spawnGroup(s, ctx, ev);
+    assert.deepEqual(group.map((e) => e.monsterId), [b.id], `${b.floor}階層は${b.name}だけ`);
+    clearEnemies(s, ctx, ev);
+    assert.ok(ev.some((x) => x.type === 'bossDefeated' && x.monsterId === b.id));
+    assert.equal(s.adventure.floor, b.floor + 1);
+  }
 });
 
 test('10階層では小ボスだけが1体で出る。強さはその階層のザコに倍率をかけたもの', () => {
