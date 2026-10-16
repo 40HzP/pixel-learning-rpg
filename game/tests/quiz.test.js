@@ -210,11 +210,18 @@ test('テスト用紙を破りすてると、主人公の年齢の学校の先�
   const { monsters } = await import('./helpers.js');
   const { readFileSync } = await import('node:fs');
   const sprite = (name) => JSON.parse(readFileSync(new URL(`../../pixel/sprites/${name}.json`, import.meta.url), 'utf8'));
+  // 顔は怒り顔（scold）と困惑顔（puzzled）のどちらか
+  const { MOODS, pickMood } = await import('../js/ui/tear.js');
+  assert.deepEqual(MOODS, ['scold', 'puzzled']);
+  assert.deepEqual(new Set(Array.from({ length: 40 }, (_, i) => pickMood(seededRng(i + 100)))), new Set(MOODS), 'どちらの顔も出る');
   for (const id of ['teacher_elementary', 'teacher_junior', 'teacher_high', 'professor']) {
     const m = monsters.find((x) => x.id === id);
     assert.ok(m, `${id} がいる`);
-    const sp = sprite(m.sprites.scold);
-    assert.deepEqual([sp.w, sp.h, sp.frames.length], [32, 32, 2], `${m.sprites.scold}`);
+    for (const mood of MOODS) {
+      const sp = sprite(m.sprites[mood]);
+      assert.deepEqual([sp.w, sp.h, sp.frames.length], [32, 32, 2], `${m.sprites[mood]}`);
+    }
+    assert.notDeepEqual(sprite(m.sprites.scold).frames, sprite(m.sprites.puzzled).frames, '怒り顔と困惑顔はちがう絵');
   }
   assert.deepEqual([sprite('scene_classroom').w, sprite('scene_classroom').h], [64, 48]);
   assert.ok(sprite('scene_lectern').w <= 64);

@@ -5,9 +5,16 @@
 import { drawSprite, frameAt } from '../sprites.js';
 import { el } from './dom.js';
 
-/** 先生のセリフ。破りすてるたびに、どれか1つを言う（40HzP の依頼。足すときはここに足す） */
+/** 先生のセリフ。破りすてるたびに、どれか1つを言う（40HzP の依頼。足すときはここに足す）。顔とは別に選ぶ */
 export const SCOLDS = ['な に を や っ て い る ！ ！ ？', 'な ん だ こ れ は ！ ！ ？'];
 export const pickScold = (rng = Math.random) => SCOLDS[Math.floor(rng() * SCOLDS.length) % SCOLDS.length];
+
+/**
+ * 先生の顔。破りすてるたびに、どちらか（40HzP の依頼）。
+ * scold：怒り顔（赤い怒りの印。画面が赤く光り、吹き出しは赤い字）／puzzled：困惑顔（困り眉で目を見開き、汗と「？」。光らず、吹き出しは黒い字）
+ */
+export const MOODS = ['scold', 'puzzled'];
+export const pickMood = (rng = Math.random) => MOODS[Math.floor(rng() * MOODS.length) % MOODS.length];
 
 const GRIP_MS = 350;    // 用紙を両手でつかんで、ぶるぶるさせる
 const FALL_MS = 900;    // 破れて、左右に分かれて落ちていく
@@ -51,7 +58,8 @@ export function playTear(app, teacherId) {
   return new Promise((resolve) => {
     const m = app.ctx.monsters.find((x) => x.id === teacherId);
     const sprites = app.monsterSprites[teacherId] || {};
-    const teacher = sprites.scold || sprites.idle || null; // 正面を向いて破れた用紙を持つ絵（無ければいつもの絵）
+    const mood = pickMood();
+    const teacher = sprites[mood] || sprites.scold || sprites.idle || null; // 正面を向いて破れた用紙を持つ絵（無ければいつもの絵）
     const { classroom, lectern } = app.sceneSprites || {};
     const hero = app.heroSprites.bow || null;
 
@@ -73,7 +81,8 @@ export function playTear(app, teacherId) {
       el('div', { class: 'scold-bubble' }, pickScold()), cv, el('div', { class: 'scold-name' }, m ? m.name : '先生'));
 
     const sorryBtn = el('button', { class: 'primary sorry', onclick: (e) => { e.stopPropagation(); apologize(); } }, 'あやまる');
-    const overlay = el('div', { class: 'overlay tear', role: 'dialog', 'aria-label': 'テスト用紙を破りすてた', tabindex: '-1' },
+    // 顔の種類は mood-◯◯ の印で付ける（scold は「怒っている場面に進んだ」の印なので、名前を分ける）
+    const overlay = el('div', { class: `overlay tear mood-${mood}`, role: 'dialog', 'aria-label': 'テスト用紙を破りすてた', tabindex: '-1' },
       el('div', { class: 'tear-box' }, paper, scene), sorryBtn);
     document.getElementById('app').append(overlay);
 

@@ -73,8 +73,9 @@ async function boot() {
   await Promise.all([
     ...monsters.map(async (m) => {
       monsterSprites[m.id] = { idle: await load(m.sprites.idle), attack: await load(m.sprites.attack) };
-      // 学校の先生：正面を向いて破れたテスト用紙を持つ絵（用紙を破りすてたときのミニモーション）
+      // 学校の先生：正面を向いて破れたテスト用紙を持つ絵（用紙を破りすてたときのミニモーション。怒り顔と困惑顔）
       if (m.sprites.scold) monsterSprites[m.id].scold = await load(m.sprites.scold);
+      if (m.sprites.puzzled) monsterSprites[m.id].puzzled = await load(m.sprites.puzzled);
     }),
     ...recruits.filter((r) => r.sprites).map(async (r) => {
       recruitSprites[r.id] = { idle: await load(r.sprites.idle), attack: await load(r.sprites.attack) };
