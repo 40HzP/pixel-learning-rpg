@@ -80,8 +80,8 @@ async function boot() {
       recruitSprites[r.id] = { idle: await load(r.sprites.idle), attack: await load(r.sprites.attack) };
     }),
   ]);
-  // hero_old_idle：年を取った主人公（体の不調と寿命のミニムービーに出る）
-  const [heroIdle, heroAttack, heroOld] = await Promise.all([load('hero_idle'), load('hero_attack'), load('hero_old_idle')]);
+  // hero_old_idle：年を取った主人公（体の不調と寿命のミニムービーに出る）。hero_bow：先生にあやまる主人公（用紙を破りすてたとき）
+  const [heroIdle, heroAttack, heroOld, heroBow] = await Promise.all([load('hero_idle'), load('hero_attack'), load('hero_old_idle'), load('hero_bow')]);
   // 用紙を破りすてたときのミニモーションの教室（背景と、先生の前に重ねる教卓）
   const [classroom, lectern] = await Promise.all([load('scene_classroom'), load('scene_lectern')]);
   // 10階層ごとの世界の背景（stages.json に書いた名前だけ読む）
@@ -96,7 +96,7 @@ async function boot() {
   const ctx = { balance, monsters, items, questions, recruits, business, fields, rng: Math.random };
   const app = {
     ctx, palette, monsterSprites, recruitSprites,
-    heroSprites: { idle: heroIdle, attack: heroAttack, old: heroOld },
+    heroSprites: { idle: heroIdle, attack: heroAttack, old: heroOld, bow: heroBow },
     sceneSprites: { classroom, lectern },
     stages: stageList,
     town: { ...town, bg: townBg, sprites: townSprites },

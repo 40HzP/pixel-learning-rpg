@@ -1,6 +1,7 @@
 // テスト用紙を破りすてたときのミニモーション（40HzP の依頼）：用紙が不規則に破れて左右に落ちていき、
 // 教室の教壇で、正面を向いた先生が破れた用紙を両手で持って見ながら「な に を や っ て い る ！ ！ ？」などと怒る。
-// 流れている間はゲームの時間を止める（main.js の runOverlay）。怒り終わったらタップで戻る（途中でタップすると、すぐ怒っているところまで進む）
+// 主人公は教室の左で汗をかいて立っている。「あやまる」を押すと、汗を飛ばしながらぺこぺことおじぎをして、終わると戻る（40HzP の依頼）。
+// 流れている間はゲームの時間を止める（main.js の runOverlay）。途中でタップすると、すぐ怒っているところまで進む
 import { drawSprite, frameAt } from '../sprites.js';
 import { el } from './dom.js';
 
@@ -11,8 +12,10 @@ export const pickScold = (rng = Math.random) => SCOLDS[Math.floor(rng() * SCOLDS
 const GRIP_MS = 350;    // 用紙を両手でつかんで、ぶるぶるさせる
 const FALL_MS = 900;    // 破れて、左右に分かれて落ちていく
 const FADE_MS = 300;    // 暗転して始まり、暗転して終わる
+const BOW_MS = 2000;    // あやまる（ぺこぺこおじぎを4回）
 // 教室の絵（scene_classroom 64×48）の上に、先生（<先生>_scold 32×32）と、その前に教卓（scene_lectern）を重ねる
-const SCENE = { w: 64, h: 48, teacher: [16, 6], lectern: [19, 34] };
+// 主人公（hero_bow 24×16。1枚目は汗をかいて立っている姿、2〜4枚目でおじぎ）は教室の左、教壇の手前に立つ
+const SCENE = { w: 64, h: 48, teacher: [16, 6], lectern: [19, 34], hero: [0, 31] };
 
 /** 主人公の年齢の学校の先生（7歳より前と7〜12歳は小学校、13歳から中学校、16歳から高校、19歳から大学教授） */
 const TEACHERS = [[19, 'professor'], [16, 'teacher_high'], [13, 'teacher_junior'], [0, 'teacher_elementary']];
@@ -50,6 +53,7 @@ export function playTear(app, teacherId) {
     const sprites = app.monsterSprites[teacherId] || {};
     const teacher = sprites.scold || sprites.idle || null; // 正面を向いて破れた用紙を持つ絵（無ければいつもの絵）
     const { classroom, lectern } = app.sceneSprites || {};
+    const hero = app.heroSprites.bow || null;
 
     // 用紙は同じものを2枚重ね、毎回ちがう破れ目の線で左右に切り分けておく（破れると左右に分かれて落ちる）
     const clips = tearClips(tearLine());
@@ -68,13 +72,14 @@ export function playTear(app, teacherId) {
     const scene = el('div', { class: 'scold-scene' },
       el('div', { class: 'scold-bubble' }, pickScold()), cv, el('div', { class: 'scold-name' }, m ? m.name : '先生'));
 
-    const hint = el('div', { class: 'movie-hint' }, 'タップで戻る');
+    const sorryBtn = el('button', { class: 'primary sorry', onclick: (e) => { e.stopPropagation(); apologize(); } }, 'あやまる');
     const overlay = el('div', { class: 'overlay tear', role: 'dialog', 'aria-label': 'テスト用紙を破りすてた', tabindex: '-1' },
-      el('div', { class: 'tear-box' }, paper, scene), hint);
+      el('div', { class: 'tear-box' }, paper, scene), sorryBtn);
     document.getElementById('app').append(overlay);
 
     let raf = 0;
     let closing = false;
+    let sorryAt = null; // あやまり始めた時刻（秒）
     const timers = [];
     const at = (ms, fn) => timers.push(setTimeout(fn, ms));
     const draw = () => {
@@ -88,6 +93,11 @@ export function playTear(app, teacherId) {
         drawSprite(g, teacher, frameAt(teacher, now), tx, ty);
       }
       if (lectern) drawSprite(g, lectern, 0, SCENE.lectern[0], SCENE.lectern[1]);
+      if (hero) {
+        // あやまるまでは1枚目（汗をかいて立っている）。あやまったら、おじぎの絵をくり返す
+        const i = sorryAt == null ? 0 : Math.floor((now - sorryAt) * hero.fps) % hero.frames.length;
+        drawSprite(g, hero, i, SCENE.hero[0], SCENE.hero[1]);
+      }
       raf = requestAnimationFrame(draw);
     };
     const scolding = () => overlay.classList.contains('scold');
@@ -97,15 +107,31 @@ export function playTear(app, teacherId) {
     at(FADE_MS + GRIP_MS, () => overlay.classList.add('torn'));
     at(FADE_MS + GRIP_MS + FALL_MS, scold);
 
-    function advance() {
+    function close() {
       if (closing) return;
-      if (!scolding()) { for (const t of timers) clearTimeout(t); scold(); return; } // 途中なら、すぐ怒っているところへ
       closing = true;
       overlay.classList.remove('show');
       setTimeout(() => { cancelAnimationFrame(raf); overlay.remove(); resolve(); }, FADE_MS);
     }
+    /** 「あやまる」：汗を飛ばしながら、ぺこぺことおじぎをする。終わったら戻る */
+    function apologize() {
+      if (closing || sorryAt != null) return;
+      if (!scolding()) { for (const t of timers) clearTimeout(t); scold(); }
+      sorryAt = performance.now() / 1000;
+      overlay.classList.add('sorry');
+      setTimeout(close, BOW_MS);
+    }
+    function advance() {
+      if (closing) return;
+      if (!scolding()) { for (const t of timers) clearTimeout(t); scold(); return; } // 途中なら、すぐ怒っているところへ
+      if (sorryAt != null) close(); // おじぎの途中でタップしたら、すぐ戻る
+    }
     overlay.addEventListener('click', advance);
-    overlay.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); advance(); } });
+    overlay.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      if (scolding() && sorryAt == null) apologize(); else advance();
+    });
 
     draw();
     requestAnimationFrame(() => { overlay.classList.add('show'); overlay.focus(); });

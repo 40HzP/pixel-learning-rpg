@@ -218,6 +218,9 @@ test('テスト用紙を破りすてると、主人公の年齢の学校の先�
   }
   assert.deepEqual([sprite('scene_classroom').w, sprite('scene_classroom').h], [64, 48]);
   assert.ok(sprite('scene_lectern').w <= 64);
+  // 「あやまる」と、汗をかいた主人公がぺこぺことおじぎをする（1枚目は立っている姿、2〜4枚目でおじぎ）
+  const bow = sprite('hero_bow');
+  assert.deepEqual([bow.category, bow.w, bow.h, bow.frames.length], ['character', 24, 16, 4]);
 });
 
 test('用紙の破れ目は、決まった形のぎざぎざではなく、毎回ちがう不規則な線（上の端から下の端まで）', async () => {

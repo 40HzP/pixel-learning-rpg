@@ -177,8 +177,9 @@ function renderSheet(app) {
       paperHead(app, s),
       el('div', { class: 'paper-note' }, `全${s.total}問・時間制限なし。答えは提出するまで選び直せる`),
       ...cards),
+    // 「提出する」の下に、同じ大きさで赤い「破りすてる」
     el('div', { class: 'test-submit' }, left, el('button', { class: 'primary', onclick: () => submitTest(app) }, '提出する'),
-      el('button', { onclick: () => tearTest(app) }, '破りすてる')),
+      el('button', { class: 'danger', onclick: () => tearTest(app) }, '破りすてる')),
   );
   refreshSheetMeta(app);
 }
@@ -188,13 +189,12 @@ const paperHead = (app, s) => el('div', { class: 'paper-head' },
   el('span', { class: 'paper-title' }, `${s.genre}　テスト`), el('span', { class: 'paper-name' }, `名前　${app.state.hero.name}`));
 
 /**
- * 分からないときは用紙を破りすてる（答えは数えない）。破れて落ちていき、主人公の年齢の学校の先生が怒る
- * （ミニモーション。ui/tear.js）。設計ページ「分からないテスト用紙は破けるが、破くと後で先生に怒られる」
+ * 分からないときは用紙を破りすてる（答えは数えない。確認は出さない）。破れて落ちていき、主人公の年齢の学校の先生が怒る。
+ * 「あやまる」で主人公がおじぎをして戻る（ミニモーション。ui/tear.js）。設計ページ「分からないテスト用紙は破けるが、破くと後で先生に怒られる」
  */
 function tearTest(app) {
   if (view.phase !== 'sheet') return;
-  if (!confirm('テスト用紙を破りすてますか？（答えは数えません）')) return;
-  view.phase = 'menu';
+  view.phase = 'menu'; // 確認は出さない（40HzP の依頼）
   view.session = null;
   renderBody(app);
   scrollTop();

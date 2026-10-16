@@ -230,9 +230,11 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .paper-score { color: var(--red); font-size: 26px; margin: 8px 0 2px; transform: rotate(-3deg); transform-origin: left; }
 .result-mark { font-size: 17px; display: flex; align-items: center; gap: 8px; }
 .result-mark b { color: var(--red, #c4313b); font-size: 30px; line-height: 1; font-weight: normal; }
-.test-submit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 8px; }
-.test-submit span { flex: 1 1 100%; font-size: 14px; }
-.test-submit button.primary { flex: 1; }
+/* 「提出する」の下に、同じ大きさで赤い「破りすてる」 */
+.test-submit { display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin: 4px 0 8px; }
+.test-submit span { font-size: 14px; }
+.test-submit button { width: 100%; min-height: 52px; }
+button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 
 /* テスト用紙を破りすてる（ui/tear.js）：つかんでぶるぶる → 不規則な線で破れて左右に落ちる → 教壇で先生が破れた用紙を見ながら怒る */
 .overlay.tear { z-index: 40; flex-direction: column; gap: 14px; opacity: 0; transition: opacity .3s; cursor: pointer; user-select: none; -webkit-user-select: none; outline: none; overflow: hidden; }
@@ -269,8 +271,10 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
   border-style: solid; border-width: 12px 8px 0 8px; border-color: #1a1626 transparent transparent transparent;
 }
 .scold-name { color: var(--muted); font-size: 13px; }
-.overlay.tear .movie-hint { visibility: hidden; }
-.overlay.tear.scold .movie-hint { visibility: visible; }
+/* 怒られたら「あやまる」が出る。押すと主人公がおじぎをして、ボタンは消える */
+.overlay.tear .sorry { min-width: 180px; min-height: 52px; font-size: 18px; visibility: hidden; }
+.overlay.tear.scold .sorry { visibility: visible; animation: fade-in .3s ease-out; }
+.overlay.tear.sorry .sorry { visibility: hidden; }
 @keyframes tear-grip { 0%, 100% { transform: translate(-50%, -50%); } 25% { transform: translate(-50%, -50%) rotate(-1.5deg); } 75% { transform: translate(-50%, -50%) rotate(1.5deg); } }
 @keyframes tear-left {
   0% { transform: none; }
@@ -284,6 +288,7 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 }
 @keyframes scold-in { from { opacity: 0; transform: translateY(calc(-50% + 24px)); } to { opacity: 1; transform: translateY(-50%); } }
 @keyframes scold-shake { 0%, 100% { transform: none; } 25% { transform: translate(-3px, 1px); } 50% { transform: translate(3px, -1px); } 75% { transform: translate(-2px, -1px); } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes scold-flash { from { background: rgba(196, 49, 59, .75); } to { background: rgba(10, 8, 18, .88); } }
 .result-head { font-size: 22px; margin: 10px 0 4px; }
 .explain { background: var(--panel); border: 2px solid var(--line); padding: 10px; margin: 10px 0; line-height: 1.7; font-size: 15px; }
