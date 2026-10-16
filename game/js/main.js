@@ -170,10 +170,20 @@ async function boot() {
     })();
   }
 
+  /**
+   * ミニムービーは、勉強画面で問題を解いている最中（問題が出ていて、まだ答えていない間）には出さずに取っておき、
+   * 答え終わったら出す（40HzP の依頼）。取っておいたものは毎フレーム見て、解き終わったら順に出す（frame）
+   */
+  const heldMovies = [];
+  function afterAnswering(start) {
+    if (study.answering(app)) heldMovies.push(start);
+    else start();
+  }
+
   /** 魔物の defeatMovie（倒したときのミニムービー）を流す */
   function startMovie(m) {
     if (!m || !m.defeatMovie || !m.defeatMovie.length) return;
-    runOverlay(() => playMovie(app, { lines: m.defeatMovie, otherId: m.id }));
+    afterAnswering(() => runOverlay(() => playMovie(app, { lines: m.defeatMovie, otherId: m.id })));
   }
 
   /**
@@ -184,12 +194,18 @@ async function boot() {
     const h = town.facilities.find((f) => f.id === 'hospital');
     if (!h || !h.ailmentMovie || !h.ailmentMovie.length) return;
     const fill = (line) => line.replaceAll('{name}', app.state.hero.name).replaceAll('{age}', age);
-    runOverlay(() => playMovie(app, { lines: h.ailmentMovie.map(fill), otherId: null, hero: 'old' })
-      .then(() => notify(`街に病院がある。治療を受けると、寿命が${balance.hospital.extendYears}年延びる（${balance.hospital.treatmentCosts.length}回まで）`, 'good')));
+    afterAnswering(() => runOverlay(() => playMovie(app, { lines: h.ailmentMovie.map(fill), otherId: null, hero: 'old' })
+      .then(() => notify(`街に病院がある。治療を受けると、寿命が${balance.hospital.extendYears}年延びる（${balance.hospital.treatmentCosts.length}回まで）`, 'good'))));
   }
 
-  /** 寿命で亡くなった：ムービーで前世をふり返り、生まれ変わりの案内を出す */
+  /**
+   * 寿命で亡くなった：ムービーで前世をふり返り、生まれ変わりの案内を出す。
+   * 問題を解いている最中なら、答え終わってから（年齢を選ぶまでゲームの時間は止まっているので、制限時間も減らない）
+   */
   function onReincarnated(e) {
+    afterAnswering(() => reincarnationMovie(e));
+  }
+  function reincarnationMovie(e) {
     const p = e.life;
     const m = generationMultiplier(app.state, balance);
     app.rate = createRateTracker();
@@ -378,6 +394,8 @@ async function boot() {
     const now = nowMs / 1000;
     app.renderer.draw(app.state, now);
     if (app.tab === 'study') study.drawMini(app);
+    // 問題を解いている間に取っておいたミニムービー：答え終わったら（勉強画面を離れても）出す
+    if (heldMovies.length && !study.answering(app)) for (const start of heldMovies.splice(0)) start();
     if (nowMs - lastUi > UI_MS) { lastUi = nowMs; refreshActive(false); }
     if (nowMs - lastSave > AUTOSAVE_MS) { lastSave = nowMs; saveNow(); }
     requestAnimationFrame(frame);

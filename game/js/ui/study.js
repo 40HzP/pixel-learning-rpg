@@ -243,6 +243,12 @@ function renderBody(app) {
   else renderMenu(app);
 }
 
+/**
+ * 問題を解いている最中か（勉強画面に問題が出ていて、まだ答えていない）。
+ * この間はミニムービーを出さず、答え終わってから出す（main.js の afterAnswering。40HzP の依頼）
+ */
+export const answering = (app) => view.phase === 'question' && app.tab === 'study';
+
 /* ---------- 毎フレーム（制限時間） ---------- */
 export function frame(app, realDt) {
   if (view.phase !== 'question' || app.tab !== 'study') return; // 勉強画面を見ていない間は止める
