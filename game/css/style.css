@@ -201,6 +201,8 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .choices button.correct { border-color: var(--good); background: #1f4a3a; }
 .choices button.wrong { border-color: var(--bad); background: #6e1f2e; }
 /* テスト：1枚の白い用紙に全部の問題を黒い字で並べる。選んだ答えは提出するまで選び直せる。採点した答案も同じ紙（赤ペンで○×） */
+/* テストの字は教科書体に近い Klee One（fonts/klee-one。無い文字や読み込み中は、ふだんの字） */
+.paper, .tear-paper { font-family: 'Klee One', 'UD デジタル 教科書体 N-R', 'UD Digi Kyokasho N-R', 'DotGothic16', sans-serif; }
 .paper {
   --ink: #1a1626; --ink2: #5a566a; --rule: #cfcab8; --red: #c4313b;
   background: #fbfaf4; color: var(--ink); border: 1px solid #d8d4c4; box-shadow: 4px 4px 0 rgba(0, 0, 0, .45);

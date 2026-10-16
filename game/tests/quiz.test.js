@@ -197,9 +197,12 @@ test('同期で外した問題は、過去問復習と直近の出題から外�
   assert.ok(nextQuestion(s, sess, ctx), '残った問題は出る');
 });
 
-test('テスト用紙を破りすてると、主人公の年齢の学校の先生が「な に を や っ て い る ！ ！ ？」と怒る', async () => {
-  const { teacherForAge, SCOLD } = await import('../js/ui/tear.js');
-  assert.equal(SCOLD, 'な に を や っ て い る ！ ！ ？');
+test('テスト用紙を破りすてると、主人公の年齢の学校の先生が「な に を や っ て い る ！ ！ ？」か「な ん だ こ れ は ！ ！ ？」と怒る', async () => {
+  const { teacherForAge, SCOLDS, pickScold } = await import('../js/ui/tear.js');
+  assert.deepEqual(SCOLDS, ['な に を や っ て い る ！ ！ ？', 'な ん だ こ れ は ！ ！ ？']);
+  assert.equal(pickScold(constRng(0)), SCOLDS[0]);
+  assert.equal(pickScold(constRng(0.9999)), SCOLDS[1]);
+  assert.deepEqual(new Set(Array.from({ length: 40 }, (_, i) => pickScold(seededRng(i)))), new Set(SCOLDS), 'どちらも出る');
   const at = (ages) => ages.map((a) => teacherForAge(a));
   assert.deepEqual(at([0, 7, 12]), ['teacher_elementary', 'teacher_elementary', 'teacher_elementary']);
   assert.deepEqual(at([13, 15, 16, 18, 19, 80]), ['teacher_junior', 'teacher_junior', 'teacher_high', 'teacher_high', 'professor', 'professor']);

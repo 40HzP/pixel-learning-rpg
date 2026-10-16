@@ -1,10 +1,12 @@
 // テスト用紙を破りすてたときのミニモーション（40HzP の依頼）：用紙が不規則に破れて左右に落ちていき、
-// 教室の教壇で、正面を向いた先生が破れた用紙を両手で持って見ながら「な に を や っ て い る ！ ！ ？」と怒る。
+// 教室の教壇で、正面を向いた先生が破れた用紙を両手で持って見ながら「な に を や っ て い る ！ ！ ？」などと怒る。
 // 流れている間はゲームの時間を止める（main.js の runOverlay）。怒り終わったらタップで戻る（途中でタップすると、すぐ怒っているところまで進む）
 import { drawSprite, frameAt } from '../sprites.js';
 import { el } from './dom.js';
 
-export const SCOLD = 'な に を や っ て い る ！ ！ ？';
+/** 先生のセリフ。破りすてるたびに、どれか1つを言う（40HzP の依頼。足すときはここに足す） */
+export const SCOLDS = ['な に を や っ て い る ！ ！ ？', 'な ん だ こ れ は ！ ！ ？'];
+export const pickScold = (rng = Math.random) => SCOLDS[Math.floor(rng() * SCOLDS.length) % SCOLDS.length];
 
 const GRIP_MS = 350;    // 用紙を両手でつかんで、ぶるぶるさせる
 const FALL_MS = 900;    // 破れて、左右に分かれて落ちていく
@@ -64,7 +66,7 @@ export function playTear(app, teacherId) {
     const g = cv.getContext('2d');
     g.imageSmoothingEnabled = false;
     const scene = el('div', { class: 'scold-scene' },
-      el('div', { class: 'scold-bubble' }, SCOLD), cv, el('div', { class: 'scold-name' }, m ? m.name : '先生'));
+      el('div', { class: 'scold-bubble' }, pickScold()), cv, el('div', { class: 'scold-name' }, m ? m.name : '先生'));
 
     const hint = el('div', { class: 'movie-hint' }, 'タップで戻る');
     const overlay = el('div', { class: 'overlay tear', role: 'dialog', 'aria-label': 'テスト用紙を破りすてた', tabindex: '-1' },
