@@ -70,7 +70,7 @@ test('寝床（テント）で眠ると、1つ手前の階層の最初に戻っ�
   assert.equal(r.reason, 'bed');
   assert.equal(r.floor, 4);
   // 少しすると戻った階層の群れが出る
-  const ev = tick(s, balance.floor.spawnDelaySec + 0.01, ctx);
+  const ev = tick(s, balance.hero.attackIntervalSec, ctx);
   assert.ok(ev.some((e) => e.type === 'spawn' && e.floor === 4));
 });
 

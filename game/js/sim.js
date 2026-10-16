@@ -392,7 +392,7 @@ export function retreatMidboss(state, ctx, events) {
   const e = adv.enemies.find((x) => x.kind === 'midboss');
   if (!e) return false;
   adv.enemies = [];
-  adv.spawnTimer = ctx.balance.floor.spawnDelaySec;
+  adv.spawnTimer = spawnDelay(adv, ctx.balance);
   if (events) events.push({ type: 'retreat', monsterId: e.monsterId, name: e.name });
   return true;
 }
@@ -450,9 +450,8 @@ export function spawnGroup(state, ctx, events, monsterIds = null) {
   }
   if (!list.length) return [];
   adv.enemies = list.map((m, i) => makeEnemy(m, state, ctx, i));
-  // 全員が同時に殴らないよう、最初の攻撃をずらす
+  // 全員が同時に殴らないよう、最初の攻撃をずらす（主人公の攻撃の拍はそのまま。テンポを一定に保つ）
   adv.enemies.forEach((e, i) => { e.cd = b.monster.attackIntervalSec * (0.5 + i / adv.enemies.length); });
-  adv.heroCd = heroAttackInterval(b) / 2;
   for (const e of adv.enemies) {
     raiseZukan(state, e.monsterId, 1, events);
     let first = false;
@@ -503,30 +502,50 @@ export function tick(state, dt, ctx) {
   return events;
 }
 
+/**
+ * 次の群れが出るまでの秒数。攻撃のテンポを一定にするため、主人公の次の攻撃の floor.spawnLeadSec 秒前に出す
+ * （群れが出てくる動き（render.js、0.35秒）が終わったところに、いつもの間隔で攻撃が当たる）。もう間に合わなければすぐ出す
+ */
+const spawnDelay = (adv, b) => Math.max(0, adv.heroCd - b.floor.spawnLeadSec);
+
+/** 仲間の行動の間隔（契約した仲間は recruits.json の intervalSec、中ボスだった仲間は ally.attackIntervalSec） */
+const allyInterval = (ally, ctx) => {
+  const r = ally.hired ? recruitById(ctx, ally.id) : null;
+  return r ? r.intervalSec : ctx.balance.ally.attackIntervalSec;
+};
+
+/** 敵がいない間：主人公と仲間の攻撃の拍は止めずに進め（相手がいない拍は見送る）、次の群れを待つ */
+function idleStep(state, dt, ctx, events) {
+  const adv = state.adventure;
+  adv.heroCd -= dt;
+  while (adv.heroCd <= 0) adv.heroCd += heroAttackInterval(ctx.balance);
+  for (const ally of partyAllies(state).slice(0, partyMax(ctx))) {
+    ally.cd -= dt;
+    while (ally.cd <= 0) ally.cd += allyInterval(ally, ctx);
+  }
+  adv.spawnTimer -= dt;
+  if (adv.spawnTimer <= 0) spawnGroup(state, ctx, events);
+}
+
 function combatStep(state, dt, ctx, events) {
   const adv = state.adventure;
   const b = ctx.balance;
-  if (!adv.enemies.length) {
-    adv.spawnTimer -= dt;
-    if (adv.spawnTimer <= 0) spawnGroup(state, ctx, events);
-    return;
-  }
+  if (!adv.enemies.length) { idleStep(state, dt, ctx, events); return; }
   const hs = heroStats(state, ctx);
   state.hero.mp = Math.min(hs.maxMp, state.hero.mp + b.spell.mpRegenPerSec * dt);
   adv.heroCd -= dt;
   if (adv.heroCd <= 0) {
     adv.heroCd += heroAttackInterval(b);
     heroAct(state, hs, ctx, events);
-    if (!adv.enemies.length) return;
   }
+  // 仲間の拍も止めない（群れを倒し終えたあとの拍は見送る）
   for (const ally of partyAllies(state).slice(0, partyMax(ctx))) {
     ally.cd -= dt;
     if (ally.cd > 0) continue;
-    const r = ally.hired ? recruitById(ctx, ally.id) : null;
-    ally.cd += r ? r.intervalSec : b.ally.attackIntervalSec;
-    allyAct(state, ally, r, hs, ctx, events);
-    if (!adv.enemies.length) return;
+    ally.cd += allyInterval(ally, ctx);
+    if (adv.enemies.length) allyAct(state, ally, ally.hired ? recruitById(ctx, ally.id) : null, hs, ctx, events);
   }
+  if (!adv.enemies.length) return;
   askWhy(state, dt, ctx, events);
   for (const e of [...adv.enemies]) {
     e.cd -= dt;
@@ -678,7 +697,7 @@ function defeatEnemy(state, e, ctx, events) {
   }
   if (adv.enemies.length) return;
   // 群れを全部倒した。ザコを階層の数だけ倒すか、小ボスを倒すと次の階層へ（階層の上限はない）
-  adv.spawnTimer = b.floor.spawnDelaySec;
+  adv.spawnTimer = spawnDelay(adv, b);
   if (adv.kills >= b.floor.monstersPerFloor || e.kind === 'boss') {
     adv.kills = 0;
     adv.floor++;
@@ -710,7 +729,7 @@ function restartFloor(state, floor, ctx) {
   adv.floor = floor;
   adv.kills = 0;
   adv.enemies = [];
-  adv.spawnTimer = ctx.balance.floor.spawnDelaySec;
+  adv.spawnTimer = spawnDelay(adv, ctx.balance);
 }
 
 /** やられたとき：階層だけ戻る（1階層か、拠点の階層）。強さ・装備・仲間はそのまま。睡眠と同じ処理が起きる */
