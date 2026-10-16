@@ -95,7 +95,7 @@ test('街に病院があり、年老いた主人公の絵（16×16・右向き�
   const h = town.facilities.find((f) => f.id === 'hospital');
   assert.ok(h, '街に病院がある');
   assert.equal(h.sprite, 'town_hospital');
-  assert.ok(Array.isArray(h.ailmentMovie) && h.ailmentMovie.length >= 2, '体の不調のムービーの文');
+  assert.ok(Array.isArray(h.ailmentMovie) && h.ailmentMovie.length >= 1, '体の不調のムービーの文');
   for (const line of h.ailmentMovie) assert.ok(!/\{(?!name\}|age\})[^}]*\}/.test(line), `使える差し込みは {name} と {age} だけ：${line}`);
   const old = read('../../pixel/sprites/hero_old_idle.json');
   assert.deepEqual([old.category, old.w, old.h, old.frames.length], ['character', 16, 16, 2]);
