@@ -200,6 +200,10 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .choices button { text-align: left; min-height: 52px; line-height: 1.4; }
 .choices button.correct { border-color: var(--good); background: #1f4a3a; }
 .choices button.wrong { border-color: var(--bad); background: #6e1f2e; }
+/* 「選択肢を表示する」：押すまで選択肢を出さず、制限時間も減らない */
+.reveal { display: flex; flex-direction: column; gap: 6px; text-align: center; }
+.reveal button { min-height: 52px; }
+.reveal .muted { font-size: 12px; }
 /* テスト：1枚の白い用紙に全部の問題を黒い字で並べる。選んだ答えは提出するまで選び直せる。採点した答案も同じ紙（赤ペンで○×） */
 /* テストの字は教科書体に近い Klee One（fonts/klee-one。無い文字や読み込み中は、ふだんの字） */
 .paper, .tear-paper { font-family: 'Klee One', 'UD デジタル 教科書体 N-R', 'UD Digi Kyokasho N-R', 'DotGothic16', sans-serif; }

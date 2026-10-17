@@ -1,5 +1,6 @@
 // 孫の「なんで？」：孫と戦っている間、ときどき全ジャンルから1問聞いてくる（sim.js の nande の知らせで出す）。
-// 出している間はゲームの時間が止まる（main.js の runOverlay）。答えはふつうの勉強と同じに数える（quiz.js の answer）
+// 出している間はゲームの時間が止まる（main.js の runOverlay）。答えはふつうの勉強と同じに数える（quiz.js の answer）。
+// 勉強のクイズと同じく、はじめは問題文だけを出し、「選択肢を表示する」を押すと選択肢が出て制限時間が減り始める（40HzP の依頼）
 import { createSession, nextQuestion, answer } from '../quiz.js';
 import { nandeUnanswered, midbossLeft } from '../sim.js';
 import { spriteCanvas } from '../sprites.js';
@@ -28,20 +29,33 @@ export function askNande(app) {
     requestAnimationFrame(() => overlay.classList.add('show'));
 
     let remaining = cur.timeLimit;
-    let last = performance.now();
+    let last = 0;
     let raf = 0;
     let done = false;
+    let revealedAt = 0;
+    const REVEAL_GUARD_MS = 300; // 押したボタンの場所に選択肢が出るので、出てすぐは選べない（続けて2回押しても選んだことにならない）
     const bar = el('div', { class: 'timebar' }, el('i', { style: { width: '100%' } }));
+    const choices = el('div', { class: 'choices' }, cur.choices.map((c, i) => el('button', {
+      onclick: () => { if (performance.now() - revealedAt >= REVEAL_GUARD_MS) submit(i); },
+    }, c.text)));
+    const reveal = el('div', { class: 'reveal' },
+      el('button', { class: 'primary', onclick: () => {
+        if (done || revealedAt) return;
+        revealedAt = last = performance.now();
+        reveal.replaceWith(choices);
+        raf = requestAnimationFrame(tickTimer);
+      } }, '選択肢を表示する'),
+      el('div', { class: 'muted' }, `押すと制限時間（${cur.timeLimit}秒）が始まる`));
     body.replaceChildren(
       el('div', { class: 'qmeta' }, `${q.genre}　${stars(q.difficulty)}`),
       el('div', { class: 'qtext' }, q.question),
       bar,
-      el('div', { class: 'choices' }, cur.choices.map((c, i) => el('button', { onclick: () => submit(i) }, c.text))),
+      reveal,
     );
 
     function tickTimer(now) {
       if (done) return;
-      remaining -= (now - last) / 1000;
+      remaining -= Math.max(0, now - last) / 1000;
       last = now;
       const ratio = Math.max(0, remaining / cur.timeLimit);
       bar.firstChild.style.width = ratio * 100 + '%';
@@ -49,7 +63,6 @@ export function askNande(app) {
       if (remaining <= 0) { submit(null); return; }
       raf = requestAnimationFrame(tickTimer);
     }
-    raf = requestAnimationFrame(tickTimer);
 
     function submit(index) {
       if (done) return;

@@ -8,7 +8,8 @@ import { el, stars } from './dom.js';
 import { teacherForAge } from './tear.js';
 
 // phase：menu・question（クイズ・過去問復習の1問）・result・summary・sheet（テストの用紙に答えている）・testResult（テストの採点）
-const fresh = () => ({ phase: 'menu', session: null, remaining: 0, result: null, chosen: null, genre: null, interferingId: null, picks: [], testResults: null, sheetMeta: [] });
+// revealed：「選択肢を表示する」を押したか（押すまで選択肢を出さず、制限時間も減らない。40HzP の依頼）。revealedAt：押した時刻
+const fresh = () => ({ phase: 'menu', session: null, remaining: 0, revealed: false, revealedAt: 0, result: null, chosen: null, genre: null, interferingId: null, picks: [], testResults: null, sheetMeta: [] });
 let view = fresh();
 let refs = null;
 
@@ -254,6 +255,7 @@ function ask(app) {
   if (!cur) { view.phase = view.session.results.length ? 'summary' : 'menu'; renderBody(app); return; }
   view.phase = 'question';
   view.remaining = cur.timeLimit;
+  view.revealed = false;
   view.result = null;
   view.chosen = null;
   view.interferingId = null;
@@ -282,18 +284,39 @@ function interferenceBanner(app, q) {
       : el('span', {}, `${who.name}が口を挟んでいる`));
 }
 
+/**
+ * 1問出す。はじめは問題文だけを出し、読み終わって「選択肢を表示する」を押すと、選択肢が出て制限時間が減り始める（40HzP の依頼）。
+ * 押したボタンの場所に選択肢が出るので、続けて2回押しても選択肢を押したことにならないように、出てすぐの短い間は選べない（REVEAL_GUARD_MS）
+ */
 function renderQuestion(app) {
   const s = view.session;
   const cur = s.current;
   const q = cur.question;
   const progress = s.total > 1 ? `${MODES[s.mode]} ${s.index + 1}/${s.total}問目` : MODES[s.mode];
+  const ratio = Math.max(0, view.remaining / cur.timeLimit);
   refs.body.replaceChildren(
     interferenceBanner(app, q),
     el('div', { class: 'qmeta' }, `${stars(q.difficulty)}　${progress}`, cur.trimmedBy ? el('span', { class: 'good' }, `　${cur.trimmedBy}で誤答が1つ消えた`) : null),
     el('div', { class: 'qtext' }, q.question),
-    el('div', { class: 'timebar', id: 'timebar' }, el('i', { style: { width: '100%' } })),
-    el('div', { class: 'choices' }, cur.choices.map((c, i) => el('button', { onclick: () => submit(app, i) }, c.text))),
+    el('div', { class: 'timebar', id: 'timebar' }, el('i', { style: { width: ratio * 100 + '%' } })),
+    view.revealed
+      ? el('div', { class: 'choices' }, cur.choices.map((c, i) => el('button', { onclick: () => pick(app, i) }, c.text)))
+      : el('div', { class: 'reveal' },
+        el('button', { class: 'primary', onclick: () => reveal(app) }, '選択肢を表示する'),
+        el('div', { class: 'muted' }, `押すと制限時間（${cur.timeLimit}秒）が始まる`)),
   );
+}
+
+const REVEAL_GUARD_MS = 300;
+function reveal(app) {
+  if (view.phase !== 'question' || view.revealed) return;
+  view.revealed = true;
+  view.revealedAt = performance.now();
+  renderQuestion(app);
+}
+function pick(app, index) {
+  if (performance.now() - view.revealedAt < REVEAL_GUARD_MS) return;
+  submit(app, index);
 }
 
 function submit(app, index) {
@@ -393,7 +416,8 @@ export const answering = (app) => (view.phase === 'question' || view.phase === '
 
 /* ---------- 毎フレーム（制限時間） ---------- */
 export function frame(app, realDt) {
-  if (view.phase !== 'question' || app.tab !== 'study') return; // 勉強画面を見ていない間は止める
+  // 勉強画面を見ていない間と、「選択肢を表示する」を押すまでは止める
+  if (view.phase !== 'question' || !view.revealed || app.tab !== 'study') return;
   view.remaining -= realDt;
   const bar = document.getElementById('timebar');
   if (bar) {
