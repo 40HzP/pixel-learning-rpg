@@ -70,9 +70,9 @@ export function update(app) {
   const hs = heroStats(s, ctx);
   const adv = s.adventure;
   r.date.textContent = formatDate(s.life.gameHours);
-  // 小ボスのいる階層は、小ボスを倒すと次の階層へ進む
+  // ボスのいる階層は、ボスを倒すと次の階層へ進む
   const bossFloor = adv.enemies.some((e) => e.kind === 'boss') || pendingBoss(s, ctx);
-  r.floor.textContent = bossFloor ? `${adv.floor}階層 小ボス` : `${adv.floor}階層 ${adv.kills}/${ctx.balance.floor.monstersPerFloor}体`;
+  r.floor.textContent = bossFloor ? `${adv.floor}階層 ボス` : `${adv.floor}階層 ${adv.kills}/${ctx.balance.floor.monstersPerFloor}体`;
   r.name.textContent = s.life.generation > 1 ? `${s.hero.name}（${s.life.generation}世代目）` : s.hero.name;
   r.lv.textContent = s.hero.level;
   const party = partyAllies(s).length, bench = s.allies.length - party;
@@ -110,7 +110,7 @@ export function update(app) {
   const enemies = adv.enemies;
   const front = enemies[0];
   r.enemy.textContent = front
-    ? `${front.kind === 'boss' ? '小ボス' : '敵'}：${front.name}　HP ${Math.ceil(front.hp)}/${front.maxHp}${enemies.length > 1 ? `（ほか${enemies.length - 1}体）` : ''}`
+    ? `${front.kind === 'boss' ? 'ボス' : '敵'}：${front.name}　HP ${Math.ceil(front.hp)}/${front.maxHp}${enemies.length > 1 ? `（ほか${enemies.length - 1}体）` : ''}`
     : '…進んでいる';
 
   const boss = enemies.find((e) => e.kind === 'midboss');

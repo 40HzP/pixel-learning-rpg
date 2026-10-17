@@ -55,7 +55,7 @@ export function init(app) {
         },
       }, '体の不調の直前にする'),
       el('button', { onclick: () => { app.state.life.gameHours = lifespanOf(app.state, ctx.balance) * HOURS_PER_YEAR - 24; app.notify('寿命の直前にした'); } }, 'すぐ寿命にする'))),
-    el('div', { class: 'section' }, el('h2', {}, '階層（小ボスの確認用）'),
+    el('div', { class: 'section' }, el('h2', {}, '階層（ボスの確認用）'),
       el('div', {}, floor, '階層', el('button', {
         onclick: () => {
           const adv = app.state.adventure;

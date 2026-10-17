@@ -13,7 +13,7 @@ test('冒険が自動で進み、5体倒すと次の階層。9階層で止まら
   assert.equal(s.adventure.floor, 9);
   assert.equal(events.filter((e) => e.type === 'floorUp').length, 8);
   for (let i = 0; i < 2000 && s.adventure.floor < 12; i++) events.push(...tick(s, 1, ctx));
-  assert.equal(s.adventure.floor, 12, '10階層（小ボス）を越えて進める');
+  assert.equal(s.adventure.floor, 12, '10階層（ボス）を越えて進める');
   assert.ok(!events.some((e) => e.type === 'heroDefeated'));
   assert.ok(s.gold > 0 && s.hero.totalExp > 0);
 });

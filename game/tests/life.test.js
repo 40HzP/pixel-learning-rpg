@@ -20,7 +20,7 @@ test('寿命は生まれるたびに 80歳 ± 3歳 で決まる', () => {
   assert.equal(s.life.lifespan, 82);
 });
 
-test('寿命になると生まれ変わる。Lv・ゴールド・装備・仲間・会社・中ボスは最初から、知識・図鑑・小ボス・称号・名前は残る', () => {
+test('寿命になると生まれ変わる。Lv・ゴールド・装備・仲間・会社・中ボス・ボスは最初から、知識・図鑑・称号・名前は残る', () => {
   const ctx = makeCtx(constRng(0.5));
   const s = newGame(7);
   s.hero.name = '勇者';
@@ -35,6 +35,7 @@ test('寿命になると生まれ変わる。Lv・ゴールド・装備・仲間
   s.bosses.tendousetsu = { status: 'defeated' };
   s.knowledge.totalCorrect = 300;
   s.knowledge.zukan.tsugihakuro = { stage: 2, fooled: 1 };
+  s.knowledge.zukan.tendousetsu = { stage: 2, fooled: 0 };
   s.adventure.floor = 37; s.life.maxFloor = 40;
   s.life.lifespan = 80;
   s.life.gameHours = 80 * HOURS_PER_YEAR - 1;
@@ -53,12 +54,13 @@ test('寿命になると生まれ変わる。Lv・ゴールド・装備・仲間
   assert.deepEqual([s.owned, s.equipment.weapon, s.allies, s.companies], [[], null, [], []]);
   assert.equal(s.adventure.floor, 1);
   assert.equal(midbossState(s, 'teacher_elementary').status, 'waiting', '中ボスにはまた会う');
+  assert.deepEqual(s.bosses, {}, '前世で倒したボスにもまた会う（40HzP の依頼）');
   // 残るもの
   assert.equal(s.hero.name, '勇者');
   assert.equal(genreState(s, '経営学').level, 1);
   assert.equal(s.knowledge.totalCorrect, 300);
   assert.equal(s.knowledge.zukan.tsugihakuro.stage, 2);
-  assert.equal(s.bosses.tendousetsu.status, 'defeated');
+  assert.equal(s.knowledge.zukan.tendousetsu.stage, 2, 'ボスの図鑑（正体）は残る');
   assert.deepEqual(heroTitles(s, ctx), ['生き字引']);
   assert.equal(s.legacy.lives.length, 1);
   assert.deepEqual(tick(s, 1, ctx), [], '年齢を選ぶまでは何も起きない');

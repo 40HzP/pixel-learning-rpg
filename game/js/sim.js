@@ -44,7 +44,7 @@ export function createState(balance) {
       majors: [null, null],                         // 主専攻・副専攻（学際分野id）
     },
     midbosses: {},                                  // 中ボスid → { status: waiting|appeared|broken|defeated, announced }
-    bosses: {},                                     // 小ボスid → { status: waiting|appeared|defeated }（一度倒した小ボスは復活しない）
+    bosses: {},                                     // ボスid → { status: waiting|appeared|defeated }（一度倒したボスは、その人生ではもう出ない。生まれ変わるとまた出る）
     lastSleep: null,                                // 直近の睡眠のまとめ
     legacy: {                                       // 転生しても残るもの
       titles: [],                                   // 前世までにもらった称号
@@ -128,8 +128,8 @@ export const generationMultiplier = (state, balance) => balance.reincarnation.mu
 
 /**
  * 寿命で亡くなり、次の世代に生まれ変わる。
- * 最初からになるもの：Lv・経験値・ゴールド・品物と装備・仲間（契約も）・会社・中ボス・階層・年齢。
- * 引き継ぐもの：知識（熟練・累計正解数・過去問復習・図鑑・学際分野と専攻）・倒した小ボス・称号・名前・ロケット計画の工程。
+ * 最初からになるもの：Lv・経験値・ゴールド・品物と装備・仲間（契約も）・会社・中ボス・ボス（倒したボスにもまた会う。40HzP の依頼）・階層・年齢。
+ * 引き継ぐもの：知識（熟練・累計正解数・過去問復習・図鑑・学際分野と専攻）・称号・名前・ロケット計画の工程。
  * 拠点（adventure.baseFloor）は階層と一緒に無くなる。
  * 年齢を選ぶまで（meta.startAge＝null）時間は止まる。前世のまとめを返す
  */
@@ -152,8 +152,26 @@ export function reincarnate(state, ctx) {
   state.companies = [];
   state.adventure = fresh.adventure;
   state.midbosses = {};
+  state.bosses = {};
   state.lastSleep = null;
   return prev;
+}
+
+/**
+ * 前のセーブ（生まれ変わっても倒したボスが出なかった版）で、前世で倒したボスにまた会えるようにする。
+ * ボスを倒すと次の階層に進むので、この人生で倒したボスは、この人生の最高階層（life.maxFloor）より手前の階層にいる。
+ * 最高階層かそれより先の階層のボスは前世で倒したものなので、倒した印を消す。消したボスの id を返す
+ */
+export function forgetPastLifeBosses(state, ctx) {
+  if (state.life.generation < 2) return [];
+  const reached = state.life.maxFloor || 1;
+  const back = [];
+  for (const m of ctx.monsters) {
+    if (m.kind !== 'boss' || m.floor < reached || (state.bosses[m.id] || {}).status !== 'defeated') continue;
+    delete state.bosses[m.id];
+    back.push(m.id);
+  }
+  return back;
 }
 
 export function genreState(state, genre) {
@@ -354,7 +372,7 @@ function makeEnemy(monster, state, ctx, slot) {
     maxHp: s.maxHp, hp: s.maxHp, atk: s.atk, def: s.def, exp: s.exp, gold: s.gold,
     cd: ctx.balance.monster.attackIntervalSec,
   };
-  // 中ボス・小ボスは、その階層のザコの数値に倍率をかける
+  // 中ボス・ボスは、その階層のザコの数値に倍率をかける
   const mult = monster.kind === 'midboss' ? ctx.balance.midboss : monster.kind === 'boss' ? ctx.balance.boss : null;
   if (mult) {
     e.maxHp = e.hp = Math.round(s.maxHp * mult.hpMultiplier);
@@ -391,7 +409,7 @@ export function pendingMidboss(state, ctx) {
   return null;
 }
 
-/** 今の階層の未撃破の小ボス（いなければ null）。小ボスは monsters.json の floor に書いた階層に出る */
+/** 今の階層の未撃破のボス（いなければ null）。ボスは monsters.json の floor に書いた階層に出る */
 export function pendingBoss(state, ctx) {
   const floor = state.adventure.floor;
   for (const m of ctx.monsters) {
@@ -449,7 +467,7 @@ export const heroTitles = (state, ctx) => [...new Set([
   ...fieldTitles(state, ctx),
 ])];
 
-/** 次に出る敵を1体決める。その階層の未撃破の小ボスが先（中ボスは自動では出ない） */
+/** 次に出る敵を1体決める。その階層の未撃破のボスが先（中ボスは自動では出ない） */
 export function chooseNextMonster(state, ctx) {
   const mb = pendingBoss(state, ctx);
   if (mb) return mb;
@@ -461,8 +479,8 @@ export function chooseNextMonster(state, ctx) {
 export const frontEnemy = (state) => state.adventure.enemies[0] || null;
 
 /**
- * 敵の群れを出す。ザコはその階層の残りの数だけまとめて出る（小ボスは1体で出る）。
- * 小ボスのいる階層は小ボスだけ。倒すと次の階層に進む。中ボスは challengeMidboss で出す。
+ * 敵の群れを出す。ザコはその階層の残りの数だけまとめて出る（ボスは1体で出る）。
+ * ボスのいる階層はボスだけ。倒すと次の階層に進む。中ボスは challengeMidboss で出す。
  * monsterIds を渡すとその魔物を出す（テスト・デバッグ用）
  */
 export function spawnGroup(state, ctx, events, monsterIds = null) {
@@ -709,7 +727,7 @@ function defeatEnemy(state, e, ctx, events) {
   state.gold += gold;
   events.push({ type: 'defeat', uid: e.uid, slot: e.slot, monsterId: e.monsterId, kind: e.kind, exp, gold });
   gainExp(state, exp, ctx, events);
-  raiseZukan(state, e.monsterId, 2, events);
+  const learned = raiseZukan(state, e.monsterId, 2, events);
   if (e.kind === 'midboss') {
     midbossState(state, e.monsterId).status = 'defeated';
     const m = ctx.monsters.find((x) => x.id === e.monsterId) || {};
@@ -728,12 +746,12 @@ function defeatEnemy(state, e, ctx, events) {
     }
   } else if (e.kind === 'boss') {
     bossState(state, e.monsterId).status = 'defeated';
-    events.push({ type: 'bossDefeated', monsterId: e.monsterId, name: e.name, floor: adv.floor });
+    events.push({ type: 'bossDefeated', monsterId: e.monsterId, name: e.name, floor: adv.floor, learned }); // learned：図鑑に正体が初めて載った
   } else {
     adv.kills++;
   }
   if (adv.enemies.length) return;
-  // 群れを全部倒した。ザコを階層の数だけ倒すか、小ボスを倒すと次の階層へ（階層の上限はない）
+  // 群れを全部倒した。ザコを階層の数だけ倒すか、ボスを倒すと次の階層へ（階層の上限はない）
   adv.spawnTimer = spawnDelay(adv, b);
   if (adv.kills >= b.floor.monstersPerFloor || e.kind === 'boss') {
     adv.kills = 0;

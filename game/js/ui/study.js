@@ -278,7 +278,7 @@ function interferenceBanner(app, q) {
   if (!m && !b) return el('div', { class: 'interfere off', id: 'interfere', 'aria-hidden': 'true' });
   const who = m || b.monster;
   const sp = (app.monsterSprites[who.id] || {}).idle || null;
-  // 枠の高さは変えない（小ボスの 32×32 は等倍で入れる）
+  // 枠の高さは変えない（ボスの 32×32 は等倍で入れる）
   return el('div', { class: 'interfere' + (b ? ' blocked' : ''), id: 'interfere' }, spriteCanvas(sp, sp && sp.h > 16 ? 1 : 2, app.palette),
     b ? el('span', {}, el('span', { class: 'line' }, `${who.name}は口を挟めない`), el('small', { class: 'line' }, `${b.field.name}で封じている`))
       : el('span', {}, `${who.name}が口を挟んでいる`));

@@ -24,7 +24,7 @@ const FORMATION = [
   { x: 74, feet: 117 },
 ];
 const slotPos = (slot) => FORMATION[(slot || 0) % FORMATION.length];
-// 大きい敵（小ボス 32×32 など）は群れの並びを使わず、右寄りに1体で立たせる
+// 大きい敵（ボス 32×32 など）は群れの並びを使わず、右寄りに1体で立たせる
 const BIG_FEET = 141;
 // 世界が変わるときの暗転（前半で暗くなり、真っ暗の瞬間に背景を入れ替え、後半で明るくなる）
 const STAGE_FADE_SEC = 0.5;

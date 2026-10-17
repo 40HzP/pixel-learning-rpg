@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tick, spawnGroup, chooseNextMonster, pendingBoss, bossState, monsterStats, damageEnemy, heroStats, zukanEntry } from '../js/sim.js';
+import { tick, spawnGroup, chooseNextMonster, pendingBoss, bossState, monsterStats, damageEnemy, heroStats, zukanEntry, reincarnate, startGame, forgetPastLifeBosses } from '../js/sim.js';
 import { serialize, deserialize } from '../js/save.js';
 import { GENRES } from '../js/genres.js';
 import { readFileSync } from 'node:fs';
@@ -14,13 +14,13 @@ function clearEnemies(s, ctx, events) {
   while (s.adventure.enemies.length) damageEnemy(s, 1e9, ctx, events);
 }
 
-test('10階層の小ボスが monsters.json にあり、スプライトと図鑑の項目がそろっている', () => {
-  assert.ok(boss, 'floor: 10 の小ボス');
+test('10階層のボスが monsters.json にあり、スプライトと図鑑の項目がそろっている', () => {
+  assert.ok(boss, 'floor: 10 のボス');
   for (const k of ['name', 'myth', 'truth', 'whyBelieved', 'overturnedBy']) assert.ok(boss[k], k);
   assert.ok(boss.sprites.idle);
 });
 
-test('小ボスは設計ページの21個（かつての学説）。10階層ごとに1体ずつ（10〜210階層）。図鑑の項目と、待機・攻撃2枚ずつのスプライトがある', () => {
+test('ボスは設計ページの21個（かつての学説）。10階層ごとに1体ずつ（10〜210階層）。図鑑の項目と、待機・攻撃2枚ずつのスプライトがある', () => {
   const bosses = monsters.filter((m) => m.kind === 'boss');
   assert.equal(bosses.length, 21);
   assert.deepEqual(bosses.map((m) => m.floor).sort((a, b) => a - b), Array.from({ length: 21 }, (_, i) => (i + 1) * 10));
@@ -34,7 +34,7 @@ test('小ボスは設計ページの21個（かつての学説）。10階層ご�
   }
 });
 
-test('小ボスはそれぞれ自分の階層だけに出て、倒すと次の階層へ進む（20〜210階層）', () => {
+test('ボスはそれぞれ自分の階層だけに出て、倒すと次の階層へ進む（20〜210階層）', () => {
   const ctx = makeCtx(constRng(0.3));
   for (const b of monsters.filter((m) => m.kind === 'boss' && m.floor > 10)) {
     const s = newGame(0);
@@ -50,7 +50,7 @@ test('小ボスはそれぞれ自分の階層だけに出て、倒すと次の�
   }
 });
 
-test('10階層では小ボスだけが1体で出る。強さはその階層のザコに倍率をかけたもの', () => {
+test('10階層ではボスだけが1体で出る。強さはその階層のザコに倍率をかけたもの', () => {
   const s = newGame(0);
   const ctx = makeCtx(constRng(0.3));
   s.adventure.floor = 9;
@@ -72,7 +72,7 @@ test('10階層では小ボスだけが1体で出る。強さはその階層の�
   assert.equal(bossState(s, boss.id).status, 'appeared');
 });
 
-test('小ボスを倒すと次の階層に進み、図鑑に正体が載る。一度倒した小ボスは復活しない', () => {
+test('ボスを倒すと次の階層に進み、図鑑に正体が載る。一度倒したボスは、その人生ではもう出ない', () => {
   const s = newGame(0);
   const ctx = makeCtx(seededRng(3));
   s.adventure.floor = 10;
@@ -80,16 +80,16 @@ test('小ボスを倒すと次の階層に進み、図鑑に正体が載る。�
   spawnGroup(s, ctx, ev);
   const gold = s.gold;
   clearEnemies(s, ctx, ev);
-  assert.ok(ev.some((x) => x.type === 'bossDefeated' && x.monsterId === boss.id));
+  assert.ok(ev.some((x) => x.type === 'bossDefeated' && x.monsterId === boss.id && x.learned), '図鑑に初めて正体が載った');
   assert.ok(ev.some((x) => x.type === 'floorUp' && x.floor === 11));
   assert.equal(s.adventure.floor, 11);
   assert.equal(s.adventure.kills, 0);
   assert.ok(s.gold > gold);
   assert.equal(zukanEntry(s, boss.id).stage, 2);
   assert.equal(bossState(s, boss.id).status, 'defeated');
-  assert.ok(!s.allies.some((a) => a.id === boss.id), '小ボスは仲間にならない');
+  assert.ok(!s.allies.some((a) => a.id === boss.id), 'ボスは仲間にならない');
 
-  // やられて1階層に戻り、また10階層まで来ても小ボスはもう出ない（ザコが5体）
+  // やられて1階層に戻り、また10階層まで来てもボスはもう出ない（ザコが5体）
   s.adventure.floor = 10;
   assert.equal(pendingBoss(s, ctx), null);
   const again = spawnGroup(s, ctx, []);
@@ -97,7 +97,55 @@ test('小ボスを倒すと次の階層に進み、図鑑に正体が載る。�
   assert.ok(again.every((x) => x.kind === 'monster'));
 });
 
-test('小ボスに負けると1階層に戻り、10階層に戻ってくるとまた小ボスが出る', () => {
+test('生まれ変わると、前世で倒したボスにまた会える（40HzP の依頼）。図鑑の正体は残る', () => {
+  const s = newGame(0);
+  const ctx = makeCtx(seededRng(3));
+  s.adventure.floor = 10;
+  const ev = [];
+  spawnGroup(s, ctx, ev);
+  clearEnemies(s, ctx, ev);
+  assert.equal(bossState(s, boss.id).status, 'defeated');
+  reincarnate(s, ctx);
+  startGame(s, 0, undefined, 80);
+  assert.equal(zukanEntry(s, boss.id).stage, 2, '図鑑は残る');
+  s.adventure.floor = 10;
+  const ev2 = [];
+  const group = spawnGroup(s, ctx, ev2);
+  assert.deepEqual(group.map((e) => e.monsterId), [boss.id], '10階層にまたボスが出る');
+  assert.equal(ev2.find((x) => x.type === 'spawn').first, true);
+  clearEnemies(s, ctx, ev2);
+  const d = ev2.find((x) => x.type === 'bossDefeated');
+  assert.ok(d && d.learned === false, 'もう図鑑に載っているので「図鑑に載った」は出さない');
+  assert.equal(s.adventure.floor, 11);
+});
+
+test('前の版のセーブ：2世代目以降で、この人生の最高階層かそれより先にいる「倒した」ボスは、前世で倒したものなので、また出るようにする', () => {
+  const ctx = makeCtx(constRng(0.5));
+  const bosses = monsters.filter((m) => m.kind === 'boss');
+  const setup = (generation, maxFloor) => {
+    const s = newGame(0);
+    s.life.generation = generation;
+    s.life.maxFloor = maxFloor;
+    for (const m of bosses) bossState(s, m.id).status = 'defeated';
+    return s;
+  };
+  // 2世代目で25階層まで来た：10・20階層のボスはこの人生で倒した。30階層から先は前世で倒した
+  const s = setup(2, 25);
+  const back = forgetPastLifeBosses(s, ctx);
+  assert.deepEqual(back, bosses.filter((m) => m.floor >= 25).map((m) => m.id));
+  assert.deepEqual(Object.keys(s.bosses).sort(), bosses.filter((m) => m.floor < 25).map((m) => m.id).sort());
+  // 最高階層がちょうどボスの階層（まだ倒していない）なら、また出る
+  const t = setup(2, 30);
+  forgetPastLifeBosses(t, ctx);
+  assert.equal(bossState(t, bosses.find((m) => m.floor === 30).id).status, 'waiting');
+  assert.equal(bossState(t, bosses.find((m) => m.floor === 20).id).status, 'defeated');
+  // 1世代目は何もしない（倒したボスはこの人生で倒したもの）
+  const u = setup(1, 1);
+  assert.deepEqual(forgetPastLifeBosses(u, ctx), []);
+  assert.equal(Object.keys(u.bosses).length, bosses.length);
+});
+
+test('ボスに負けると1階層に戻り、10階層に戻ってくるとまたボスが出る', () => {
   const s = newGame(0);
   const ctx = makeCtx(constRng(0.5));
   s.adventure.floor = 10;
@@ -117,7 +165,7 @@ test('小ボスに負けると1階層に戻り、10階層に戻ってくると�
   assert.equal(sp.first, false, '2回目からは first にならない');
 });
 
-test('中ボスに挑戦できる年齢でも、10階層では小ボスが出る（中ボスは挑戦したときだけ）', () => {
+test('中ボスに挑戦できる年齢でも、10階層ではボスが出る（中ボスは挑戦したときだけ）', () => {
   const s = newGame(7);
   const ctx = makeCtx(constRng(0.5));
   s.adventure.floor = 10;
@@ -130,7 +178,7 @@ test('9階層を越えても、敵は階層ごとに強くなり続ける', () =
   assert.ok(a.exp < b.exp && b.exp < c.exp);
 });
 
-test('小ボスの項目が無い古いセーブ（版2）も読み込める', () => {
+test('ボスの項目が無い古いセーブ（版2）も読み込める', () => {
   const s = newGame(0);
   const ctx = makeCtx(seededRng(9));
   for (let i = 0; i < 30; i++) tick(s, 1, ctx);

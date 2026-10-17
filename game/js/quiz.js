@@ -144,7 +144,7 @@ export function gradeTest(state, session, picks, ctx) {
 }
 
 /**
- * 科学史（学際分野）：小ボス（かつての学説）と戦っている間、誤答が1つ消える。
+ * 科学史（学際分野）：ボス（かつての学説）と戦っている間、誤答が1つ消える。
  * 消すのは俗説の枠（誤答1）ではない誤答。消したら current.trimmedBy に学際分野の名前を入れる
  */
 function trimChoices(state, cur, ctx) {

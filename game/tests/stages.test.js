@@ -25,7 +25,7 @@ test('10階層ごとの世界：1階層から始まり、背景のスプライ�
 test('階層の背景：10階層ごとに変わり、最後の世界より先は最後の世界のまま', () => {
   const bg = (floor) => stageFor(floor, stages).background;
   assert.equal(bg(1), 'bg_floor01');
-  assert.equal(bg(10), 'bg_floor01', '10階層の小ボスまでは最初の世界');
+  assert.equal(bg(10), 'bg_floor01', '10階層のボスまでは最初の世界');
   assert.equal(bg(11), 'bg_floor11');
   assert.equal(bg(55), 'bg_floor51');
   assert.equal(bg(100), 'bg_floor91');

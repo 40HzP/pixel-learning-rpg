@@ -1,7 +1,7 @@
 // 起動・画面切り替え・ループ・セーブ
 import {
   createState, startGame, tick, clockFrame, createClock, HOURS_PER_YEAR,
-  createRateTracker, trackTime, trackGain, sleepAtBed, stageFor, fitParty, lifespanFor, generationMultiplier, heroStats,
+  createRateTracker, trackTime, trackGain, sleepAtBed, stageFor, fitParty, lifespanFor, generationMultiplier, heroStats, forgetPastLifeBosses,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
 import { forgetMissingQuestions } from './quiz.js';
@@ -112,7 +112,7 @@ async function boot() {
     notify,
     handleEvents,
     save: saveNow,
-    replaceState(next) { app.state = next; forgetMissingQuestions(next, ctx); fitParty(next, ctx); app.rate = createRateTracker(); for (const s of Object.values(screens)) s.reset && s.reset(app); refreshActive(true); },
+    replaceState(next) { app.state = next; forgetMissingQuestions(next, ctx); forgetPastLifeBosses(next, ctx); fitParty(next, ctx); app.rate = createRateTracker(); for (const s of Object.values(screens)) s.reset && s.reset(app); refreshActive(true); },
     sleepNow() {
       const from = app.state.adventure.floor;
       const r = sleepAtBed(app.state, ctx);
@@ -130,6 +130,7 @@ async function boot() {
   };
   app.state = loadSave(balance, notify);
   forgetMissingQuestions(app.state, ctx); // 同期で外した問題が過去問復習に残らないように
+  forgetPastLifeBosses(app.state, ctx); // 前の版のセーブで、前世で倒したボスにもまた会えるように
   const benchedOnLoad = fitParty(app.state, ctx); // パーティーは5人まで（前のセーブで超えていたら控えに回す）
   // 伸び率を変えた版では、前のセーブのHP・MPが今の最大を超えていることがある
   const hsOnLoad = heroStats(app.state, ctx);
@@ -251,8 +252,8 @@ async function boot() {
       else if (e.type === 'retreat') notify(`${e.name}から逃げた。また挑戦できる`);
       else if (e.type === 'midbossReady') notify(`${e.name}に挑戦できるようになった！\n冒険画面の「挑戦する」を押すと戦える`, 'good');
       else if (e.type === 'midbossBroken') notify(`${(monsters.find((m) => m.id === e.monsterId) || {}).name || '中ボス'}の防御が崩れた！`, 'good');
-      else if (e.type === 'spawn' && e.kind === 'boss') notify(`小ボス「${e.name}」が現れた！`, 'bad');
-      else if (e.type === 'bossDefeated') notify(`小ボス「${e.name}」を倒した！\n図鑑に「なぜ信じられたか」が載った`, 'good');
+      else if (e.type === 'spawn' && e.kind === 'boss') notify(`ボス「${e.name}」が現れた！`, 'bad');
+      else if (e.type === 'bossDefeated') notify(`ボス「${e.name}」を倒した！${e.learned ? '\n図鑑に「なぜ信じられたか」が載った' : ''}`, 'good');
       else if (e.type === 'allyJoined') notify(e.benched ? `${e.name}が仲間になった！\nパーティーがいっぱいなので控えにいる（仲間が集まる場所で入れ替えられる）` : `${e.name}が仲間になった！`, 'good');
       else if (e.type === 'titleGained') notify(`称号「${e.title}」を手に入れた！`, 'good');
       else if (e.type === 'contractEnded') notify(`ゴールドが足りず、${e.name}との契約が切れた`, 'bad');
