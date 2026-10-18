@@ -129,16 +129,23 @@ export function presentTest(state, session, ctx) {
   return sheet;
 }
 
+/** 大喜利（テストのフリースペース）に書ける字数 */
+export const OOGIRI_MAX_LENGTH = 60;
+
 /**
- * テストを提出して採点する。picks[i] は i 問目で選んだ選択肢の番号（null は答えていない＝不正解）。
+ * テストを提出して採点する。picks[i] は i 問目で選んだ選択肢の番号（null は答えていない＝不正解）か、
+ * 大喜利の答え { oogiri: '書いた文' }（40HzP の依頼。選択肢のほかに自由に書ける。不正解として数え、騙されたことにはしない。何も書いていなければ答えていない）。
  * 1問ずつ answer と同じに数える（熟練・累計正解数・過去問復習・干渉・敵へのダメージ）。干渉は提出した瞬間の敵の群れで決まる。
- * 結果の並びを返す（answer の結果に question・choices・chosen を付ける）
+ * 結果の並びを返す（answer の結果に question・choices・chosen を付け、大喜利なら oogiri に書いた文を入れる）
  */
 export function gradeTest(state, session, picks, ctx) {
   return session.sheet.map((cur, i) => {
     session.current = cur;
-    const chosen = picks[i] ?? null;
+    const pick = picks[i] ?? null;
+    const oogiri = pick && typeof pick === 'object' ? String(pick.oogiri ?? '').trim().slice(0, OOGIRI_MAX_LENGTH) : '';
+    const chosen = typeof pick === 'number' ? pick : null;
     const r = answer(state, session, chosen, ctx);
+    if (oogiri) Object.assign(r, { timeout: false, oogiri });
     return Object.assign(r, { question: cur.question, choices: cur.choices, chosen });
   });
 }

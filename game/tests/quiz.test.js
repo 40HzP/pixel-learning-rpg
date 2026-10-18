@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSession, nextQuestion, presentQuestion, answer, buildChoices, pickDifficulty, pickQuestion, averageLevel, timeLimitFor, forgetMissingQuestions, presentTest, gradeTest } from '../js/quiz.js';
+import { createSession, nextQuestion, presentQuestion, answer, buildChoices, pickDifficulty, pickQuestion, averageLevel, timeLimitFor, forgetMissingQuestions, presentTest, gradeTest, OOGIRI_MAX_LENGTH } from '../js/quiz.js';
 import { genreState, spawnEnemy } from '../js/sim.js';
 import { balance, makeCtx, newGame, questions, constRng, seededRng, questionFor } from './helpers.js';
 
@@ -132,6 +132,54 @@ test('テストを提出すると、まとめて採点する（1問ずつ答え�
   assert.deepEqual(s.knowledge.review, [sheet[3].question.id, sheet[4].question.id], '間違えた問題と答えていない問題は過去問復習へ');
   assert.equal(sess.results.length, 5);
   assert.equal(sess.current, null);
+});
+
+test('テストの「大喜利をする（フリースペース）」：書いた文は不正解として数える（騙されたことにはしない）。何も書いていなければ答えていない', () => {
+  const s = newGame(0);
+  const ctx = { ...makeCtx(seededRng(5)), questions: [...questions, ...fakeQuestions('テスト用', 8)] };
+  const sess = createSession(s, 'test', ctx, 'テスト用');
+  const sheet = presentTest(s, sess, ctx);
+  const long = 'あ'.repeat(OOGIRI_MAX_LENGTH + 10);
+  const picks = [answerIndex(sheet[0]), { oogiri: '  ふとんが ふっとんだ  ' }, { oogiri: '   ' }, { oogiri: long }, null];
+  const rs = gradeTest(s, sess, picks, ctx);
+  assert.deepEqual(rs.map((r) => r.correct), [true, false, false, false, false]);
+  assert.deepEqual(rs.map((r) => r.timeout), [false, false, true, false, true], '何も書いていない大喜利は答えていない');
+  assert.deepEqual(rs.map((r) => r.oogiri || null), [null, 'ふとんが ふっとんだ', null, 'あ'.repeat(OOGIRI_MAX_LENGTH), null], '前後の空白は取り、長すぎる分は切る');
+  assert.ok([1, 3].every((i) => !rs[i].fooled && rs[i].chose == null), '大喜利は俗説を選んだことにならない');
+  assert.equal(s.knowledge.totalCorrect, 1);
+  assert.ok([1, 2, 3, 4].every((i) => s.knowledge.review.includes(sheet[i].question.id)), '大喜利の問題も過去問復習へ');
+});
+
+test('大喜利を提出すると、先生が3つのセリフのどれかを言う（顔はセリフごと）。言われたあと主人公が赤面する', async () => {
+  const { OOGIRI_LINES, OOGIRI_MOODS, pickOogiriLine, oogiriText } = await import('../js/ui/oogiri.js');
+  const name = 'ゆうしゃ';
+  assert.deepEqual(OOGIRI_LINES.map((l) => oogiriText(l, name)), [
+    'ゆうしゃ君、これはどういう意味でしょうか？',
+    'ゆうしゃ君、採点の際にこちらの回答、笑わせていただきました。次は間違えないようにしてください。',
+    'ゆうしゃ、職員室で話がありますので、放課後来るように。',
+  ]);
+  assert.deepEqual(OOGIRI_LINES.map((l) => l.mood), OOGIRI_MOODS);
+  assert.equal(pickOogiriLine(constRng(0)), OOGIRI_LINES[0]);
+  assert.equal(pickOogiriLine(constRng(0.9999)), OOGIRI_LINES[2]);
+  assert.equal(new Set(Array.from({ length: 60 }, (_, i) => pickOogiriLine(seededRng(i)))).size, 3, 'どのセリフも出る');
+  // 先生ごとに、答案を持つ正面の絵（32×32）が顔ごとにある。主人公は1枚目がふつう、2枚目から赤面
+  const { monsters } = await import('./helpers.js');
+  const { readFileSync } = await import('node:fs');
+  const sprite = (n) => JSON.parse(readFileSync(new URL(`../../pixel/sprites/${n}.json`, import.meta.url), 'utf8'));
+  for (const id of ['teacher_elementary', 'teacher_junior', 'teacher_high', 'professor']) {
+    const o = monsters.find((x) => x.id === id).sprites.oogiri;
+    assert.deepEqual(Object.keys(o).sort(), [...OOGIRI_MOODS].sort(), `${id} の大喜利の顔`);
+    for (const mood of OOGIRI_MOODS) {
+      const sp = sprite(o[mood]);
+      assert.deepEqual([sp.name, sp.w, sp.h], [o[mood], 32, 32]);
+      assert.ok(sp.frames.length >= 1);
+    }
+    assert.notDeepEqual(sprite(o.smile).frames[0], sprite(o.stern).frames[0], '笑い顔と真顔はちがう絵');
+  }
+  const blush = sprite('hero_blush');
+  assert.deepEqual([blush.category, blush.w, blush.h], ['character', 16, 16]);
+  assert.ok(blush.frames.length >= 2);
+  assert.ok(blush.frames.slice(1).every((f) => f.join('').includes('d')), '2枚目から頬が赤い');
 });
 
 test('干渉：関連する魔物と戦っているときに正解すると撃破、図鑑の正体が開く', () => {

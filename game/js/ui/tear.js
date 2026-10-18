@@ -22,7 +22,7 @@ const FADE_MS = 300;    // 暗転して始まり、暗転して終わる
 const BOW_MS = 2000;    // あやまる（ぺこぺこおじぎを4回）
 // 教室の絵（scene_classroom 64×48）の上に、先生（<先生>_scold 32×32）と、その前に教卓（scene_lectern）を重ねる
 // 主人公（hero_bow 24×16。1枚目は汗をかいて立っている姿、2〜4枚目でおじぎ）は教室の左、教壇の手前に立つ
-const SCENE = { w: 64, h: 48, teacher: [16, 6], lectern: [19, 34], hero: [0, 31] };
+export const SCENE = { w: 64, h: 48, teacher: [16, 6], lectern: [19, 34], hero: [0, 31] }; // 大喜利のミニムービー（oogiri.js）も同じ並び
 
 /** 主人公の年齢の学校の先生（7歳より前と7〜12歳は小学校、13歳から中学校、16歳から高校、19歳から大学教授） */
 const TEACHERS = [[19, 'professor'], [16, 'teacher_high'], [13, 'teacher_junior'], [0, 'teacher_elementary']];

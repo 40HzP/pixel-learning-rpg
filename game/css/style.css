@@ -229,6 +229,16 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .paper .choices button.correct { background: #e3f1dc; border-color: #357a3a; }
 .paper .choices button.wrong { background: #fbe1e3; border-color: var(--red); }
 .paper .choices button:disabled { opacity: 1; }
+/* 大喜利をする（フリースペース）：点線の枠。選ぶと書く欄が出る。採点した答案には赤い点線の枠で残す */
+.paper .choices button.oogiri { border-style: dashed; color: var(--ink2); }
+.paper .choices button.oogiri.picked { color: var(--ink); }
+.paper .oogiri-text {
+  width: 100%; min-height: 64px; resize: vertical; padding: 4px 8px;
+  background: #fff repeating-linear-gradient(transparent 0 27px, var(--rule) 27px 28px); background-attachment: local;
+  color: var(--ink); border: 2px solid var(--ink); font: inherit; font-size: 17px; line-height: 28px;
+}
+.paper .oogiri-answer { margin-top: 8px; border: 2px dashed var(--red); padding: 6px 8px; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.paper .oogiri-answer .label { display: block; font-size: 12px; color: var(--red); }
 .paper .meddle { color: #6a3d8f; }
 .paper .good { color: #2a6a2e; }
 .paper .bad { color: var(--red); }
@@ -238,6 +248,22 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .paper-score { color: var(--red); font-size: 26px; margin: 8px 0 2px; transform: rotate(-3deg); transform-origin: left; }
 .result-mark { font-size: 17px; display: flex; align-items: center; gap: 8px; }
 .result-mark b { color: var(--red, #c4313b); font-size: 30px; line-height: 1; font-weight: normal; }
+/* 大喜利を提出した（ui/oogiri.js）：教壇で先生が答案を持ってひとこと言う → 主人公が赤面して湯気が出る */
+.overlay.oogiri { z-index: 40; flex-direction: column; gap: 6px; opacity: 0; transition: opacity .3s; cursor: pointer; user-select: none; -webkit-user-select: none; outline: none; }
+.overlay.oogiri.show { opacity: 1; }
+.overlay.oogiri canvas { border: 2px solid #1a1626; }
+.oogiri-bubble {
+  position: relative; background: #fbfaf4; color: #1a1626; border: 3px solid #1a1626; padding: 8px 12px; margin-bottom: 10px;
+  max-width: min(360px, calc(100vw - 32px)); font-size: min(17px, 4.4vw); line-height: 1.6; visibility: hidden;
+}
+.overlay.oogiri.talk .oogiri-bubble { visibility: visible; animation: fade-in .3s ease-out; }
+.oogiri-bubble .rest { visibility: hidden; }
+.oogiri-bubble::after {
+  content: ''; position: absolute; left: 50%; bottom: -12px; margin-left: -8px;
+  border-style: solid; border-width: 12px 8px 0 8px; border-color: #1a1626 transparent transparent transparent;
+}
+.oogiri-hint { color: var(--muted); font-size: 13px; visibility: hidden; }
+.overlay.oogiri.blush .oogiri-hint { visibility: visible; animation: fade-in .3s ease-out; }
 /* ライトグリーンの「提出する」の下に、同じ大きさで赤い「破りすてる」 */
 .test-submit { display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin: 4px 0 8px; }
 .test-submit span { font-size: 14px; }

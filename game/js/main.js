@@ -17,6 +17,7 @@ import { el, fmt } from './ui/dom.js';
 import { playMovie } from './ui/movie.js';
 import { askNande } from './ui/nande.js';
 import { playTear } from './ui/tear.js';
+import { playOogiri } from './ui/oogiri.js';
 
 const PIXEL = '../pixel/';
 const SPRITES = PIXEL + 'sprites/';
@@ -76,13 +77,20 @@ async function boot() {
       // 学校の先生：正面を向いて破れたテスト用紙を持つ絵（用紙を破りすてたときのミニモーション。怒り顔と困惑顔）
       if (m.sprites.scold) monsterSprites[m.id].scold = await load(m.sprites.scold);
       if (m.sprites.puzzled) monsterSprites[m.id].puzzled = await load(m.sprites.puzzled);
+      // 大喜利の答えを提出したとき：答案を持つ絵（顔ごと）
+      if (m.sprites.oogiri) {
+        const o = monsterSprites[m.id].oogiri = {};
+        await Promise.all(Object.entries(m.sprites.oogiri).map(async ([mood, name]) => { o[mood] = await load(name); }));
+      }
     }),
     ...recruits.filter((r) => r.sprites).map(async (r) => {
       recruitSprites[r.id] = { idle: await load(r.sprites.idle), attack: await load(r.sprites.attack) };
     }),
   ]);
-  // hero_old_idle：年を取った主人公（体の不調と寿命のミニムービーに出る）。hero_bow：先生にあやまる主人公（用紙を破りすてたとき）
-  const [heroIdle, heroAttack, heroOld, heroBow] = await Promise.all([load('hero_idle'), load('hero_attack'), load('hero_old_idle'), load('hero_bow')]);
+  // hero_old_idle：年を取った主人公（体の不調と寿命のミニムービーに出る）。hero_bow：先生にあやまる主人公（用紙を破りすてたとき）。
+  // hero_blush：赤面する主人公（テストに大喜利を書いたとき）
+  const [heroIdle, heroAttack, heroOld, heroBow, heroBlush] = await Promise.all(
+    [load('hero_idle'), load('hero_attack'), load('hero_old_idle'), load('hero_bow'), load('hero_blush')]);
   // 用紙を破りすてたときのミニモーションの教室（背景と、先生の前に重ねる教卓）
   const [classroom, lectern] = await Promise.all([load('scene_classroom'), load('scene_lectern')]);
   // 10階層ごとの世界の背景（stages.json に書いた名前だけ読む）
@@ -102,7 +110,7 @@ async function boot() {
   const ctx = { balance, monsters, items, questions, recruits, business, fields, rng: Math.random };
   const app = {
     ctx, palette, monsterSprites, recruitSprites,
-    heroSprites: { idle: heroIdle, attack: heroAttack, old: heroOld, bow: heroBow },
+    heroSprites: { idle: heroIdle, attack: heroAttack, old: heroOld, bow: heroBow, blush: heroBlush },
     sceneSprites: { classroom, lectern },
     stages: stageList,
     town: { ...town, bg: townBg, sprites: townSprites },
@@ -132,6 +140,7 @@ async function boot() {
     playAilmentMovie: (age) => startAilmentMovie(age),
     askNande: () => runOverlay(() => askNande(app)),
     tearTest: (teacherId) => runOverlay(() => playTear(app, teacherId)), // テスト用紙を破りすてた（先生が怒る）
+    oogiriTest: (teacherId) => runOverlay(() => playOogiri(app, teacherId)), // テストに大喜利を書いて提出した（主人公が赤面する）
   };
   app.state = loadSave(balance, notify);
   forgetMissingQuestions(app.state, ctx); // 同期で外した問題が過去問復習に残らないように

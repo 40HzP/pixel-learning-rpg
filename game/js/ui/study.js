@@ -1,5 +1,5 @@
 // 勉強画面（設計ページ「勉強画面の表示」）
-import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES } from '../quiz.js';
+import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH } from '../quiz.js';
 import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap, ageYears } from '../sim.js';
 import { fieldById, fieldActive } from '../fields.js';
 import { GENRES } from '../genres.js';
@@ -9,7 +9,8 @@ import { teacherForAge } from './tear.js';
 
 // phase：menu・question（クイズ・過去問復習の1問）・result・summary・sheet（テストの用紙に答えている）・testResult（テストの採点）
 // revealed：「選択肢を表示する」を押したか（押すまで選択肢を出さず、制限時間も減らない。40HzP の依頼）。revealedAt：押した時刻
-const fresh = () => ({ phase: 'menu', session: null, remaining: 0, revealed: false, revealedAt: 0, result: null, chosen: null, genre: null, interferingId: null, picks: [], testResults: null, sheetMeta: [] });
+// picks：テストの問題ごとに選んだ選択肢の番号（'oogiri' は大喜利）。oogiri：大喜利に書いた文
+const fresh = () => ({ phase: 'menu', session: null, remaining: 0, revealed: false, revealedAt: 0, result: null, chosen: null, genre: null, interferingId: null, picks: [], oogiri: [], testResults: null, sheetMeta: [] });
 let view = fresh();
 let refs = null;
 
@@ -126,6 +127,7 @@ function startTest(app) {
   if (!sheet.length) { view.phase = 'menu'; renderBody(app); return; }
   view.phase = 'sheet';
   view.picks = sheet.map(() => null);
+  view.oogiri = sheet.map(() => '');
   view.testResults = null;
   renderBody(app);
   scrollTop();
@@ -149,28 +151,41 @@ function refreshSheetMeta(app) {
   }
 }
 
+/** まだ答えていない問題の数（大喜利を選んで何も書いていないものも数える） */
+const blankCount = () => view.picks.filter((p, i) => p == null || (p === 'oogiri' && !view.oogiri[i].trim())).length;
+
 function renderSheet(app) {
   const s = view.session;
   const left = el('span', { class: 'muted' });
   const showLeft = () => {
-    const n = view.picks.filter((p) => p == null).length;
+    const n = blankCount();
     left.textContent = n ? `まだ答えていない問題：${n}問` : '全部答えた';
   };
   view.sheetMeta = [];
   const cards = s.sheet.map((cur, i) => {
     const meta = el('div', { class: 'qmeta' });
     view.sheetMeta.push({ meta, cur, i, key: null });
-    const buttons = cur.choices.map((c, j) => el('button', {
-      class: view.picks[i] === j ? 'picked' : '',
-      'aria-pressed': view.picks[i] === j ? 'true' : 'false',
+    // 4択のほかに「大喜利をする（フリースペース）」（40HzP の依頼）。選ぶと書く欄が出る。不正解として数える
+    const keys = [...cur.choices.map((_, j) => j), 'oogiri'];
+    const free = el('textarea', {
+      class: 'oogiri-text', rows: 2, maxlength: OOGIRI_MAX_LENGTH, placeholder: '大喜利の答えを書く', 'aria-label': `${i + 1}問目の大喜利の答え`,
+      hidden: view.picks[i] !== 'oogiri',
+      oninput: (e) => { view.oogiri[i] = e.target.value; showLeft(); },
+    });
+    free.value = view.oogiri[i];
+    const buttons = keys.map((key) => el('button', {
+      class: (key === 'oogiri' ? 'oogiri ' : '') + (view.picks[i] === key ? 'picked' : ''),
+      'aria-pressed': view.picks[i] === key ? 'true' : 'false',
       onclick: () => {
         // 提出するまで選び直せる。押した選択肢だけ印を付ける（画面は作り直さないので、読んでいる位置が動かない）
-        view.picks[i] = j;
-        buttons.forEach((b, k) => { b.classList.toggle('picked', k === j); b.setAttribute('aria-pressed', k === j ? 'true' : 'false'); });
+        view.picks[i] = key;
+        buttons.forEach((b, k) => { b.classList.toggle('picked', keys[k] === key); b.setAttribute('aria-pressed', keys[k] === key ? 'true' : 'false'); });
+        free.hidden = key !== 'oogiri';
+        if (key === 'oogiri') free.focus();
         showLeft();
       },
-    }, c.text));
-    return el('div', { class: 'test-q' }, meta, el('div', { class: 'qtext' }, cur.question.question), el('div', { class: 'choices' }, buttons));
+    }, key === 'oogiri' ? '大喜利をする（フリースペース）' : cur.choices[key].text));
+    return el('div', { class: 'test-q' }, meta, el('div', { class: 'qtext' }, cur.question.question), el('div', { class: 'choices' }, buttons, free));
   });
   showLeft();
   refs.body.replaceChildren(
@@ -204,11 +219,14 @@ function tearTest(app) {
 
 function submitTest(app) {
   if (view.phase !== 'sheet') return;
-  const blank = view.picks.filter((p) => p == null).length;
+  const blank = blankCount();
   if (blank && !confirm(`まだ答えていない問題が${blank}問あります。提出しますか？（答えていない問題は不正解）`)) return;
-  const results = gradeTest(app.state, view.session, view.picks, app.ctx);
+  const picks = view.picks.map((p, i) => (p === 'oogiri' ? { oogiri: view.oogiri[i] } : p));
+  const results = gradeTest(app.state, view.session, picks, app.ctx);
   view.testResults = results;
   view.phase = 'testResult'; // 先に変える（問題を解いている最中ではなくなるので、取っておいたミニムービーが出る）
+  // 大喜利を書いていたら、先生がひとこと言って主人公が赤面するミニムービー（ほかのミニムービーより先に出す）
+  if (results.some((r) => r.oogiri)) app.oogiriTest(teacherForAge(ageYears(app.state)));
   app.handleEvents(results.flatMap((r) => r.events));
   app.save();
   renderBody(app);
@@ -227,12 +245,13 @@ function renderTestResult(app) {
     ['', g.level < cap ? `${s.genre}：熟練 Lv ${g.level}　次のLvまで ${g.progress}/${per}回` : `${s.genre}：熟練 Lv ${g.level}（最大）`],
   ].filter(Boolean);
   const cards = rs.map((r, i) => el('div', { class: 'test-q' },
-    el('div', { class: 'result-mark' }, el('b', {}, r.correct ? '○' : '×'), `${i + 1}問目　${r.correct ? '正解' : r.timeout ? '答えていない' : '不正解'}`),
+    el('div', { class: 'result-mark' }, el('b', {}, r.correct ? '○' : '×'), `${i + 1}問目　${r.correct ? '正解' : r.oogiri ? '大喜利（不正解）' : r.timeout ? '答えていない' : '不正解'}`),
     el('div', { class: 'qtext' }, r.question.question),
     el('div', { class: 'choices' }, r.choices.map((c, j) => el('button', {
       disabled: true,
       class: c.kind === 'answer' ? 'correct' : j === r.chosen ? 'wrong' : '',
     }, c.text))),
+    r.oogiri ? el('div', { class: 'oogiri-answer' }, el('span', { class: 'label' }, '大喜利の答え'), r.oogiri) : null,
     el('div', { class: 'explain' }, el('div', { class: 'accent' }, `正解：${r.question.answer}`), r.question.explanation),
     el('ul', { class: 'effects' }, effectLines(app, r, true).map(([cls, t]) => el('li', { class: cls }, t)))));
   const buttons = () => el('div', { class: 'btnrow' },
