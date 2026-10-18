@@ -1,0 +1,29 @@
+{
+  "name": "icon_zukan",
+  "category": "icon",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      "..0000000000....",
+      ".0hjiiiiiiii0...",
+      ".0hjiiiiiiii40..",
+      ".0hjfiiiifii40..",
+      ".0hjiiiiiiii40..",
+      ".0hjikkkkiii40..",
+      ".0hjikiikiii40..",
+      ".0hjiikkii0000..",
+      ".0hjiiiii02220..",
+      ".0hjiiii024oo20.",
+      ".0hjfiii02ooo20.",
+      ".0hjiiii02ooo20.",
+      ".0hjiiiii022200.",
+      ".0h4444444000290",
+      "..00000000000008",
+      "...............0"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

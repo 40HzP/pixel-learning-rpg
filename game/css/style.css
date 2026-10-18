@@ -64,9 +64,13 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 }
 #tabs button {
   flex: 1; min-height: var(--tabs-h); border: 0; background: none; color: var(--muted);
-  padding: 4px; white-space: nowrap; font-size: 15px;
+  padding: 3px 4px; white-space: nowrap; font-size: 13px; line-height: 1.1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
 }
 #tabs button.active { color: var(--accent); background: var(--panel2); }
+/* アイコン（16×16 を2倍）。選んでいない画面のアイコンは少し暗く */
+#tabs button canvas { flex-shrink: 0; }
+#tabs button:not(.active) canvas { opacity: .55; }
 
 /* ---------- 冒険 ---------- */
 #screen-adventure { display: flex; align-items: center; justify-content: center; overflow: hidden; }

@@ -143,7 +143,7 @@ EOF
   - `pixel/editor.html` とスプライトJSONの形式（`serializeSprite`）を変更しない
   - ゲームは `pixel/sprites/*.json` と `pixel/palette.json` を **読むだけ**。`_original/` と `export/` は読まない
   - スプライトをゲーム用にコピー・変換して置かない（手直しした瞬間にゲームへ反映されるようにする）
-  - ゲームが読むスプライトは `monsters.json`（`idle`・`attack`、学校の先生は用紙を破りすてたときの `scold`（怒り顔）と `puzzled`（困惑顔）も）・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`、`stages.json` の `background`、`hero_idle` / `hero_attack` / `hero_old_idle`（年を取った主人公。ミニムービー用）、`hero_bow`（先生にあやまる主人公）、`scene_classroom` / `scene_lectern`（用紙を破りすてたときの教室と教卓）だけ（ブラウザはフォルダの中身を一覧できないため）
+  - ゲームが読むスプライトは `monsters.json`（`idle`・`attack`、学校の先生は用紙を破りすてたときの `scold`（怒り顔）と `puzzled`（困惑顔）も）・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`、`stages.json` の `background`、`hero_idle` / `hero_attack` / `hero_old_idle`（年を取った主人公。ミニムービー用）、`hero_bow`（先生にあやまる主人公）、`scene_classroom` / `scene_lectern`（用紙を破りすてたときの教室と教卓）、下の切り替えバーのアイコン（`index.html` のボタンの `data-icon`：`icon_adventure`・`icon_study`・`icon_town`・`icon_zukan`）だけ（ブラウザはフォルダの中身を一覧できないため）
 - 計算（`sim.js`・`quiz.js`・`fields.js`・`save.js`・`genres.js`）はブラウザの機能（DOM・localStorage）に触らない。乱数は `ctx.rng` で渡す（テストで固定するため）
 - 対象はスマホのブラウザ（縦画面）とデスクトップ版 Chrome。将来ストアアプリ化するので、ブラウザ固有の機能に頼りすぎない
 
@@ -345,6 +345,7 @@ tools/check-questions.mjs … questions.json の検査
 
 ## 施設画面（街）
 
+- 下の切り替えバーの「冒険」「勉強」「街」「図鑑」には、字の上にアイコンを付けている（40HzP の依頼。冒険＝剣、勉強＝用紙と鉛筆、街＝家並み、図鑑＝本と虫めがね。16×16 を2倍で出し、選んでいない画面のアイコンは少し暗くする。ボタンの高さは前と同じ 56px）。スプライトの名前は `index.html` のボタンの `data-icon` に書く（`main.js` が読んでボタンの頭に入れる。無ければ字だけ）。`tabs.test.js` がスプライトがそろっているかを確かめる
 - 施設画面は「街」（下の切り替えバーの名前も「街」。40HzP の依頼。中の名前は `facility` のまま）。`bg_town`（90×160）の上に施設の外観（`town_<施設>`、32×32、category `building`）を並べ、真ん中の道の下の小さな広場に主人公が立つ（右下にあった噴水の広場は病院にした）。設計ページ「施設画面の表示」の「施設を並べる」を、40HzP の依頼で街の見た目にした
 - 並べる位置は `town.json` の `x`・`y`（街の左上からのドット数）。建物の前の道と広場は `bg_town` に描いてあるので、位置を変えるときは背景も合わせる。2列×4段で埋まっているので、施設をもっと足すときは街の並べ方から考え直す。`town.test.js` が「街の中に収まる・重ならない・スプライトがある」を確かめる
 - 建物をタップするとその施設に入る（上に「← 街へ」）。中身があるのは店（`shop`）・仲間が集まる場所（`guild`）・寝床（`home`）・会社（`company`）・ロケット発射場（`rocket`）・専攻の付け替え（`major`）・拠点（`base`）・病院（`hospital`）。中身は `facility.js` の `PANELS`。条件を満たすまで「準備中」と `desc` を出す施設（会社・拠点）は `LOCKS`

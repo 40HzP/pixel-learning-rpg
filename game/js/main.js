@@ -6,7 +6,7 @@ import {
 import { SAVE_KEY, serialize, deserialize } from './save.js';
 import { forgetMissingQuestions } from './quiz.js';
 import { MAJOR_SLOTS } from './fields.js';
-import { loadPalette, loadSprite } from './sprites.js';
+import { loadPalette, loadSprite, spriteCanvas } from './sprites.js';
 import { createRenderer, SCENE_W, SCENE_H } from './render.js';
 import * as adventure from './ui/adventure.js';
 import * as study from './ui/study.js';
@@ -93,6 +93,11 @@ async function boot() {
     load(town.background),
     ...town.facilities.map(async (f) => { townSprites[f.id] = await load(f.sprite); }),
   ]);
+  // 下の切り替えバーのアイコン（index.html のボタンの data-icon に書いた名前だけ読む。無ければ字だけ）
+  await Promise.all([...document.querySelectorAll('#tabs button[data-icon]')].map(async (b) => {
+    const sp = await load(b.dataset.icon);
+    if (sp) b.prepend(spriteCanvas(sp, 2, palette));
+  }));
 
   const ctx = { balance, monsters, items, questions, recruits, business, fields, rng: Math.random };
   const app = {

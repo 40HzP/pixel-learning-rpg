@@ -42,11 +42,12 @@
     <section id="screen-debug" class="screen" hidden></section>
   </main>
 
+  <!-- data-icon：ボタンに付けるアイコンのスプライト（pixel/sprites/<名前>.json。16×16） -->
   <nav id="tabs">
-    <button data-tab="adventure" class="active">冒険</button>
-    <button data-tab="study">勉強</button>
-    <button data-tab="facility">街</button>
-    <button data-tab="zukan">図鑑</button>
+    <button data-tab="adventure" data-icon="icon_adventure" class="active"><span>冒険</span></button>
+    <button data-tab="study" data-icon="icon_study"><span>勉強</span></button>
+    <button data-tab="facility" data-icon="icon_town"><span>街</span></button>
+    <button data-tab="zukan" data-icon="icon_zukan"><span>図鑑</span></button>
     <button data-tab="debug" hidden>デバッグ</button>
   </nav>
 
