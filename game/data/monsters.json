@@ -608,7 +608,7 @@
         "次は中学校教師と心の内を語り合おうではないか。"
       ],
       "sprites": { "idle": "teacher_elementary_idle", "attack": "teacher_elementary_attack", "scold": "teacher_elementary_scold", "puzzled": "teacher_elementary_puzzled",
-        "oogiri": { "puzzled": "teacher_elementary_oogiri_puzzled", "smile": "teacher_elementary_oogiri_smile", "stern": "teacher_elementary_oogiri_stern" } }
+        "oogiri": { "puzzled": "teacher_elementary_oogiri_puzzled", "stern": "teacher_elementary_oogiri_stern" } }
     },
     {
       "id": "teacher_junior",
@@ -623,7 +623,7 @@
         "次は高校教師と将来の夢を語り合おうではないか。"
       ],
       "sprites": { "idle": "teacher_junior_idle", "attack": "teacher_junior_attack", "scold": "teacher_junior_scold", "puzzled": "teacher_junior_puzzled",
-        "oogiri": { "puzzled": "teacher_junior_oogiri_puzzled", "smile": "teacher_junior_oogiri_smile", "stern": "teacher_junior_oogiri_stern" } }
+        "oogiri": { "puzzled": "teacher_junior_oogiri_puzzled", "stern": "teacher_junior_oogiri_stern" } }
     },
     {
       "id": "teacher_high",
@@ -638,7 +638,7 @@
         "次は政治家とこの国の未来を語り合おうではないか。"
       ],
       "sprites": { "idle": "teacher_high_idle", "attack": "teacher_high_attack", "scold": "teacher_high_scold", "puzzled": "teacher_high_puzzled",
-        "oogiri": { "puzzled": "teacher_high_oogiri_puzzled", "smile": "teacher_high_oogiri_smile", "stern": "teacher_high_oogiri_stern" } }
+        "oogiri": { "puzzled": "teacher_high_oogiri_puzzled", "stern": "teacher_high_oogiri_stern" } }
     },
     {
       "id": "politician",
@@ -667,7 +667,7 @@
         "次は就職面接官と、私という人間について語り合おうではないか。"
       ],
       "sprites": { "idle": "professor_idle", "attack": "professor_attack", "scold": "professor_scold", "puzzled": "professor_puzzled",
-        "oogiri": { "puzzled": "professor_oogiri_puzzled", "smile": "professor_oogiri_smile", "stern": "professor_oogiri_stern" } }
+        "oogiri": { "puzzled": "professor_oogiri_puzzled", "stern": "professor_oogiri_stern" } }
     },
     {
       "id": "interviewer",

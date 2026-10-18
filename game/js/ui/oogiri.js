@@ -7,14 +7,14 @@ import { SCENE } from './tear.js';
 
 /**
  * 先生のセリフ（40HzP の依頼）と、そのときの先生の顔（<先生>_oogiri_<顔>）。{name} に主人公の名前が入る。
- * 提出するたびに、どれか1つを言う（足すときはここに足す。顔は puzzled・smile・stern のどれか）
+ * 提出するたびに、どれか1つを言う（足すときはここに足す。顔は puzzled（困惑顔）・stern（真顔）のどちらか）
  */
 export const OOGIRI_LINES = [
   { mood: 'puzzled', text: '{name}君、これはどういう意味でしょうか？' },
-  { mood: 'smile', text: '{name}君、採点の際にこちらの回答、笑わせていただきました。次は間違えないようにしてください。' },
+  { mood: 'stern', text: '{name}君、採点の際にこちらの回答、笑わせていただきました。次は間違えないようにしてください。' }, // 真顔で言う（40HzP の依頼）
   { mood: 'stern', text: '{name}、職員室で話がありますので、放課後来るように。' },
 ];
-export const OOGIRI_MOODS = ['puzzled', 'smile', 'stern'];
+export const OOGIRI_MOODS = ['puzzled', 'stern'];
 export const pickOogiriLine = (rng = Math.random) => OOGIRI_LINES[Math.floor(rng() * OOGIRI_LINES.length) % OOGIRI_LINES.length];
 export const oogiriText = (line, name) => line.text.replaceAll('{name}', name);
 

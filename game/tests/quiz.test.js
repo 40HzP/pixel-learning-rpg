@@ -150,7 +150,7 @@ test('テストの「大喜利をする（フリースペース）」：書い�
   assert.ok([1, 2, 3, 4].every((i) => s.knowledge.review.includes(sheet[i].question.id)), '大喜利の問題も過去問復習へ');
 });
 
-test('大喜利を提出すると、先生が3つのセリフのどれかを言う（顔はセリフごと）。言われたあと主人公が赤面する', async () => {
+test('大喜利を提出すると、先生が3つのセリフのどれかを言う（1つ目は困惑顔、2つ目と3つ目は真顔）。言われたあと主人公が赤面する', async () => {
   const { OOGIRI_LINES, OOGIRI_MOODS, pickOogiriLine, oogiriText } = await import('../js/ui/oogiri.js');
   const name = 'ゆうしゃ';
   assert.deepEqual(OOGIRI_LINES.map((l) => oogiriText(l, name)), [
@@ -158,7 +158,8 @@ test('大喜利を提出すると、先生が3つのセリフのどれかを言�
     'ゆうしゃ君、採点の際にこちらの回答、笑わせていただきました。次は間違えないようにしてください。',
     'ゆうしゃ、職員室で話がありますので、放課後来るように。',
   ]);
-  assert.deepEqual(OOGIRI_LINES.map((l) => l.mood), OOGIRI_MOODS);
+  assert.deepEqual(OOGIRI_LINES.map((l) => l.mood), ['puzzled', 'stern', 'stern'], '「笑わせていただきました」も真顔で言う');
+  assert.deepEqual(new Set(OOGIRI_LINES.map((l) => l.mood)), new Set(OOGIRI_MOODS));
   assert.equal(pickOogiriLine(constRng(0)), OOGIRI_LINES[0]);
   assert.equal(pickOogiriLine(constRng(0.9999)), OOGIRI_LINES[2]);
   assert.equal(new Set(Array.from({ length: 60 }, (_, i) => pickOogiriLine(seededRng(i)))).size, 3, 'どのセリフも出る');
@@ -174,7 +175,7 @@ test('大喜利を提出すると、先生が3つのセリフのどれかを言�
       assert.deepEqual([sp.name, sp.w, sp.h], [o[mood], 32, 32]);
       assert.ok(sp.frames.length >= 1);
     }
-    assert.notDeepEqual(sprite(o.smile).frames[0], sprite(o.stern).frames[0], '笑い顔と真顔はちがう絵');
+    assert.notDeepEqual(sprite(o.puzzled).frames[0], sprite(o.stern).frames[0], '困惑顔と真顔はちがう絵');
   }
   const blush = sprite('hero_blush');
   assert.deepEqual([blush.category, blush.w, blush.h], ['character', 16, 16]);
