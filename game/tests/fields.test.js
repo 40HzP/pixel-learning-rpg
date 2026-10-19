@@ -18,7 +18,7 @@ function setLevels(s, ctx, levels) {
 }
 const unlock = (s, ctx, ...ids) => setLevels(s, ctx, Object.fromEntries(ids.flatMap((id) => fieldById(ctx, id).genres.map((g) => [g, LV]))));
 
-test('データ：学際分野は29ジャンルのうち2つの組み合わせ（同じ組み合わせは1つまで）。称号と説明がある。ロケットの工程は専攻にできる学際分野につながる', () => {
+test('データ：学際分野は問題ジャンルのうち2つの組み合わせ（同じ組み合わせは1つまで）。称号と説明がある。ロケットの工程は専攻にできる学際分野につながる', () => {
   const ctx = makeCtx();
   const ids = new Set(), pairs = new Set();
   for (const f of fields.fields) {

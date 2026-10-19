@@ -323,6 +323,46 @@
       "sprites": { "idle": "shiofuttou_idle", "attack": null }
     },
     {
+      "id": "soukaninga",
+      "name": "ソウカンインガ",
+      "kind": "monster",
+      "genres": ["統計学"],
+      "myth": "相関があれば因果がある",
+      "truth": "第三の要因を疑う",
+      "debated": false,
+      "sprites": { "idle": "soukaninga_idle", "attack": null }
+    },
+    {
+      "id": "kaetemoonaji",
+      "name": "カエテモオナジ",
+      "kind": "monster",
+      "genres": ["数学", "統計学"],
+      "myth": "モンティ・ホール問題で扉を変えても確率は同じ",
+      "truth": "変えると2/3",
+      "debated": false,
+      "sprites": { "idle": "kaetemoonaji_idle", "attack": null }
+    },
+    {
+      "id": "surimakuri",
+      "name": "スリマクリ",
+      "kind": "monster",
+      "genres": ["経済学"],
+      "myth": "お金を刷れば皆お金持ちになる",
+      "truth": "インフレになる",
+      "debated": false,
+      "sprites": { "idle": "surimakuri_idle", "attack": null }
+    },
+    {
+      "id": "jibunnotochi",
+      "name": "ジブンノトチ",
+      "kind": "monster",
+      "genres": ["法学", "建築"],
+      "myth": "自分の土地なら何を建ててもいい",
+      "truth": "建築基準法・都市計画法の制限がある",
+      "debated": false,
+      "sprites": { "idle": "jibunnotochi_idle", "attack": null }
+    },
+    {
       "id": "tendousetsu",
       "name": "テンドウセツ",
       "kind": "boss",

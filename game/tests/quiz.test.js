@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createSession, nextQuestion, presentQuestion, answer, buildChoices, pickDifficulty, pickQuestion, averageLevel, timeLimitFor, forgetMissingQuestions, presentTest, gradeTest, OOGIRI_MAX_LENGTH } from '../js/quiz.js';
 import { genreState, spawnEnemy } from '../js/sim.js';
+import { GENRES } from '../js/genres.js';
 import { balance, makeCtx, newGame, questions, constRng, seededRng, questionFor } from './helpers.js';
 
 const answerIndex = (cur) => cur.choices.findIndex((c) => c.kind === 'answer');
@@ -110,7 +111,7 @@ test('テストは指定ジャンルから5問を1枚の用紙にまとめて出
   assert.equal(new Set(bio.map((c) => c.question.id)).size, bio.length);
   assert.equal(t.total, bio.length);
   for (const g of ['生物', '数学', '物理']) genreState(s, g).level = 5;
-  assert.equal(averageLevel(s), Math.round(15 / 29));
+  assert.equal(averageLevel(s), Math.round(15 / GENRES.length));
 });
 
 test('テストを提出すると、まとめて採点する（1問ずつ答えたのと同じに数える。答えていない問題は不正解）', () => {

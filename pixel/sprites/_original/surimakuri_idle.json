@@ -1,0 +1,47 @@
+{
+  "name": "surimakuri_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      "............0000",
+      "........00000kj0",
+      "........0kj00000",
+      "........0000....",
+      "000000000000000.",
+      "0iiiiiiiiiiiii0.",
+      "0i4kkkkkjjkkki0.",
+      "0i0k0kkjjjjkki0.",
+      "0i0k0kkjjjjddi0.",
+      "0ikkkkkkjjkddi0.",
+      "0i0d0kkkkkkkki0.",
+      "0iiiiiiiiiiiii0.",
+      "000000000000000.",
+      "...0.......0....",
+      "...0.......0....",
+      "..00.......00..."
+    ],
+    [
+      ".........0000...",
+      ".........0kj0...",
+      ".........0000000",
+      "............0kj0",
+      "............0000",
+      "000000000000000.",
+      "0iiiiiiiiiiiii0.",
+      "0i4kkkkkjjkkki0.",
+      "0i0k0kkjjjjkki0.",
+      "0i0k0kkjjjjddi0.",
+      "0ikkkkkkjjkddi0.",
+      "0i0d0kkkkkkkki0.",
+      "0iiiiiiiiiiiii0.",
+      "000000000000000.",
+      "...0.......0....",
+      "..00.......00..."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

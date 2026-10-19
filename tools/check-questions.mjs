@@ -1,6 +1,6 @@
 // game/data/questions.json を検査する。  node tools/check-questions.mjs
-// 誤り（止める）：選択肢がそろっていない・重複・ジャンルが29個以外・難易度が1〜5以外・idの重複
-// 警告（止めない）：関連する魔物が monsters.json に無い・サブジャンルが29個以外
+// 誤り（止める）：選択肢がそろっていない・重複・ジャンルが設計ページの問題ジャンル（genres.js）以外・難易度が1〜5以外・idの重複
+// 警告（止めない）：関連する魔物が monsters.json に無い・サブジャンルが問題ジャンル以外
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { GENRES } from '../game/js/genres.js';
@@ -35,8 +35,8 @@ for (const [i, q] of questions.entries()) {
   const trimmed = choices.filter(nonEmpty).map((c) => c.trim());
   if (new Set(trimmed).size !== trimmed.length) errors.push(`${label}: 選択肢が重複しています`);
 
-  if (!GENRES.includes(q.genre)) errors.push(`${label}: ジャンル「${q.genre}」は29ジャンルにありません`);
-  for (const s of q.subgenres || []) if (!GENRES.includes(s)) warnings.push(`${label}: サブジャンル「${s}」は29ジャンルにありません`);
+  if (!GENRES.includes(q.genre)) errors.push(`${label}: ジャンル「${q.genre}」は${GENRES.length}ジャンルにありません`);
+  for (const s of q.subgenres || []) if (!GENRES.includes(s)) warnings.push(`${label}: サブジャンル「${s}」は${GENRES.length}ジャンルにありません`);
   if (!Number.isInteger(q.difficulty) || q.difficulty < 1 || q.difficulty > 5) errors.push(`${label}: 難易度 ${q.difficulty} は1〜5ではありません`);
   if (q.monster != null && !monsterNames.has(q.monster)) warnings.push(`${label}: 関連する魔物「${q.monster}」が monsters.json にありません`);
 
