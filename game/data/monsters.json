@@ -363,6 +363,56 @@
       "sprites": { "idle": "jibunnotochi_idle", "attack": null }
     },
     {
+      "id": "gugun",
+      "name": "ググン",
+      "kind": "monster",
+      "genres": ["難読漢字"],
+      "myth": "郡山市は「ぐんやまし」と読む",
+      "truth": "「こおりやまし」。ほかに上郡町（かみごおりちょう）、小郡市（おごおりし）も「郡」を「こおり」と読む",
+      "debated": false,
+      "sprites": { "idle": "gugun_idle", "attack": null }
+    },
+    {
+      "id": "touhokuriku",
+      "name": "トウホクリク",
+      "kind": "monster",
+      "genres": ["地理"],
+      "myth": "新潟県は北陸地方だから、電柱は北陸電力のもの",
+      "truth": "東北電力。地方の区分では北陸にまとめられることが多いが、電力は東北6県と同じ東北電力が受け持つ",
+      "debated": false,
+      "sprites": { "idle": "touhokuriku_idle", "attack": null }
+    },
+    {
+      "id": "kitahiro",
+      "name": "キタヒロ",
+      "kind": "monster",
+      "genres": ["地理"],
+      "myth": "北広島市は広島県にある",
+      "truth": "北海道にある。広島県から移り住んだ和田郁次郎らが、故郷にちなんで「広島村」と名付けたのが始まり。広島県には「北広島町」がある",
+      "debated": false,
+      "sprites": { "idle": "kitahiro_idle", "attack": null }
+    },
+    {
+      "id": "chin",
+      "name": "チン",
+      "kind": "monster",
+      "genres": ["言語学"],
+      "myth": "鹿児島方言の「ちんこ」は下ネタの言葉",
+      "truth": "「小さい」という意味（ちんこい・ちんけ）。薩摩川内市には、小さい団子という意味の「ちんこ団子」という名物がある",
+      "debated": false,
+      "sprites": { "idle": "chin_idle", "attack": null }
+    },
+    {
+      "id": "dejika",
+      "name": "デジカ",
+      "kind": "monster",
+      "genres": ["IT・情報"],
+      "myth": "デジタル化とは、現実のものを画面越しでも見られるようにすること",
+      "truth": "量やデータを、とびとびの数値で表すこと。連続したアナログの信号を数値に置き換えて、コンピュータで扱えるようにする",
+      "debated": false,
+      "sprites": { "idle": "dejika_idle", "attack": null }
+    },
+    {
       "id": "tendousetsu",
       "name": "テンドウセツ",
       "kind": "boss",
