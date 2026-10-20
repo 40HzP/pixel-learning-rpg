@@ -19,7 +19,7 @@ function card(app, m) {
   const pic = el('div', { class: 'pic' }, spriteCanvas(sprite, 3, app.palette, { silhouette: z.stage === 0 }));
   if (z.stage === 0) {
     return el('div', { class: 'zcard unknown' + (m.kind === 'boss' ? ' wide' : '') }, pic, el('div', { class: 'zname' }, '？？？'),
-      el('div', { class: 'muted' }, m.kind === 'boss' ? `${m.floor}階層で待っているボス` : 'まだ出会っていない'));
+      el('div', { class: 'muted' }, m.kind === 'boss' ? `${m.floor}階層で待っているボス` : m.world === 'moon' ? '月面で待っている' : 'まだ出会っていない'));
   }
   if (m.kind === 'boss') {
     const label = (t) => el('span', { class: 'label' }, t);

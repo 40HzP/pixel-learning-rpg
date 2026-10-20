@@ -8,7 +8,11 @@ const spritePath = (name) => fileURLToPath(new URL(`../../pixel/sprites/${name}.
 const town = read('../data/town.json');
 const TOWN_W = 90, TOWN_H = 160;
 
-test('街：施設の外観と背景のスプライトがそろっている', () => {
+// 地球の街と月面の街（town.json の moon）。月面にいる間は月面の街が出る
+const TOWNS = [['地球の街', town], ['月面の街', town.moon]];
+
+for (const [label, t] of TOWNS) test(`${label}：施設の外観と背景のスプライトがそろっている`, () => {
+  const town = t;
   const bg = read(`../../pixel/sprites/${town.background}.json`);
   assert.deepEqual([bg.w, bg.h], [TOWN_W, TOWN_H]);
   for (const f of town.facilities) {
@@ -18,10 +22,12 @@ test('街：施設の外観と背景のスプライトがそろっている', ()
     assert.equal(sp.category, 'building', f.sprite);
   }
   assert.equal(new Set(town.facilities.map((f) => f.id)).size, town.facilities.length, 'id が重ならない');
-  for (const id of ['shop', 'guild', 'home']) assert.ok(town.facilities.some((f) => f.id === id), `${id} がある`);
+  const need = label === '地球の街' ? ['shop', 'guild', 'home', 'rocket'] : ['moon_rocket', 'moon_base'];
+  for (const id of need) assert.ok(town.facilities.some((f) => f.id === id), `${id} がある`);
 });
 
-test('街：建物と主人公は街の中に収まり、互いに重ならない', () => {
+for (const [label, t] of TOWNS) test(`${label}：建物と主人公は街の中に収まり、互いに重ならない`, () => {
+  const town = t;
   const boxes = town.facilities.map((f) => {
     const sp = read(`../../pixel/sprites/${f.sprite}.json`);
     return { id: f.id, x: f.x, y: f.y, w: sp.w, h: sp.h };

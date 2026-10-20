@@ -1,6 +1,6 @@
 // 冒険画面の描画（90×160 のキャンバス）。攻撃エフェクト・ダメージ数字・HPバーはここで描く。
 import { drawSprite, drawPlaceholder, frameAt, cssColor } from './sprites.js';
-import { heroStats, isInvulnerable, stageFor, partyAllies } from './sim.js';
+import { heroStats, isInvulnerable, currentStage, partyAllies } from './sim.js';
 
 export const SCENE_W = 90;
 export const SCENE_H = 160;
@@ -167,7 +167,7 @@ export function createRenderer(canvas, app) {
   function draw(state, now) {
     g.clearRect(0, 0, SCENE_W, SCENE_H);
     // 10階層ごとに背景が変わる（変わるときは暗転を挟む）
-    const { shown: stage, dark } = stageFade(stageFor(state.adventure.floor, app.stages), now);
+    const { shown: stage, dark } = stageFade(currentStage(state, app.stages), now);
     if (stage && stage.bg) drawSprite(g, stage.bg, 0, 0, 0);
     else { g.fillStyle = col('o', '#a6d8f2'); g.fillRect(0, 0, SCENE_W, SCENE_H); g.fillStyle = col('j', '#6fb042'); g.fillRect(0, 98, SCENE_W, 62); }
 

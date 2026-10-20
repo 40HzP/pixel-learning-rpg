@@ -9,6 +9,7 @@
     { "from": 61, "name": "氷の大地", "genre": "熱力学", "background": "bg_floor61" },
     { "from": 71, "name": "夜の都会", "genre": "経済学", "background": "bg_floor71" },
     { "from": 81, "name": "海の底", "genre": "流体力学", "background": "bg_floor81" },
-    { "from": 91, "name": "天空の神殿", "genre": "数学", "background": "bg_floor91" }
+    { "from": 91, "name": "天空の神殿", "genre": "数学", "background": "bg_floor91" },
+    { "world": "moon", "from": 1, "name": "月面", "genre": "宇宙物理学", "background": "bg_moon" }
   ]
 }

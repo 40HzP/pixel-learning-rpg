@@ -1,5 +1,5 @@
 // デバッグ画面（URL に ?debug=1 を付けたときだけ出る）
-import { HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel, lifespanOf, ailmentAge, ageYears } from '../sim.js';
+import { HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel, lifespanOf, ailmentAge, ageYears, zakoPool, rocketSteps } from '../sim.js';
 import { SAVE_KEY, serialize, deserialize } from '../save.js';
 import { GENRES } from '../genres.js';
 import { el } from './dom.js';
@@ -63,7 +63,7 @@ export function init(app) {
           adv.kills = 0;
           adv.enemies = [];
           adv.spawnTimer = 0;
-          app.notify(`${adv.floor}階層にした`);
+          app.notify(`${adv.world === 'moon' ? '月面' : ''}${adv.floor}階層にした`);
         },
       }, '移動'))),
     el('div', { class: 'section' }, el('h2', {}, '熟練'),
@@ -85,7 +85,7 @@ export function init(app) {
           const picked = ctx.monsters.find((m) => m.id === monster.value);
           const ids = [picked.id];
           if (picked.kind === 'monster') {
-            const pool = ctx.monsters.filter((m) => m.kind === 'monster');
+            const pool = zakoPool(app.state, ctx);
             const n = Math.max(1, ctx.balance.floor.monstersPerFloor - app.state.adventure.kills);
             while (ids.length < n) ids.push(pool[Math.floor(Math.random() * pool.length)].id);
           }
@@ -96,6 +96,17 @@ export function init(app) {
     el('div', { class: 'section' }, el('h2', {}, 'ミニムービー（中ボスを倒したとき・体の不調）'),
       el('div', {}, ctx.monsters.filter((m) => m.defeatMovie).map((m) => el('button', { onclick: () => app.playMovie(m.id) }, m.name)),
         el('button', { onclick: () => app.playAilmentMovie(Math.max(ageYears(app.state), ailmentAge(app.state, ctx.balance))) }, '体の不調'))),
+    el('div', { class: 'section' }, el('h2', {}, 'ロケットと月面'),
+      el('div', {}, el('button', {
+        onclick: () => {
+          // 建造費を払い、すべての工程を終えたことにする（打ち上げはロケット発射場から）
+          app.state.legacy.rocket.buildCostPaid = true;
+          for (const st of rocketSteps(app.state, ctx)) app.state.legacy.rocket.steps[st.id] = st.need;
+          app.notify('ロケットを完成させた（街のロケット発射場から打ち上げられる）');
+        },
+      }, 'ロケットを完成させる'),
+      el('button', { onclick: () => app.launch() }, '打ち上げる'),
+      el('button', { onclick: () => app.returnHome() }, '地球に帰る'))),
     el('div', { class: 'section' }, el('h2', {}, '睡眠'),
       el('div', {}, el('button', { onclick: () => app.sleepNow() }, 'すぐ眠る'))),
     el('div', { class: 'section' }, el('h2', {}, 'セーブ'),

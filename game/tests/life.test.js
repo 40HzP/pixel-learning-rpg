@@ -43,7 +43,7 @@ test('寿命になると生まれ変わる。Lv・ゴールド・装備・仲間
   const re = ev.find((e) => e.type === 'reincarnated');
   assert.ok(re, '生まれ変わった');
   const { gold, ...rest } = re.life;
-  assert.deepEqual(rest, { generation: 1, name: '勇者', age: 80, level: 120, maxFloor: 40 });
+  assert.deepEqual(rest, { generation: 1, name: '勇者', age: 80, level: 120, maxFloor: 40, moonFloor: 0 });
   assert.ok(gold >= 5e6 - 12000, '前世の最後の所持金を記録する');
   assert.equal(re.generation, 2);
   // 最初からになるもの

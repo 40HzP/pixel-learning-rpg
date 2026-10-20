@@ -1,0 +1,47 @@
+{
+  "name": "itsumomangetsu_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      "................",
+      "................",
+      "............b...",
+      "...........bb...",
+      "....00000..abbb.",
+      "...0ggggg0..ibb.",
+      "..0ggggggg0.iabb",
+      ".0gggggfggg0i.i.",
+      ".0g00g00ggg0i.i.",
+      ".0ggggggggf0i.i.",
+      ".0gsggggfff0i.i.",
+      ".0gg00ggfff0i.i.",
+      "..0ggggfff0.i.i.",
+      "...0ggfff0..i.i.",
+      "....00000...i.i.",
+      "............i.i."
+    ],
+    [
+      "................",
+      "................",
+      "............b...",
+      "...........bb...",
+      "............bbb.",
+      "....00000..aibb.",
+      "...0ggggg0..i.bb",
+      "..0ggggggg0.iai.",
+      ".0gggggfggg0i.i.",
+      ".0g00g00ggg0i.i.",
+      ".0ggggggggf0i.i.",
+      ".0gsggggfff0i.i.",
+      ".0gg00ggfff0i.i.",
+      "..0ggggfff0.i.i.",
+      "...0ggfff0..i.i.",
+      "....00000...i.i."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

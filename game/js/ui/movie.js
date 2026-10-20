@@ -2,7 +2,7 @@
 // 文は monsters.json の defeatMovie（中ボス）・town.json の病院の ailmentMovie（体の不調）に書く。
 // 流れている間はゲームの時間を止め、知らせは終わってから出す（main.js）
 import { drawSprite, frameAt } from '../sprites.js';
-import { stageFor } from '../sim.js';
+import { currentStage } from '../sim.js';
 import { el } from './dom.js';
 
 const W = 60;          // 絵の幅（ドット）。今の世界の背景（90×160）の真ん中を切り抜いて大きく見せる
@@ -42,7 +42,7 @@ export function playMovie(app, { lines, otherId, hero: heroKey = 'idle' }) {
     function draw() {
       const now = performance.now() / 1000;
       g.clearRect(0, 0, W, H);
-      const stage = stageFor(app.state.adventure.floor, app.stages);
+      const stage = currentStage(app.state, app.stages);
       if (stage && stage.bg) drawSprite(g, stage.bg, 0, -BG_X, -BG_TOP);
       else { g.fillStyle = '#6fb042'; g.fillRect(0, 0, W, H); }
       const hero = app.heroSprites[heroKey] || app.heroSprites.idle;

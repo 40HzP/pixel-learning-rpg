@@ -7,10 +7,12 @@ import { createStageFade } from '../js/render.js';
 
 const read = (rel) => JSON.parse(readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8'));
 const { stages } = read('../data/stages.json');
+const earth = stages.filter((st) => (st.world || 'earth') === 'earth');
 
-test('10階層ごとの世界：1階層から始まり、背景のスプライトがそろっている', () => {
-  assert.equal(stages[0].from, 1);
-  for (let i = 1; i < stages.length; i++) assert.ok(stages[i].from > stages[i - 1].from, `${stages[i].name} の from が前より大きい`);
+test('10階層ごとの世界：1階層から始まり、背景のスプライトがそろっている（月面の世界も）', () => {
+  assert.equal(earth[0].from, 1);
+  for (let i = 1; i < earth.length; i++) assert.ok(earth[i].from > earth[i - 1].from, `${earth[i].name} の from が前より大きい`);
+  for (const st of stages) assert.ok(['earth', 'moon'].includes(st.world || 'earth'), `${st.name} の world`);
   for (const st of stages) {
     assert.ok(st.name, 'name');
     const file = fileURLToPath(new URL(`../../pixel/sprites/${st.background}.json`, import.meta.url));
@@ -19,7 +21,7 @@ test('10階層ごとの世界：1階層から始まり、背景のスプライ�
     assert.equal(sp.category, 'background', st.background);
     assert.deepEqual([sp.w, sp.h], [90, 160], st.background);
   }
-  assert.ok(stages.at(-1).from >= 91, '100階層まで背景がある');
+  assert.ok(earth.at(-1).from >= 91, '100階層まで背景がある');
 });
 
 test('階層の背景：10階層ごとに変わり、最後の世界より先は最後の世界のまま', () => {
@@ -33,7 +35,7 @@ test('階層の背景：10階層ごとに変わり、最後の世界より先は
 });
 
 test('世界が変わるときは0.5秒の暗転：前半で暗くなり、真っ暗の瞬間に背景を入れ替え、後半で明るくなる', () => {
-  const [a, b, c] = stages;
+  const [a, b, c] = earth;
   const step = createStageFade(0.5);
   assert.deepEqual(step(a, 10), { shown: a, dark: 0 }, '最初の1回は暗転しない');
   assert.deepEqual(step(a, 11), { shown: a, dark: 0 }, '世界が同じなら暗転しない');

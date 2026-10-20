@@ -1,0 +1,47 @@
+{
+  "name": "katagawamichishio_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      "................",
+      "................",
+      "..00............",
+      ".0440...........",
+      "04nno0..........",
+      "0nnnno0.........",
+      "onmmnno0........",
+      "nmm0mn0o0.......",
+      "nmm0mm0no0......",
+      "mmmmmmmnno00....",
+      "mmmm00mmnnoo0000",
+      "mmmmmmmmmnnnoooo",
+      "mmmmmmmmmmnnnnnn",
+      "llllllllllllnnnn",
+      "llllllllllllllll",
+      "0000000000000000"
+    ],
+    [
+      "................",
+      "................",
+      "..000...........",
+      ".044o0..........",
+      ".0nnno0.........",
+      "04nnnno0........",
+      "0nmmmnno0.......",
+      "onm0mm0n0.......",
+      "nmm0mm0no0......",
+      "nmmmmmmmno0.....",
+      "mmmm00mmnno0000.",
+      "mmmmmmmmmnnoooo0",
+      "mmmmmmmmmmnnnnno",
+      "lllllllllllnnnnn",
+      "llllllllllllllln",
+      "0000000000000000"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

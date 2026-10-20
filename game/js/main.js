@@ -2,6 +2,7 @@
 import {
   createState, startGame, tick, clockFrame, createClock, HOURS_PER_YEAR,
   createRateTracker, trackTime, trackGain, sleepAtBed, stageFor, fitParty, lifespanFor, generationMultiplier, heroStats, forgetPastLifeBosses,
+  launchRocket, returnToEarth,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
 import { forgetMissingQuestions } from './quiz.js';
@@ -18,6 +19,7 @@ import { playMovie } from './ui/movie.js';
 import { askNande } from './ui/nande.js';
 import { playTear } from './ui/tear.js';
 import { playOogiri } from './ui/oogiri.js';
+import { playLaunch } from './ui/launch.js';
 
 const PIXEL = '../pixel/';
 const SPRITES = PIXEL + 'sprites/';
@@ -91,8 +93,8 @@ async function boot() {
   // hero_blush：赤面する主人公（テストに大喜利を書いたとき）
   const [heroIdle, heroAttack, heroOld, heroBow, heroBlush] = await Promise.all(
     [load('hero_idle'), load('hero_attack'), load('hero_old_idle'), load('hero_bow'), load('hero_blush')]);
-  // 用紙を破りすてたときのミニモーションの教室（背景と、先生の前に重ねる教卓）
-  const [classroom, lectern] = await Promise.all([load('scene_classroom'), load('scene_lectern')]);
+  // 用紙を破りすてたときのミニモーションの教室（背景と、先生の前に重ねる教卓）。ロケットのミニムービーの打ち上げ場と飛ぶロケット
+  const [classroom, lectern, launchpad, rocket] = await Promise.all([load('scene_classroom'), load('scene_lectern'), load('scene_launchpad'), load('rocket_flight')]);
   // 10階層ごとの世界の背景（stages.json に書いた名前だけ読む）
   const stageList = await Promise.all(stages.map(async (st) => ({ ...st, bg: await load(st.background) })));
   // 施設画面の街：背景と施設の外観（town.json に書いた名前だけ読む）
@@ -100,6 +102,12 @@ async function boot() {
   const [townBg] = await Promise.all([
     load(town.background),
     ...town.facilities.map(async (f) => { townSprites[f.id] = await load(f.sprite); }),
+  ]);
+  // 月面の街（town.json の moon。月面にいる間は地球の街の代わりに出る）
+  const moonSprites = {};
+  const [moonBg] = await Promise.all([
+    load(town.moon.background),
+    ...town.moon.facilities.map(async (f) => { moonSprites[f.id] = await load(f.sprite); }),
   ]);
   // 下の切り替えバーのアイコン（index.html のボタンの data-icon に書いた名前だけ読む。無ければ字だけ）
   await Promise.all([...document.querySelectorAll('#tabs button[data-icon]')].map(async (b) => {
@@ -111,9 +119,10 @@ async function boot() {
   const app = {
     ctx, palette, monsterSprites, recruitSprites,
     heroSprites: { idle: heroIdle, attack: heroAttack, old: heroOld, bow: heroBow, blush: heroBlush },
-    sceneSprites: { classroom, lectern },
+    sceneSprites: { classroom, lectern, launchpad, rocket },
     stages: stageList,
     town: { ...town, bg: townBg, sprites: townSprites },
+    moonTown: { ...town.moon, bg: moonBg, sprites: moonSprites },
     state: null,
     speed: 1,
     debug: params.get('debug') === '1',
@@ -141,6 +150,8 @@ async function boot() {
     askNande: () => runOverlay(() => askNande(app)),
     tearTest: (teacherId) => runOverlay(() => playTear(app, teacherId)), // テスト用紙を破りすてた（先生が怒る）
     oogiriTest: (teacherId) => runOverlay(() => playOogiri(app, teacherId)), // テストに大喜利を書いて提出した（主人公が赤面する）
+    launch: () => launch(),          // ロケットを打ち上げる（地球 → 月面。失敗することもある）
+    returnHome: () => returnHome(),  // 帰還ロケットで地球に帰る（無料）
   };
   app.state = loadSave(balance, notify);
   forgetMissingQuestions(app.state, ctx); // 同期で外した問題が過去問復習に残らないように
@@ -169,9 +180,12 @@ async function boot() {
   }
   function notifySleep(r, from = null) {
     const name = app.state.hero.name;
-    const lines = [r.reason === 'defeated' ? (r.floor > 1 ? `${name}はやられた…　拠点のある${r.floor}階層に戻って眠った` : `${name}はやられた…　1階層に戻って眠った`)
-      : from > r.floor ? `${name}はテントで眠った。${r.floor}階層に戻って、HPとMPが全回復した`
-        : `${name}はテントで眠った。HPとMPが全回復した`];
+    const moon = r.world === 'moon';
+    const at = (floor) => `${moon ? '月面' : ''}${floor}階層`;
+    const bed = moon ? '月面基地' : 'テント';
+    const lines = [r.reason === 'defeated' ? (r.floor > 1 ? `${name}はやられた…　拠点のある${r.floor}階層に戻って眠った` : `${name}はやられた…　${at(1)}に戻って眠った`)
+      : from > r.floor ? `${name}は${bed}で眠った。${at(r.floor)}に戻って、HPとMPが全回復した`
+        : `${name}は${bed}で眠った。HPとMPが全回復した`];
     lines.push(r.up.length ? `熟練が上がった：${r.up.join('・')}` : '熟練が上がったジャンルはなかった');
     if (r.down.length) lines.push(`熟練が下がった：${r.down.join('・')}`);
     notify(lines.join('\n'), r.reason === 'defeated' ? 'bad' : 'good');
@@ -236,12 +250,41 @@ async function boot() {
     runOverlay(() => playMovie(app, {
       lines: [
         `${p.name}は${p.age}歳で天寿を全うした。`,
-        `Lv${p.level}・最高${p.maxFloor}階層まで進み、${fmt(p.gold)}ゴールドを残した。`,
+        `Lv${p.level}・最高${p.maxFloor}階層${p.moonFloor ? `（月面は${p.moonFloor}階層）` : ''}まで進み、${fmt(p.gold)}ゴールドを残した。`,
         `前世の記憶を受け継いで、新しい命に生まれ変わる。${e.generation}世代目は、ステータスの伸び・経験値・ゴールドが${m}倍になる。`,
       ],
       otherId: null,
       hero: 'old',
     }).then(() => { showIntro(); saveNow(); refreshActive(true); }));
+  }
+
+  /**
+   * ロケットを打ち上げる（ロケット発射場）。成功すれば月面の1階層へ（前に行っていればその階層へ）、
+   * 失敗すればエンジン・推進剤の工程をやり直す。どちらもミニムービーのあとで知らせる
+   */
+  function launch() {
+    const r = launchRocket(app.state, ctx);
+    if (!r.ok) { notify(r.reason, 'bad'); return r; }
+    saveNow();
+    const where = `月面${app.state.adventure.floor}階層`;
+    runOverlay(() => playLaunch(app, r.success
+      ? { from: 'earth', to: 'moon', lines: ['月面に着いた！', `${where}から冒険を続ける。月面の階層は、地球とは別に数える。`, '地球に帰るときは、月面の街の帰還ロケットに乗る（無料）。'] }
+      : { from: 'earth', to: null, lines: ['打ち上げに失敗した…', `${r.redo.join('・')}の工程をやり直す。ロケット発射場で、また専攻にして進めよう。`] })
+      .then(() => {
+        if (r.success) notify(`月面に着いた！　${where}から`, 'good');
+        else notify(`打ち上げに失敗した…　${r.redo.join('・')}をやり直す`, 'bad');
+        refreshActive(true);
+      }));
+    return r;
+  }
+  /** 帰還ロケットで地球に帰る（無料で、必ず帰れる）。地球は打ち上げた階層から */
+  function returnHome() {
+    const r = returnToEarth(app.state, ctx);
+    if (!r.ok) { notify(r.reason, 'bad'); return r; }
+    saveNow();
+    runOverlay(() => playLaunch(app, { from: 'moon', to: 'earth', lines: ['地球に帰ってきた！', `${r.floor}階層から冒険を続ける。`] })
+      .then(() => { notify(`地球に帰ってきた。${r.floor}階層から`, 'good'); refreshActive(true); }));
+    return r;
   }
 
   function handleEvents(events) {
@@ -258,9 +301,10 @@ async function boot() {
       else if (e.type === 'ailment') startAilmentMovie(e.age);
       else if (e.type === 'levelUp') notify(`${app.state.hero.name}のレベルが上がった！　Lv ${e.level}`, 'good');
       else if (e.type === 'floorUp') {
-        // 10階層ごとに世界が変わる。新しい世界の最初の階層では世界の名前を出す
-        const st = stageFor(e.floor, app.stages);
-        notify(st && st.from === e.floor && e.floor > 1 ? `${e.floor}階層　${st.name}に入った` : `${e.floor}階層に進んだ`);
+        // 10階層ごとに世界が変わる。新しい世界の最初の階層では世界の名前を出す（月面の階層は「月面◯階層」）
+        const st = stageFor(e.floor, app.stages, e.world);
+        if (e.world === 'moon') notify(`月面${e.floor}階層に進んだ`);
+        else notify(st && st.from === e.floor && e.floor > 1 ? `${e.floor}階層　${st.name}に入った` : `${e.floor}階層に進んだ`);
       }
       else if (e.type === 'heroDefeated') notifySleep(e.sleep);
       else if (e.type === 'retreat') notify(`${e.name}から逃げた。また挑戦できる`);

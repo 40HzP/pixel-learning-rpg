@@ -1,7 +1,7 @@
 // 冒険画面の表示項目（設計ページ「自動冒険画面に必ず表示する項目」）。空の部分（y=0〜97）に重ねる
 import {
   heroStats, partyAllies, companiesProfit, expToNext, formatDate, monthlyRates, monthlyContractCost, monthlyNetGold, isInvulnerable, midbossLeft, pendingBoss, expMultiplier,
-  challengeableMidboss, challengeMidboss, retreatMidboss,
+  challengeableMidboss, challengeMidboss, retreatMidboss, onMoon,
 } from '../sim.js';
 import { el, fmt } from './dom.js';
 
@@ -72,7 +72,8 @@ export function update(app) {
   r.date.textContent = formatDate(s.life.gameHours);
   // ボスのいる階層は、ボスを倒すと次の階層へ進む
   const bossFloor = adv.enemies.some((e) => e.kind === 'boss') || pendingBoss(s, ctx);
-  r.floor.textContent = bossFloor ? `${adv.floor}階層 ボス` : `${adv.floor}階層 ${adv.kills}/${ctx.balance.floor.monstersPerFloor}体`;
+  const where = `${onMoon(s) ? '月面' : ''}${adv.floor}階層`;
+  r.floor.textContent = bossFloor ? `${where} ボス` : `${where} ${adv.kills}/${ctx.balance.floor.monstersPerFloor}体`;
   r.name.textContent = s.life.generation > 1 ? `${s.hero.name}（${s.life.generation}世代目）` : s.hero.name;
   r.lv.textContent = s.hero.level;
   const party = partyAllies(s).length, bench = s.allies.length - party;

@@ -1,0 +1,47 @@
+{
+  "name": "ookinatsuki_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      "................",
+      "................",
+      "................",
+      ".....000000.....",
+      "...00gggggg00...",
+      "..0gggggggggg0..",
+      ".0ggfgggggfggg0.",
+      ".0gggggggggggg0.",
+      "0gg0ggg0ggggggg0",
+      "0gg0ggg0ggggfgg0",
+      "0gg0ggg0ggggggf0",
+      "0ggggggggggggff0",
+      "0ggg000gggggfff0",
+      "0gggddgggggffff0",
+      "0000000000000000",
+      "1111111111111111"
+    ],
+    [
+      "................",
+      "................",
+      "................",
+      "................",
+      ".....000000.....",
+      "...00gggggg00...",
+      "..0gggggggggg0..",
+      ".0ggfgggggfggg0.",
+      ".0gggggggggggg0.",
+      "0gg0ggg0ggggggg0",
+      "0gg0ggg0ggggfgg0",
+      "0gg0ggg0ggggggf0",
+      "0ggggggggggggff0",
+      "0ggg000gggggfff0",
+      "0000000000000000",
+      "1111111111111111"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

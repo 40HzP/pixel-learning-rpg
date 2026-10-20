@@ -1,12 +1,13 @@
 // 施設画面＝街。bg_town の上に施設の外観を並べ（並べる位置は data/town.json）、建物をタップするとその施設に入る。
 // 入れる施設：店・仲間が集まる場所・寝床・会社・ロケット発射場・専攻の付け替え・拠点（構造工学を解放するまで準備中）・病院。
+// 月面にいる間は、地球の街の代わりに月面の街（town.json の moon：帰還ロケット・月面基地）が出る。
 // 小さな広場に立っている主人公をタップすると、主人公のステータスと名前の変更
 import {
   shopList, buyItem, bedFloor, heroTitles, inParty, setInParty, partyAllies, partyMax, partyFull, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, evadeChance, expMultiplier,
   recruitList, hireRecruit, dismissRecruit, monthlyContractCost, HOURS_PER_MONTH, HOURS_PER_YEAR,
   canFound, foundCompany, closeCompany, companiesProfit, industryList, industryOutlook, generationMultiplier, ageYears, payRocketBuildCost, rocketSteps,
   hireStaff, dismissStaff, bestStaffGrade, staffCost, staffBonus, buildBase, baseActive,
-  lifespanOf, treatmentInfo, receiveTreatment,
+  lifespanOf, treatmentInfo, receiveTreatment, onMoon, launchInfo,
 } from '../sim.js';
 import { fieldList, fieldById, fieldActive, isUnlocked, setMajor, MAJOR_SLOTS } from '../fields.js';
 import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor } from '../sprites.js';
@@ -30,6 +31,9 @@ export function reset() { key = ''; view = 'town'; }
 
 /** 施設の中に入っているか（知らせを下に出すため） */
 export const insideFacility = () => view !== 'town';
+
+/** 今いる世界の街（月面にいる間は月面の街） */
+const activeTown = (app) => (onMoon(app.state) ? app.moonTown : app.town);
 
 function enter(app, id) {
   view = id;
@@ -62,10 +66,11 @@ const LOCKS = {
 const STRUCTURAL = 'structural_engineering';
 const lockText = (app, id) => (LOCKS[id] ? LOCKS[id](app) : null);
 const isSoon = (app, id) => !PANELS[id] || !!lockText(app, id);
-const soonKey = (app) => app.town.facilities.filter((f) => isSoon(app, f.id)).map((f) => f.id).join(',');
+// 街を作り直す目印：どちらの世界の街か＋準備中の施設
+const soonKey = (app) => `${app.state.adventure.world}:` + activeTown(app).facilities.filter((f) => isSoon(app, f.id)).map((f) => f.id).join(',');
 
 function buildTown(app) {
-  const t = app.town;
+  const t = activeTown(app);
   const canvas = el('canvas', { class: 'pixel', width: TOWN_W, height: TOWN_H });
   const g = canvas.getContext('2d');
   g.imageSmoothingEnabled = false;
@@ -113,7 +118,7 @@ function layoutTown() {
 }
 
 function drawTown(app, now) {
-  const t = app.town;
+  const t = activeTown(app);
   const g = town.g;
   g.clearRect(0, 0, TOWN_W, TOWN_H);
   if (t.bg) drawSprite(g, t.bg, 0, 0, 0);
@@ -182,7 +187,7 @@ function homePanel(app) {
     el('button', { class: 'primary', onclick: () => { app.sleepNow(); update(app, true); } }, '眠る'),
     ls
       ? el('div', { class: 'muted', style: { fontSize: '14px', marginTop: '8px', whiteSpace: 'pre-line' } },
-        `前回：${formatDate(ls.at)}（${ls.reason === 'defeated' ? 'やられて眠った' : 'テントで眠った'}）\n`
+        `前回：${formatDate(ls.at)}（${ls.reason === 'defeated' ? 'やられて眠った' : ls.world === 'moon' ? '月面基地で眠った' : 'テントで眠った'}）\n`
         + `上がった熟練：${ls.up.length ? ls.up.join('・') : 'なし'}\n下がった熟練：${ls.down.length ? ls.down.join('・') : 'なし'}`)
       : null,
   ];
@@ -434,9 +439,19 @@ function rocketPanel(app) {
         el('div', { class: 'timebar' }, bar), text, how ? el('small', { class: st.active ? 'good' : '' }, how) : null),
       el('span', { class: st.done ? 'good' : 'muted' }, st.done ? '済' : st.active ? '進行中' : '未'));
   });
-  const allDone = paid && steps.every((st) => st.done);
+  const info = launchInfo(s, ctx);
+  const rate = `${Math.round(info.successRate * 100)}%`;
+  const redo = ctx.fields.rocketSteps.filter((st) => st.redoOnFailure).map((st) => st.name).join('・');
+  const launchBtn = el('button', {
+    class: 'primary launch', disabled: !info.ok,
+    onclick: () => {
+      const odds = info.rateVisible ? `成功率は${rate}。` : '';
+      if (!confirm(`ロケットを打ち上げますか？\n${odds}失敗すると${redo}の工程をやり直しになる`)) return;
+      app.launch();
+    },
+  }, '打ち上げる');
   return [
-    note('ロケットができると、月面の階層に行ける。工程は生まれ変わっても残る。ゴールドは生まれ変わると無くなるので、建造費は1つの人生のうちに貯めて払う'),
+    note('ロケットができると、打ち上げて月面の階層に行ける。工程は生まれ変わっても残る。ゴールドは生まれ変わると無くなるので、建造費は1つの人生のうちに貯めて払う'),
     el('h3', { class: 'subhead' }, '建造費'),
     el('div', { class: 'profit' }, '所持金 ', live.gold, `G ／ ${fmt(cost)}G`),
     el('div', { class: 'timebar' }, el('i', { style: { width: `${(paid ? 1 : ratio) * 100}%` } })),
@@ -445,7 +460,30 @@ function rocketPanel(app) {
     note(`1つの工程に ゲーム内で${ctx.balance.rocket.stepYears}年かかる。専攻は2枠なので、同時に進むのは2つまで。工程ごとに専攻を付け替える`),
     el('div', { class: 'list' }, rows),
     el('h3', { class: 'subhead' }, '打ち上げ'),
-    note(allDone ? '建造費とすべての工程が終わった！　打ち上げと月面の階層はこれから作る' : '建造費とすべての工程が終わると打ち上げられる（打ち上げと月面の階層はこれから作る）'),
+    note(info.ok ? `ロケットができた！　打ち上げは無料で、何度でもできる。失敗すると${redo}の工程だけやり直しになる`
+      : `建造費とすべての工程が終わると打ち上げられる（${info.reason}）`),
+    el('div', { class: 'profit' }, '成功率 ', el('b', {}, info.rateVisible ? rate : '？？？'),
+      el('small', { class: 'muted' }, info.rateVisible ? `（${fieldById(ctx, 'probability').name}で見えている）` : `（${fieldById(ctx, 'probability').name}を専攻にすると見える）`)),
+    el('div', { class: 'btnrow' }, launchBtn),
+  ];
+}
+
+/**
+ * 帰還ロケット（月面の街）：無料で、いつでも、必ず地球に帰れる。地球は打ち上げた階層から続ける。
+ * 月面の階層は取っておくので、また打ち上げると月面はその階層から
+ */
+function moonRocketPanel(app) {
+  const adv = app.state.adventure;
+  return [
+    el('div', { class: 'profit' }, `今は月面${adv.floor}階層。地球に帰ると${adv.earthFloor || 1}階層から続ける`),
+    note(`月面の階層（月面${adv.floor}階層）は取っておく。地球のロケット発射場からまた打ち上げると、月面${adv.floor}階層から`),
+    el('div', { class: 'btnrow' }, el('button', {
+      class: 'primary launch',
+      onclick: () => {
+        if (!confirm('帰還ロケットで地球に帰りますか？（無料）')) return;
+        app.returnHome();
+      },
+    }, '地球に帰る（無料）')),
   ];
 }
 
@@ -593,7 +631,8 @@ function heroPanel(app) {
   return [
     el('div', { class: 'rename' }, nameInput, el('button', { onclick: rename }, '名前を変える')),
     el('div', { class: 'stats' },
-      stat('HP', live.hp, baseActive(s, app.ctx) ? `0になるとやられて1階層（拠点より深い階層なら${s.adventure.baseFloor}階層）に戻る` : '0になるとやられて1階層に戻る'),
+      stat('HP', live.hp, onMoon(s) ? '0になるとやられて月面1階層に戻る'
+        : baseActive(s, app.ctx) ? `0になるとやられて1階層（拠点より深い階層なら${s.adventure.baseFloor}階層）に戻る` : '0になるとやられて1階層に戻る'),
       stat('MP', live.mp, `敵が2体以上いると「${b.spell.name}」（MP${b.spell.mpCost}・敵全体）を使う`),
       stat('攻撃', hs.atk, `1体を叩く強さ（秒間${+(1 / b.hero.attackIntervalSec).toFixed(1)}回）`),
       stat('防御', hs.def, '受けるダメージが減る'),
@@ -613,10 +652,13 @@ function heroPanel(app) {
 }
 
 // 中に入れる施設（town.json の id → 中身）。ここに無い施設は「準備中」
-const PANELS = { shop: shopPanel, guild: guildPanel, home: homePanel, company: companyPanel, rocket: rocketPanel, major: majorPanel, base: basePanel, hospital: hospitalPanel };
+const PANELS = {
+  shop: shopPanel, guild: guildPanel, home: homePanel, company: companyPanel, rocket: rocketPanel, major: majorPanel, base: basePanel, hospital: hospitalPanel,
+  moon_rocket: moonRocketPanel, moon_base: homePanel, // 月面の街
+};
 
 function buildPanel(app) {
-  const t = app.town;
+  const t = activeTown(app);
   live = { gold: el('span'), hp: el('b'), mp: el('b'), bed: el('span'), buttons: [], rocket: [], base: null, exam: null };
   const f = t.facilities.find((x) => x.id === view);
   let title, sprite, body;
@@ -651,6 +693,8 @@ function buildPanel(app) {
 
 export function update(app, force) {
   const s = app.state;
+  // 打ち上げ・帰還で世界が変わったら、もう片方の世界の施設からは街に出る
+  if (view !== 'town' && view !== 'hero' && !activeTown(app).facilities.some((f) => f.id === view)) { view = 'town'; key = ''; }
   if (view === 'town') {
     if (force || key !== 'town' || !town || town.soon !== soonKey(app)) { key = 'town'; live = null; buildTown(app); }
     if (!town.scale) layoutTown();
@@ -672,7 +716,8 @@ export function update(app, force) {
   live.mp.textContent = `${Math.floor(s.hero.mp)}/${hs.maxMp}`;
   for (const b of live.buttons) b.btn.disabled = s.gold < b.price;
   const now = s.adventure.floor, back = bedFloor(s);
-  live.bed.textContent = now > back ? `今は${now}階層。眠ると${back}階層に戻る` : '今は1階層。眠ると1階層の最初から';
+  const at = (floor) => `${onMoon(s) ? '月面' : ''}${floor}階層`;
+  live.bed.textContent = now > back ? `今は${at(now)}。眠ると${at(back)}に戻る` : `今は${at(1)}。眠ると${at(1)}の最初から`;
   if (live.rocket.length) {
     const steps = Object.fromEntries(rocketSteps(s, app.ctx).map((st) => [st.id, st]));
     for (const r of live.rocket) {

@@ -24,8 +24,8 @@ export const HERO_NAME_MAX = 8;
 export function createState(balance) {
   return {
     meta: { startAge: null },                       // 開始年齢の選択（null＝まだ選んでいない）
-    // 何世代目か・0歳1月1日0時からの経過時間・生まれたときに決まった寿命（歳）・この人生で一番深い階層・体の不調を感じ始めたか・病院で治療を受けた回数
-    life: { generation: 1, gameHours: 0, lifespan: balance.life.lifespanYears, maxFloor: 1, ailing: false, treatments: 0 },
+    // 何世代目か・0歳1月1日0時からの経過時間・生まれたときに決まった寿命（歳）・この人生で一番深い階層（地球）・月面で一番深い階層（0＝まだ行っていない）・体の不調を感じ始めたか・病院で治療を受けた回数
+    life: { generation: 1, gameHours: 0, lifespan: balance.life.lifespanYears, maxFloor: 1, moonMaxFloor: 0, ailing: false, treatments: 0 },
     hero: { name: DEFAULT_HERO_NAME, level: 1, exp: 0, totalExp: 0, hp: balance.hero.base.hp, mp: balance.hero.base.mp },
     gold: 0,
     equipment: { weapon: null, armor: null },
@@ -33,7 +33,9 @@ export function createState(balance) {
     allies: [],                                     // 中ボス：{ id, name, atk, maxHp, hp, cd }／契約：{ id, name, hired: true, cd, paidUntil }
     companies: [],                                  // 起業した会社：{ uid, industry, foundedAt, staff: [{ id, grade, paidUntil }] }（業種ごとに1社まで）
     nextCompanyUid: 1,
-    adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1, baseFloor: null, evadeAcc: 0 }, // enemies：今出ている群れ（先頭が狙う相手）。baseFloor：拠点（構造工学）。evadeAcc：ためた回避率
+    // enemies：今出ている群れ（先頭が狙う相手）。baseFloor：拠点（構造工学）。evadeAcc：ためた回避率。
+    // world：今いる世界（earth＝地球、moon＝月面）。floor は今いる世界の階層で、もう片方の世界の階層は earthFloor・moonFloor に取っておく
+    adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1, baseFloor: null, evadeAcc: 0, world: 'earth', earthFloor: null, moonFloor: 1 },
     knowledge: {                                    // 転生で引き継ぐ前提のもの（第2段階）
       genres: {},                                   // ジャンル名 → { level, progress, correct, studied }
       totalCorrect: 0,
@@ -42,6 +44,7 @@ export function createState(balance) {
       zukan: {},                                    // 魔物id → { stage: 0|1|2, fooled }
       fields: {},                                   // 解放した学際分野：学際分野id → { at, generation, dormant }（fields.js）
       majors: [null, null],                         // 主専攻・副専攻（学際分野id）
+      moonCleared: false,                           // 月面を踏破した（月面の最後のボスを倒した。称号と図鑑の頁が残る）
     },
     midbosses: {},                                  // 中ボスid → { status: waiting|appeared|broken|defeated, announced }
     bosses: {},                                     // ボスid → { status: waiting|appeared|defeated }（一度倒したボスは、その人生ではもう出ない。生まれ変わるとまた出る）
@@ -128,7 +131,7 @@ export const generationMultiplier = (state, balance) => balance.reincarnation.mu
 
 /**
  * 寿命で亡くなり、次の世代に生まれ変わる。
- * 最初からになるもの：Lv・経験値・ゴールド・品物と装備・仲間（契約も）・会社・中ボス・ボス（倒したボスにもまた会う。40HzP の依頼）・階層・年齢。
+ * 最初からになるもの：Lv・経験値・ゴールド・品物と装備・仲間（契約も）・会社・中ボス・ボス（倒したボスにもまた会う。40HzP の依頼）・階層（月面にいても地球の1階層から）・年齢。
  * 引き継ぐもの：知識（熟練・累計正解数・過去問復習・図鑑・学際分野と専攻）・称号・名前・ロケット計画の工程。
  * 拠点（adventure.baseFloor）は階層と一緒に無くなる。
  * 年齢を選ぶまで（meta.startAge＝null）時間は止まる。前世のまとめを返す
@@ -137,7 +140,7 @@ export function reincarnate(state, ctx) {
   const b = ctx.balance;
   const prev = {
     generation: state.life.generation, name: state.hero.name, age: ageYears(state),
-    level: state.hero.level, maxFloor: state.life.maxFloor || state.adventure.floor, gold: Math.floor(state.gold),
+    level: state.hero.level, maxFloor: state.life.maxFloor || 1, moonFloor: state.life.moonMaxFloor || 0, gold: Math.floor(state.gold),
   };
   state.legacy.titles = [...new Set([...state.legacy.titles, ...heroTitles(state, ctx)])];
   state.legacy.lives.push(prev);
@@ -161,13 +164,14 @@ export function reincarnate(state, ctx) {
  * 前のセーブ（生まれ変わっても倒したボスが出なかった版）で、前世で倒したボスにまた会えるようにする。
  * ボスを倒すと次の階層に進むので、この人生で倒したボスは、この人生の最高階層（life.maxFloor）より手前の階層にいる。
  * 最高階層かそれより先の階層のボスは前世で倒したものなので、倒した印を消す。消したボスの id を返す
+ * （月面のボスはこの版で入ったので、前の版のセーブには倒した印が無い。月面の階層は数え方が違うので見ない）
  */
 export function forgetPastLifeBosses(state, ctx) {
   if (state.life.generation < 2) return [];
   const reached = state.life.maxFloor || 1;
   const back = [];
   for (const m of ctx.monsters) {
-    if (m.kind !== 'boss' || m.floor < reached || (state.bosses[m.id] || {}).status !== 'defeated') continue;
+    if (m.kind !== 'boss' || worldOf(m) !== 'earth' || m.floor < reached || (state.bosses[m.id] || {}).status !== 'defeated') continue;
     delete state.bosses[m.id];
     back.push(m.id);
   }
@@ -364,8 +368,24 @@ export function isInvulnerable(state, enemy) {
 
 /* ================= 冒険 ================= */
 
+/* ---------- 地球と月面 ---------- */
+
+/** 魔物・世界がどちらの世界のものか（monsters.json・stages.json の world。書いていなければ地球） */
+export const worldOf = (x) => (x && x.world) || 'earth';
+/** 月面にいるか（ロケットで打ち上げて行く。月面の階層は地球とは別に1から数える） */
+export const onMoon = (state) => state.adventure.world === 'moon';
+
+/**
+ * 敵の強さを決める階層：地球はその階層。月面は balance.moon.floorOffset ＋ 月面の階層
+ * （月面1階層は地球の floorOffset＋1 階層と同じ強さ。ロケットができるころの主人公に合わせた）
+ */
+export const strengthFloor = (state, ctx) => state.adventure.floor + (onMoon(state) ? ctx.balance.moon.floorOffset : 0);
+
+/** 今いる世界に出るザコ（月面には月面のザコだけ、地球には地球のザコだけが出る） */
+export const zakoPool = (state, ctx) => ctx.monsters.filter((m) => m.kind === 'monster' && worldOf(m) === (state.adventure.world || 'earth'));
+
 function makeEnemy(monster, state, ctx, slot) {
-  const s = monsterStats(state.adventure.floor, ctx.balance);
+  const s = monsterStats(strengthFloor(state, ctx), ctx.balance);
   const e = {
     uid: state.adventure.nextUid++, slot,
     monsterId: monster.id, name: monster.name, kind: monster.kind,
@@ -391,13 +411,17 @@ function makeEnemy(monster, state, ctx, slot) {
 
 /**
  * その階層の世界（stages.json）。from がその階層以下で一番大きい世界を返す。
- * 最後の世界より先の階層は、最後の世界のまま（世界を足すまで）
+ * 最後の世界より先の階層は、最後の世界のまま（世界を足すまで）。
+ * world を渡すと、その世界（earth＝地球・moon＝月面。stages.json の world、書いていなければ地球）の中から選ぶ
  */
-export function stageFor(floor, stages) {
+export function stageFor(floor, stages, world = 'earth') {
   let st = null;
-  for (const s of stages || []) if (floor >= s.from && (!st || s.from > st.from)) st = s;
+  for (const s of stages || []) if (worldOf(s) === world && floor >= s.from && (!st || s.from > st.from)) st = s;
   return st;
 }
+
+/** 今いる階層の世界（地球の10階層ごとの世界か、月面） */
+export const currentStage = (state, stages) => stageFor(state.adventure.floor, stages, state.adventure.world || 'earth');
 
 /** 年齢を満たした未撃破の中ボス（いなければ null） */
 export function pendingMidboss(state, ctx) {
@@ -409,11 +433,12 @@ export function pendingMidboss(state, ctx) {
   return null;
 }
 
-/** 今の階層の未撃破のボス（いなければ null）。ボスは monsters.json の floor に書いた階層に出る */
+/** 今の階層の未撃破のボス（いなければ null）。ボスは monsters.json の floor に書いた階層に出る（月面のボスは月面の階層） */
 export function pendingBoss(state, ctx) {
   const floor = state.adventure.floor;
+  const world = state.adventure.world || 'earth';
   for (const m of ctx.monsters) {
-    if (m.kind === 'boss' && m.floor === floor && bossState(state, m.id).status !== 'defeated') return m;
+    if (m.kind === 'boss' && worldOf(m) === world && m.floor === floor && bossState(state, m.id).status !== 'defeated') return m;
   }
   return null;
 }
@@ -471,7 +496,7 @@ export const heroTitles = (state, ctx) => [...new Set([
 export function chooseNextMonster(state, ctx) {
   const mb = pendingBoss(state, ctx);
   if (mb) return mb;
-  const pool = ctx.monsters.filter((m) => m.kind === 'monster');
+  const pool = zakoPool(state, ctx);
   return pool[Math.floor(ctx.rng() * pool.length)] || null;
 }
 
@@ -492,7 +517,7 @@ export function spawnGroup(state, ctx, events, monsterIds = null) {
     const mb = pendingBoss(state, ctx);
     if (mb) list = [mb];
     else {
-      const pool = ctx.monsters.filter((m) => m.kind === 'monster');
+      const pool = zakoPool(state, ctx);
       const n = Math.max(1, b.floor.monstersPerFloor - adv.kills);
       list = [];
       for (let i = 0; i < n && pool.length; i++) list.push(pool[Math.floor(ctx.rng() * pool.length)]);
@@ -756,8 +781,9 @@ function defeatEnemy(state, e, ctx, events) {
   if (adv.kills >= b.floor.monstersPerFloor || e.kind === 'boss') {
     adv.kills = 0;
     adv.floor++;
-    state.life.maxFloor = Math.max(state.life.maxFloor || 1, adv.floor);
-    events.push({ type: 'floorUp', floor: adv.floor });
+    if (onMoon(state)) state.life.moonMaxFloor = Math.max(state.life.moonMaxFloor || 0, adv.floor);
+    else state.life.maxFloor = Math.max(state.life.maxFloor || 1, adv.floor);
+    events.push({ type: 'floorUp', floor: adv.floor, world: adv.world || 'earth' });
   }
 }
 
@@ -804,6 +830,7 @@ export const baseActive = (state, ctx) => state.adventure.baseFloor != null && f
 /** 今いる階層に拠点を建てる（構造工学を専攻にしているとき）。拠点は1つで、建て直すと移る */
 export function buildBase(state, ctx) {
   if (!fieldActive(state, ctx, STRUCTURAL)) return { ok: false, reason: `${(fieldById(ctx, STRUCTURAL) || {}).name || '構造工学'}を専攻にすると建てられる` };
+  if (onMoon(state)) return { ok: false, reason: '月面には拠点を建てられない（地球に帰ってから建てる）' };
   const floor = state.adventure.floor;
   if (state.adventure.baseFloor === floor) return { ok: false, reason: `もう${floor}階層に拠点がある` };
   state.adventure.baseFloor = floor;
@@ -812,9 +839,11 @@ export function buildBase(state, ctx) {
 
 /**
  * やられたときに戻る階層：拠点が働いていて、拠点より深い階層でやられたら拠点の階層。それ以外は1階層
- * （拠点の階層そのものでやられたら1階層。勝てない階層でやられ続けないように）
+ * （拠点の階層そのものでやられたら1階層。勝てない階層でやられ続けないように）。
+ * 月面でやられたら月面の1階層（拠点は地球の階層にしか建てられない）
  */
 export function respawnFloor(state, ctx) {
+  if (onMoon(state)) return 1;
   const b = state.adventure.baseFloor;
   return baseActive(state, ctx) && state.adventure.floor > b ? b : 1;
 }
@@ -856,7 +885,7 @@ export function sleep(state, ctx, reason = 'bed') {
     }
     g.studied = false;
   }
-  state.lastSleep = { reason, up, down, hours: s.gameHours, at: state.life.gameHours, floor: state.adventure.floor };
+  state.lastSleep = { reason, up, down, hours: s.gameHours, at: state.life.gameHours, floor: state.adventure.floor, world: state.adventure.world || 'earth' };
   return state.lastSleep;
 }
 
@@ -1126,6 +1155,7 @@ function earnCompany(state, dt, ctx) {
 
 /**
  * ロケット計画の工程（fields.json の rocketSteps：機体設計・エンジン・軌道計算・打ち上げ許可）。
+ * 打ち上げに失敗すると、redoOnFailure の工程（エンジン・推進剤）が0に戻る（launchRocket）。
  * 工程の学際分野を専攻にしていて休眠していない間、ゲーム内の時間で進み、balance.rocket.stepYears 年で完了する。
  * 進み具合は legacy.rocket.steps に残る（生まれ変わっても残る）
  */
@@ -1156,6 +1186,66 @@ export function payRocketBuildCost(state, ctx) {
   state.gold -= cost;
   state.legacy.rocket.buildCostPaid = true;
   return { ok: true };
+}
+
+/** 打ち上げの成功率が見えるか：確率論（学際分野）を専攻にしていて休眠していない（設計ページ「確率論があれば成功率が見える」） */
+export const launchRateVisible = (state, ctx) => fieldActive(state, ctx, 'probability');
+
+/**
+ * ロケットを打ち上げられるか：建造費を払い、すべての工程が終わっていて、地球にいる。
+ * { ok, reason, successRate, rateVisible }（成功率は balance.rocket.launchSuccessRate）
+ */
+export function launchInfo(state, ctx) {
+  const r = ctx.balance.rocket;
+  const left = rocketSteps(state, ctx).filter((st) => !st.done);
+  let reason = null;
+  if (onMoon(state)) reason = 'もう月面にいる';
+  else if (!state.legacy.rocket.buildCostPaid) reason = '建造費を払うと打ち上げられる';
+  else if (left.length) reason = `まだ終わっていない工程：${left.map((st) => st.name).join('・')}`;
+  return { ok: !reason, reason, successRate: r.launchSuccessRate, rateVisible: launchRateVisible(state, ctx) };
+}
+
+/**
+ * 打ち上げる（地球 → 月面）。打ち上げは無料（建造費は一度払えばよい）。
+ * 成功すると月面の階層へ（前に月面にいたら、その階層から）。失敗すると、rocketSteps の redoOnFailure の工程
+ * （エンジン・推進剤）だけやり直しになり、地球に残る（設計ページ「失敗するとエンジン・推進剤の工程だけやり直し」）
+ */
+export function launchRocket(state, ctx) {
+  const info = launchInfo(state, ctx);
+  if (!info.ok) return { ok: false, reason: info.reason };
+  if (ctx.rng() >= info.successRate) {
+    const redo = ((ctx.fields && ctx.fields.rocketSteps) || []).filter((st) => st.redoOnFailure);
+    for (const st of redo) state.legacy.rocket.steps[st.id] = 0;
+    return { ok: true, success: false, redo: redo.map((st) => st.name) };
+  }
+  goToWorld(state, ctx, 'moon');
+  return { ok: true, success: true, floor: state.adventure.floor };
+}
+
+/** 月面の街の帰還ロケットで地球に帰る（無料で、いつでも、必ず帰れる）。地球は打ち上げた階層から */
+export function returnToEarth(state, ctx) {
+  if (!onMoon(state)) return { ok: false, reason: 'もう地球にいる' };
+  goToWorld(state, ctx, 'earth');
+  return { ok: true, floor: state.adventure.floor };
+}
+
+/**
+ * 地球と月面を行き来する。今いる世界の階層を取っておき、行き先の世界の取っておいた階層の最初から始める
+ * （月面は初めてなら1階層）。戦っていた群れや中ボスは退く
+ */
+function goToWorld(state, ctx, world) {
+  const adv = state.adventure;
+  if (world === 'moon') {
+    adv.earthFloor = adv.floor;
+    adv.world = 'moon';
+    restartFloor(state, adv.moonFloor || 1, ctx);
+    state.life.moonMaxFloor = Math.max(state.life.moonMaxFloor || 0, adv.floor);
+  } else {
+    adv.moonFloor = adv.floor;
+    adv.world = 'earth';
+    restartFloor(state, adv.earthFloor || 1, ctx);
+    adv.earthFloor = null;
+  }
 }
 
 /* ================= 店 ================= */

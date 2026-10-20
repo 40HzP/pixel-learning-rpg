@@ -72,6 +72,14 @@
       "desc": "ボス（かつての学説）と戦っている間、問題の誤答が1つ消える"
     },
     {
+      "id": "probability",
+      "name": "確率論",
+      "title": "確率論者",
+      "genres": ["数学", "統計学"],
+      "group": "strategy",
+      "desc": "ロケットを打ち上げるときに、成功率が見える"
+    },
+    {
       "id": "psych_statistics",
       "name": "心理統計学",
       "title": "心理統計学者",
@@ -90,7 +98,7 @@
   ],
   "rocketSteps": [
     { "id": "airframe", "name": "機体設計", "field": "aerospace" },
-    { "id": "engine", "name": "エンジン・推進剤", "field": "combustion" },
+    { "id": "engine", "name": "エンジン・推進剤", "field": "combustion", "redoOnFailure": true },
     { "id": "orbit", "name": "軌道計算", "field": "astrodynamics" },
     { "id": "permit", "name": "打ち上げ許可", "field": "space_law" }
   ]
