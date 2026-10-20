@@ -906,10 +906,10 @@
       "whyBelieved": "月より上の天上界は変化しない完全な世界（アリストテレス以来）",
       "overturnedBy": "1609〜10年、ガリレオが望遠鏡で山と影を見つけた",
       "debated": false,
-      "minions": ["jibundehikaru",  "kazanguchi"],
+      "minions": ["jibundehikaru", "kazanguchi"],
       "gimmick": "smooth",
       "gimmickNote": "表面がつるつるで、攻撃が滑る（ダメージ半減）。勉強で正解するたびに山と影が描き足され、攻撃が効くようになる",
-      "sprites": { "idle": "kanpekikyuu_idle", "attack": null, "marked": ["kanpekikyuu_marked1",  "kanpekikyuu_marked2"] }
+      "sprites": { "idle": "kanpekikyuu_idle", "attack": null, "marked": ["kanpekikyuu_marked1", "kanpekikyuu_marked2"] }
     },
     {
       "id": "garireochouseki",
@@ -923,7 +923,7 @@
       "whyBelieved": "離れた月が海を引くという考えは神秘的すぎる。ガリレオはこれを地動説の証拠と考えた",
       "overturnedBy": "1687年、ニュートンが月と太陽の引力の差で説明した。天動説を倒したガリレオにも誤りがあった",
       "debated": false,
-      "minions": ["katagawamichishio",  "juurokuya"],
+      "minions": ["katagawamichishio", "juurokuya"],
       "gimmick": "tide",
       "gimmickNote": "満ち潮の盾で、先頭への攻撃を弾く。反対側にも届く全体攻撃「ひらめき」は弾けない",
       "sprites": { "idle": "garireochouseki_idle", "attack": "garireochouseki_attack" }
@@ -940,7 +940,7 @@
       "whyBelieved": "大きな望遠鏡ならいずれ見えるはず。天王星を見つけたウィリアム・ハーシェルも月の住人を考えた。1835年にはアメリカの新聞の作り話（月の大捏造）が広まった",
       "overturnedBy": "望遠鏡が大きくなっても住人は見えなかった。20世紀には探査機と宇宙飛行士が月に降り、大気も液体の水もほとんど無いことを確かめた",
       "debated": false,
-      "minions": ["aoitsukizora",  "nabikuhata"],
+      "minions": ["aoitsukizora", "nabikuhata"],
       "gimmick": "newspaper",
       "gimmickNote": "新聞のビラをまいて、勉強の問題文の一部を隠す",
       "sprites": { "idle": "tsukijinsetsu_idle", "attack": "tsukijinsetsu_attack" }
@@ -957,7 +957,7 @@
       "whyBelieved": "望遠鏡で見ると、暗く平らで地球の海のように見えた",
       "overturnedBy": "望遠鏡で詳しく見ても、水の動きや波は見えなかった。アポロが持ち帰った石から、溶岩が固まった玄武岩だと分かった",
       "debated": false,
-      "minions": ["karakaratsuki",  "zuttosamui"],
+      "minions": ["karakaratsuki", "zuttosamui"],
       "gimmick": "splash",
       "gimmickNote": "水しぶきで、主人公のすばやさを下げる",
       "remains": { "sprite": "tsukinoumisetsu_dry", "note": "海が干上がり、黒い平原に「静かの海」の立て札だけが残った" },
@@ -992,7 +992,8 @@
       "whyBelieved": "月は少しずつ地球から離れている。逆にたどると、昔はくっついていたことになる（ジョージ・ダーウィン、1879年。太平洋がその跡という説も出た）",
       "overturnedBy": "アポロの月の石をうまく説明できず、巨大衝突説（ジャイアント・インパクト説）が有力になった",
       "debated": false,
-      "minions": ["hanarenaitsuki",  "jitenshinai"],
+      "minions": ["hanarenaitsuki", "jitenshinai"],
+      "stats": { "hp": 75000000, "atk": 2250000, "def": 3000000, "exp": 5060, "gold": 5060 },
       "gimmick": "split",
       "gimmickNote": "HPが半分になると、地球と月の2体に分かれる。片方だけ倒すと、もう片方に吸収されて元に戻る。両方をほぼ同時に倒す",
       "clear": {

@@ -6,11 +6,12 @@ import {
   tick, spawnGroup, monsterStats, launchInfo, launchRocket, returnToEarth, onMoon, zakoPool, strengthFloor, stageFor, currentStage,
   sleepAtBed, respawnFloor, buildBase, reincarnate, rocketSteps, genreState, HOURS_PER_YEAR,
   damageEnemy, markSmooth, newspaperActive, heroStats, heroTitles, forgetPastLifeBosses,
+  shopList, buyItem, recruitList, hireRecruit,
 } from '../js/sim.js';
 import { createSession, presentQuestion, answer, flyerSpan } from '../js/quiz.js';
 import { setMajor, fieldById } from '../js/fields.js';
 import { serialize, deserialize } from '../js/save.js';
-import { balance, monsters, fields, questions, makeCtx, newGame, constRng } from './helpers.js';
+import { balance, monsters, fields, questions, makeCtx, newGame, constRng, seededRng } from './helpers.js';
 
 const { stages } = JSON.parse(readFileSync(fileURLToPath(new URL('../data/stages.json', import.meta.url)), 'utf8'));
 const moonZako = monsters.filter((m) => m.kind === 'monster' && m.world === 'moon');
@@ -459,4 +460,43 @@ test('前の版のセーブの読み込み（前世で倒したボスを戻す�
   for (const m of moonBosses) s.bosses[m.id] = { status: 'defeated' };
   assert.deepEqual(forgetPastLifeBosses(s, ctx).filter((id) => moonBosses.some((m) => m.id === id)), []);
   assert.ok(moonBosses.every((m) => s.bosses[m.id].status === 'defeated'));
+});
+
+/**
+ * ブンレツセツと戦う主人公：世代・レベル・累計正解数を決め、買える装備をすべて買い、仲間4人（戦士・格闘家・魔法使い・僧侶）と契約する。
+ * 月面60階層で、1分に1問くらい正解しながら戦う。勝てば true
+ */
+function fightBunretsu(gen, level, totalCorrect, seed) {
+  const ctx = makeCtx(seededRng(seed));
+  const s = onMoonFloor(60, ctx, { level });
+  s.life.generation = gen;
+  s.knowledge.totalCorrect = totalCorrect;
+  knowTruth(s, byId('bunretsusetsu').minions);
+  s.gold = 1e15;
+  for (const it of shopList(s, ctx)) if (it.unlocked && !it.owned) buyItem(s, it.id, ctx);
+  for (const r of recruitList(s, ctx).filter((x) => x.role !== 'staff')) hireRecruit(s, r.id, ctx);
+  const hs = heroStats(s, ctx);
+  s.hero.hp = hs.maxHp; s.hero.mp = hs.maxMp;
+  const quiz = seededRng(seed * 7 + 1);
+  let next = quiz() * 60;
+  for (let t = 0; t < 600; t += 0.5) {
+    const ev = tick(s, 0.5, ctx);
+    if (ev.some((e) => e.type === 'bossDefeated')) return true;
+    if (ev.some((e) => e.type === 'heroDefeated')) return false;
+    if (t >= next) {
+      next += 60 * (0.5 + quiz());
+      const f = s.adventure.enemies[0];
+      if (f) damageEnemy(s, Math.ceil(f.maxHp * balance.quiz.correctDamageRatio), ctx, [], 'quiz', f);
+    }
+  }
+  return false;
+}
+
+test('ブンレツセツ（月面60階層）は10世代目でやっと倒せる強さ（強さは月面の階層によらず決まっている。40HzP の依頼）', () => {
+  assert.ok(byId('bunretsusetsu').stats, 'monsters.json の stats で強さを決める');
+  // 1分に1問正解しながら遊ぶ人の、9世代目・10世代目の80歳（レベルと累計正解数は計算で再現したもの）
+  const gen9 = [1, 2, 3, 4, 5].filter((seed) => fightBunretsu(9, 11900, 1800, seed)).length;
+  const gen10 = [1, 2, 3, 4, 5].filter((seed) => fightBunretsu(10, 16700, 2000, seed)).length;
+  assert.equal(gen9, 0, '9世代目は80歳になっても勝てない');
+  assert.equal(gen10, 5, '10世代目の80歳なら勝てる');
 });
