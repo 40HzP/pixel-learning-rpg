@@ -306,7 +306,8 @@ export function heroStats(state, ctx) {
     atk: grow('atk') + gear('atk'),
     def: grow('def') + gear('def'),
     wis: grow('wis') + Math.floor((hero.wisPerCorrect || 0) * gm * state.knowledge.totalCorrect) + gear('wis'),
-    agi: grow('agi') + gear('agi'),
+    // 月面のボスの水しぶき（gimmick: splash）を浴びている間は、すばやさが moon.splashAgiMultiplier 倍に下がる
+    agi: Math.floor((grow('agi') + gear('agi')) * (gimmickIn(state, 'splash') ? ctx.balance.moon.splashAgiMultiplier : 1)),
     luck: grow('luck') + gear('luck'),
   };
 }
@@ -384,6 +385,106 @@ export const strengthFloor = (state, ctx) => state.adventure.floor + (onMoon(sta
 /** 今いる世界に出るザコ（月面には月面のザコだけ、地球には地球のザコだけが出る） */
 export const zakoPool = (state, ctx) => ctx.monsters.filter((m) => m.kind === 'monster' && worldOf(m) === (state.adventure.world || 'earth'));
 
+/* ---------- 月面のボスの手下と仕掛け（設計ページ「小ボス：月面（月の研究史をたどる）」） ---------- */
+
+export const MINION_SLOT = 20; // 手下の slot（20, 21…。描く場所は render.js の MINION_SLOTS）
+export const PART_SLOT = 30;   // 分かれたボスの slot（30＝地球、31＝月）
+
+/** 今の群れに、その仕掛け（monsters.json の gimmick）を持つ敵がいるか */
+export const gimmickIn = (state, gimmick) => state.adventure.enemies.some((e) => e.gimmick === gimmick);
+
+/** ツキジンセツ（gimmick: newspaper）が新聞のビラをまいて、問題文の一部を隠しているか */
+export const newspaperActive = (state) => gimmickIn(state, 'newspaper');
+
+/** ボスが呼ぶ手下（monsters.json の minions）。図鑑で正体を開いている（stage 2）手下は呼べない */
+export function bossMinions(state, ctx, boss) {
+  return (boss.minions || []).map((id) => ctx.monsters.find((m) => m.id === id))
+    .filter((m) => m && ((state.knowledge.zukan[m.id] || {}).stage || 0) < 2);
+}
+
+/** カンペキキュウ（smooth）：表面がつるつるで攻撃が滑る。正解で描き足された山と影（marks）が増えるほど効くようになる */
+export const smoothDamage = (e, ctx) => {
+  const r = ctx.balance.moon.smoothDamage;
+  return r[Math.min(e.marks || 0, r.length - 1)];
+};
+
+/** 勉強で正解した：つるつるの月（smooth）に山と影を1つ描き足す（quiz.js が正解のたびに呼ぶ） */
+export function markSmooth(state, ctx, events) {
+  const max = ctx.balance.moon.smoothDamage.length - 1;
+  for (const e of state.adventure.enemies) {
+    if (e.gimmick !== 'smooth' || (e.marks || 0) >= max) continue;
+    e.marks = (e.marks || 0) + 1;
+    events.push({ type: 'smoothMarked', uid: e.uid, monsterId: e.monsterId, name: e.name, marks: e.marks, max });
+  }
+}
+
+/**
+ * ガリレオチョウセキ（tide）：満ち潮の盾で、群れの先頭への1体攻撃（主人公のふつうの攻撃と、先頭を叩く仲間）を弾く。
+ * 全体攻撃（ひらめき・敵全体を叩く仲間）と勉強の正解は弾けない（満潮は反対側でも起きる）
+ */
+const deflects = (state, e, by, extra) =>
+  (by === 'hero' || (by === 'ally' && !extra.area)) && e === state.adventure.enemies[0] && gimmickIn(state, 'tide');
+
+/**
+ * チリノウミセツ（dust）：moon.sinkIntervalSec 秒ごとに、パーティーの仲間を1人ずつ塵に沈めて動けなくする。
+ * 航空宇宙工学（機体設計の学際分野）を専攻にしていれば沈まない。ボスがいなくなると仲間は出てくる
+ */
+function sinkAllies(state, dt, ctx, events) {
+  const boss = state.adventure.enemies.find((e) => e.gimmick === 'dust');
+  if (!boss || fieldActive(state, ctx, 'aerospace')) { freeSunkAllies(state, events); return; }
+  const every = ctx.balance.moon.sinkIntervalSec;
+  boss.sinkCd = (boss.sinkCd ?? every) - dt;
+  if (boss.sinkCd > 0) return;
+  boss.sinkCd += every;
+  const ally = partyAllies(state).slice(0, partyMax(ctx)).find((a) => !a.sunk);
+  if (!ally) return;
+  ally.sunk = true;
+  events.push({ type: 'allySunk', id: ally.id, name: ally.name, by: boss.name });
+}
+
+function freeSunkAllies(state, events) {
+  const sunk = state.allies.filter((a) => a.sunk);
+  if (!sunk.length) return;
+  for (const a of sunk) delete a.sunk;
+  events.push({ type: 'alliesFreed', names: sunk.map((a) => a.name) });
+}
+
+/** ブンレツセツ（split）：HPが moon.splitAt を下回ると、地球と月の2体に分かれる（HPは半分ずつ） */
+function splitBoss(state, e, ctx, events) {
+  const adv = state.adventure;
+  const half = (part, slot) => ({ ...e, uid: adv.nextUid++, part, slot, maxHp: Math.ceil(e.maxHp / 2), hp: Math.max(1, Math.ceil(e.hp / 2)), wholeMaxHp: e.maxHp });
+  const parts = [half('earth', PART_SLOT), half('moon', PART_SLOT + 1)];
+  parts[1].cd = e.cd + ctx.balance.monster.attackIntervalSec / 2; // 交互に攻撃する
+  adv.enemies.splice(adv.enemies.indexOf(e), 1, ...parts);
+  events.push({ type: 'split', monsterId: e.monsterId, name: e.name, uids: parts.map((x) => x.uid) });
+}
+
+/**
+ * 分かれた片方を倒した。もう片方が残っていれば、moon.absorbSec 秒たつと吸収して元の1体に戻る（true を返す）。
+ * その間にもう片方も倒せばボスを倒したことになる（false＝両方倒れた）
+ */
+function partDown(state, e, ctx, events) {
+  const adv = state.adventure;
+  const other = adv.enemies.find((x) => x.part && x !== e && x.monsterId === e.monsterId);
+  if (!other) return false;
+  adv.enemies = adv.enemies.filter((x) => x !== e);
+  if (other.absorbCd == null) other.absorbCd = ctx.balance.moon.absorbSec;
+  events.push({ type: 'partDown', uid: e.uid, slot: e.slot, monsterId: e.monsterId, part: e.part, name: e.name });
+  return true;
+}
+
+/** 残った片方が、倒れた片方を吸収して元の1体に戻る（HPは残った片方の2倍。また半分を下回ると分かれる） */
+function absorbParts(state, dt, ctx, events) {
+  for (const e of state.adventure.enemies) {
+    if (!e.part || e.absorbCd == null) continue;
+    e.absorbCd -= dt;
+    if (e.absorbCd > 0) continue;
+    Object.assign(e, { maxHp: e.wholeMaxHp, hp: Math.min(e.wholeMaxHp, e.hp * 2), slot: 0 });
+    delete e.part; delete e.absorbCd; delete e.wholeMaxHp;
+    events.push({ type: 'merged', uid: e.uid, monsterId: e.monsterId, name: e.name });
+  }
+}
+
 function makeEnemy(monster, state, ctx, slot) {
   const s = monsterStats(strengthFloor(state, ctx), ctx.balance);
   const e = {
@@ -400,6 +501,11 @@ function makeEnemy(monster, state, ctx, slot) {
     e.def = Math.round(s.def * (mult.defMultiplier || 1));
     e.exp = Math.round(s.exp * mult.expMultiplier);
     e.gold = Math.round(s.gold * mult.goldMultiplier);
+  }
+  // 月面のボスの仕掛け（gimmick）。つるつる（smooth）は正解で描き足された山と影の数（marks）を持つ
+  if (monster.gimmick) {
+    e.gimmick = monster.gimmick;
+    if (monster.gimmick === 'smooth') e.marks = 0;
   }
   // monsters.json に stats（hp・atk・def・exp・gold）があれば、階層に関係なくその強さで出る（小学校教師など）
   if (monster.stats) {
@@ -490,6 +596,8 @@ export const heroTitles = (state, ctx) => [...new Set([
   ...state.legacy.titles,
   ...ctx.monsters.filter((m) => m.kind === 'midboss' && m.title && midbossState(state, m.id).status === 'defeated').map((m) => m.title),
   ...fieldTitles(state, ctx),
+  // 月面を踏破した（月面の最後のボスを倒した）称号。知識なので生まれ変わっても残る
+  ...(state.knowledge.moonCleared ? ctx.monsters.filter((m) => m.clear && m.clear.title).map((m) => m.clear.title) : []),
 ])];
 
 /** 次に出る敵を1体決める。その階層の未撃破のボスが先（中ボスは自動では出ない） */
@@ -512,11 +620,16 @@ export function spawnGroup(state, ctx, events, monsterIds = null) {
   const adv = state.adventure;
   const b = ctx.balance;
   let list;
+  let minions = [];
   if (monsterIds) list = monsterIds.map((id) => ctx.monsters.find((m) => m.id === id)).filter(Boolean);
   else {
     const mb = pendingBoss(state, ctx);
-    if (mb) list = [mb];
-    else {
+    if (mb) {
+      // 月面のボスは手下（関係する月面のザコ）を呼ぶ。図鑑で正体を開いた手下は呼べない
+      minions = bossMinions(state, ctx, mb);
+      list = [...minions, mb];
+      if ((mb.minions || []).length) events.push({ type: 'minions', monsterId: mb.id, name: mb.name, called: minions.map((m) => m.name), known: mb.minions.length - minions.length });
+    } else {
       const pool = zakoPool(state, ctx);
       const n = Math.max(1, b.floor.monstersPerFloor - adv.kills);
       list = [];
@@ -525,6 +638,8 @@ export function spawnGroup(state, ctx, events, monsterIds = null) {
   }
   if (!list.length) return [];
   adv.enemies = list.map((m, i) => makeEnemy(m, state, ctx, i));
+  // 手下はボスの手前に並ぶ（群れの先頭。描く場所は render.js の MINION_SLOTS）
+  adv.enemies.slice(0, minions.length).forEach((e, i) => { e.minion = true; e.slot = MINION_SLOT + i; });
   // 全員が同時に殴らないよう、最初の攻撃をずらす（主人公の攻撃の拍はそのまま。テンポを一定に保つ）
   adv.enemies.forEach((e, i) => { e.cd = b.monster.attackIntervalSec * (0.5 + i / adv.enemies.length); });
   for (const e of adv.enemies) {
@@ -597,6 +712,7 @@ const allyInterval = (ally, ctx) => {
 /** 敵がいない間：主人公と仲間の攻撃の拍は止めずに進め（相手がいない拍は見送る）、次の群れを待つ */
 function idleStep(state, dt, ctx, events) {
   const adv = state.adventure;
+  freeSunkAllies(state, events);
   adv.heroCd -= dt;
   while (adv.heroCd <= 0) adv.heroCd += heroAttackInterval(ctx.balance);
   for (const ally of partyAllies(state).slice(0, partyMax(ctx))) {
@@ -619,13 +735,16 @@ function combatStep(state, dt, ctx, events) {
     heroAct(state, hs, ctx, events);
   }
   // 仲間の拍も止めない（群れを倒し終えたあとの拍は見送る）
+  sinkAllies(state, dt, ctx, events);
   for (const ally of partyAllies(state).slice(0, partyMax(ctx))) {
     ally.cd -= dt;
     if (ally.cd > 0) continue;
     ally.cd += allyInterval(ally, ctx);
+    if (ally.sunk) continue; // 塵に沈んでいる間は動けない
     if (adv.enemies.length) allyAct(state, ally, ally.hired ? recruitById(ctx, ally.id) : null, hs, ctx, events);
   }
   if (!adv.enemies.length) return;
+  absorbParts(state, dt, ctx, events);
   askWhy(state, dt, ctx, events);
   for (const e of [...adv.enemies]) {
     e.cd -= dt;
@@ -689,10 +808,11 @@ function allyAct(state, ally, r, hs, ctx, events) {
     return;
   }
   const atk = r ? Math.max(1, Math.round(hs.atk * r.atkRatio)) : ally.atk;
-  const targets = r && r.role === 'all' ? [...adv.enemies] : [adv.enemies[0]];
+  const area = !!(r && r.role === 'all');
+  const targets = area ? [...adv.enemies] : [adv.enemies[0]];
   for (const e of targets) {
     const dmg = isInvulnerable(state, e) ? 0 : calcDamage(atk, e.def, b, ctx.rng);
-    hitEnemy(state, e, dmg, 'ally', ctx, events, { allyId: ally.id });
+    hitEnemy(state, e, dmg, 'ally', ctx, events, { allyId: ally.id, area });
   }
 }
 
@@ -702,7 +822,9 @@ function heroAct(state, hs, ctx, events) {
   const b = ctx.balance;
   const sp = b.spell;
   const hittable = adv.enemies.filter((e) => !isInvulnerable(state, e));
-  if (hittable.length >= sp.minTargets && state.hero.mp >= sp.mpCost) {
+  // 満ち潮の盾（gimmick: tide）は先頭への攻撃を弾くので、敵が1体でも全体攻撃を使う（全体攻撃は弾けない）
+  const wantSpell = hittable.length >= sp.minTargets || (hittable.length && gimmickIn(state, 'tide'));
+  if (wantSpell && state.hero.mp >= sp.mpCost) {
     state.hero.mp -= sp.mpCost;
     events.push({ type: 'spell', name: sp.name, count: hittable.length });
     for (const e of hittable) hitEnemy(state, e, spellDamage(hs.wis, b, ctx.rng), 'spell', ctx, events);
@@ -716,11 +838,22 @@ function heroAct(state, hs, ctx, events) {
   hitEnemy(state, e, dmg, 'hero', ctx, events, { crit });
 }
 
+/** 敵にダメージを与える。実際に与えたダメージ（仕掛けで減ったあと）を返す */
 function hitEnemy(state, e, dmg, by, ctx, events, extra = {}) {
-  if (!state.adventure.enemies.includes(e)) return;
+  if (!state.adventure.enemies.includes(e)) return 0;
+  // 月面のボスの仕掛け：つるつるの表面で攻撃が滑る・満ち潮の盾で先頭への攻撃を弾く
+  if (e.gimmick === 'smooth') dmg = Math.round(dmg * smoothDamage(e, ctx));
+  if (deflects(state, e, by, extra)) { dmg = 0; extra = { ...extra, deflected: true }; }
+  const { area, ...shown } = extra;
   e.hp = Math.max(0, e.hp - dmg);
-  events.push({ type: 'attack', by, target: 'enemy', uid: e.uid, slot: e.slot, monsterId: e.monsterId, dmg, ...extra });
-  if (e.hp <= 0) defeatEnemy(state, e, ctx, events);
+  events.push({ type: 'attack', by, target: 'enemy', uid: e.uid, slot: e.slot, monsterId: e.monsterId, dmg, ...shown });
+  if (e.hp <= 0) {
+    // 分かれた片方だけ倒したときは、もう片方に吸収される（partDown）。両方倒れたらボスを倒した
+    if (!(e.part && partDown(state, e, ctx, events))) defeatEnemy(state, e, ctx, events);
+  } else if (e.gimmick === 'split' && !e.part && e.hp <= e.maxHp * ctx.balance.moon.splitAt) {
+    splitBoss(state, e, ctx, events);
+  }
+  return dmg;
 }
 
 /** 勉強の正解などで敵にダメージを与える（既定は群れの先頭。中ボスの防御が崩れる前は0） */
@@ -728,8 +861,7 @@ export function damageEnemy(state, amount, ctx, events, by = 'quiz', target = nu
   const e = target || frontEnemy(state);
   if (!e || !state.adventure.enemies.includes(e)) return 0;
   const dmg = isInvulnerable(state, e) ? 0 : Math.max(0, Math.round(amount));
-  hitEnemy(state, e, dmg, by, ctx, events);
-  return dmg;
+  return hitEnemy(state, e, dmg, by, ctx, events);
 }
 
 export function healEnemy(state, amount, events, target = null) {
@@ -750,7 +882,7 @@ function defeatEnemy(state, e, ctx, events) {
   const gold = goldWithLuck(e.gold * gm, heroStats(state, ctx), b);
   const exp = Math.max(1, Math.round(e.exp * gm * expMultiplier(state, b)));
   state.gold += gold;
-  events.push({ type: 'defeat', uid: e.uid, slot: e.slot, monsterId: e.monsterId, kind: e.kind, exp, gold });
+  events.push({ type: 'defeat', uid: e.uid, slot: e.slot, monsterId: e.monsterId, kind: e.kind, exp, gold, ...(e.part ? { part: e.part } : {}), ...(e.marks != null ? { marks: e.marks } : {}) });
   gainExp(state, exp, ctx, events);
   const learned = raiseZukan(state, e.monsterId, 2, events);
   if (e.kind === 'midboss') {
@@ -771,8 +903,21 @@ function defeatEnemy(state, e, ctx, events) {
     }
   } else if (e.kind === 'boss') {
     bossState(state, e.monsterId).status = 'defeated';
-    events.push({ type: 'bossDefeated', monsterId: e.monsterId, name: e.name, floor: adv.floor, learned }); // learned：図鑑に正体が初めて載った
-  } else {
+    events.push({ type: 'bossDefeated', monsterId: e.monsterId, name: e.name, floor: adv.floor, world: adv.world || 'earth', learned }); // learned：図鑑に正体が初めて載った
+    // ボスが倒れると、残っていた手下は逃げていく
+    const fled = adv.enemies.filter((x) => x.minion);
+    if (fled.length) {
+      adv.enemies = adv.enemies.filter((x) => !x.minion);
+      events.push({ type: 'minionsFled', names: fled.map((x) => x.name), uids: fled.map((x) => x.uid) });
+    }
+    // 月面の最後のボス：月面の踏破（称号と図鑑の頁）
+    const m = ctx.monsters.find((x) => x.id === e.monsterId) || {};
+    if (m.clear) {
+      const first = !state.knowledge.moonCleared;
+      state.knowledge.moonCleared = true;
+      events.push({ type: 'moonCleared', monsterId: m.id, title: m.clear.title, page: m.clear.page.title, first });
+    }
+  } else if (!e.minion) {
     adv.kills++;
   }
   if (adv.enemies.length) return;
@@ -784,6 +929,8 @@ function defeatEnemy(state, e, ctx, events) {
     if (onMoon(state)) state.life.moonMaxFloor = Math.max(state.life.moonMaxFloor || 0, adv.floor);
     else state.life.maxFloor = Math.max(state.life.maxFloor || 1, adv.floor);
     events.push({ type: 'floorUp', floor: adv.floor, world: adv.world || 'earth' });
+    // 倒したあとに何か残るボス（ツキノウミセツの立て札）は、それが見えるように次の群れを少し待たせる
+    if (e.kind === 'boss' && (ctx.monsters.find((m) => m.id === e.monsterId) || {}).remains) adv.spawnTimer = Math.max(adv.spawnTimer, b.moon.remainsSec);
   }
 }
 
@@ -810,6 +957,7 @@ function restartFloor(state, floor, ctx) {
   adv.floor = floor;
   adv.kills = 0;
   adv.enemies = [];
+  for (const a of state.allies) delete a.sunk;
   adv.spawnTimer = spawnDelay(adv, ctx.balance);
 }
 

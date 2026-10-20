@@ -5,10 +5,12 @@ import { fileURLToPath } from 'node:url';
 import {
   tick, spawnGroup, monsterStats, launchInfo, launchRocket, returnToEarth, onMoon, zakoPool, strengthFloor, stageFor, currentStage,
   sleepAtBed, respawnFloor, buildBase, reincarnate, rocketSteps, genreState, HOURS_PER_YEAR,
+  damageEnemy, markSmooth, newspaperActive, heroStats, heroTitles, forgetPastLifeBosses,
 } from '../js/sim.js';
+import { createSession, presentQuestion, answer, flyerSpan } from '../js/quiz.js';
 import { setMajor, fieldById } from '../js/fields.js';
 import { serialize, deserialize } from '../js/save.js';
-import { balance, monsters, fields, makeCtx, newGame, constRng } from './helpers.js';
+import { balance, monsters, fields, questions, makeCtx, newGame, constRng } from './helpers.js';
 
 const { stages } = JSON.parse(readFileSync(fileURLToPath(new URL('../data/stages.json', import.meta.url)), 'utf8'));
 const moonZako = monsters.filter((m) => m.kind === 'monster' && m.world === 'moon');
@@ -211,4 +213,250 @@ test('前のセーブ（世界の項目が無い）は地球として読める�
   loaded = deserialize(serialize(loaded), balance);
   assert.equal(onMoon(loaded), true);
   assert.equal(loaded.adventure.floor, 5);
+});
+
+/* ================= 月面のボス ================= */
+
+const moonBosses = monsters.filter((m) => m.kind === 'boss' && m.world === 'moon');
+const byId = (id) => monsters.find((m) => m.id === id);
+
+/** 月面の floor 階層にいる強い主人公（ボスが出る前） */
+function onMoonFloor(floor, ctx, { level = 3000 } = {}) {
+  const s = newGame(7);
+  buildRocket(s);
+  launchRocket(s, makeCtx(constRng(0.1)));
+  s.adventure.floor = floor;
+  s.hero.level = level;
+  s.hero.hp = 1e15;
+  return s;
+}
+const ofBoss = (s, id) => s.adventure.enemies.find((e) => e.monsterId === id && e.kind === 'boss');
+const knowTruth = (s, ids) => { for (const id of ids) s.knowledge.zukan[id] = { stage: 2, fooled: 0 }; };
+
+test('データ：月面のボスは設計ページの6体で、月面10〜60階層に1体ずつ。手下は月面のザコ。図鑑の項目と仕掛けの説明がある', () => {
+  assert.deepEqual(moonBosses.map((m) => [m.name, m.floor]), [
+    ['カンペキキュウ', 10], ['ガリレオチョウセキ', 20], ['ツキジンセツ', 30], ['ツキノウミセツ', 40], ['チリノウミセツ', 50], ['ブンレツセツ', 60]]);
+  for (const b of moonBosses) {
+    for (const k of ['myth', 'truth', 'whyBelieved', 'overturnedBy', 'gimmick', 'gimmickNote']) assert.ok(b[k], `${b.name} の ${k}`);
+    assert.ok(b.minions.length && b.minions.every((id) => byId(id) && byId(id).world === 'moon' && byId(id).kind === 'monster'), `${b.name} の手下`);
+  }
+  assert.deepEqual(moonBosses.map((m) => m.gimmick), ['smooth', 'tide', 'newspaper', 'splash', 'dust', 'split']);
+  const last = moonBosses.at(-1);
+  assert.ok(last.clear && last.clear.title && last.clear.page.title && last.clear.page.lines.length);
+});
+
+test('月面10階層：月面のボスが手下を連れて出る（手下が手前）。地球の10階層は今までどおり地球のボス', () => {
+  const ctx = makeCtx(constRng(0.3));
+  const s = onMoonFloor(10, ctx);
+  const ev = [];
+  const group = spawnGroup(s, ctx, ev);
+  assert.deepEqual(group.map((e) => e.monsterId), ['jibundehikaru', 'kazanguchi', 'kanpekikyuu']);
+  assert.deepEqual(group.slice(0, 2).map((e) => e.slot), [20, 21], '手下の場所（ボスは右に1体で描く）');
+  assert.ok(group[0].minion && group[1].minion && !group[2].minion);
+  assert.deepEqual(ev.find((e) => e.type === 'minions').called, ['ジブンデヒカル', 'カザングチ']);
+  const earth = newGame(7);
+  earth.adventure.floor = 10;
+  assert.deepEqual(spawnGroup(earth, ctx, []).map((e) => e.monsterId), ['tendousetsu']);
+});
+
+test('図鑑で正体を開いている手下は呼べない（図鑑を埋めるほどボス戦が楽になる）', () => {
+  const ctx = makeCtx(constRng(0.3));
+  const s = onMoonFloor(10, ctx);
+  knowTruth(s, ['kazanguchi']);
+  const ev = [];
+  assert.deepEqual(spawnGroup(s, ctx, ev).map((e) => e.monsterId), ['jibundehikaru', 'kanpekikyuu']);
+  knowTruth(s, ['jibundehikaru']);
+  const ev2 = [];
+  assert.deepEqual(spawnGroup(s, ctx, ev2).map((e) => e.monsterId), ['kanpekikyuu']);
+  assert.deepEqual(ev2.find((e) => e.type === 'minions'), { type: 'minions', monsterId: 'kanpekikyuu', name: 'カンペキキュウ', called: [], known: 2 });
+});
+
+test('月面のボスを倒すと、残った手下は逃げ、次の月面の階層へ進む。手下を倒しても階層の撃破数には数えない', () => {
+  const ctx = makeCtx(constRng(0.3));
+  const s = onMoonFloor(20, ctx);
+  spawnGroup(s, ctx, []);
+  const ev = [];
+  damageEnemy(s, 1e12, ctx, ev, 'quiz', s.adventure.enemies[0]);   // 手下を1体
+  assert.equal(s.adventure.kills, 0);
+  damageEnemy(s, 1e12, ctx, ev, 'quiz', ofBoss(s, 'garireochouseki'));
+  assert.ok(ev.some((e) => e.type === 'bossDefeated' && e.monsterId === 'garireochouseki' && e.world === 'moon'));
+  assert.deepEqual(ev.find((e) => e.type === 'minionsFled').names, ['ジュウロクヤ']);
+  assert.equal(s.adventure.enemies.length, 0);
+  assert.equal(s.adventure.floor, 21);
+  assert.equal(s.life.moonMaxFloor, 21);
+});
+
+test('カンペキキュウ：つるつるで攻撃が半減。勉強で正解するたびに山と影が描き足され、2回で半減が解ける', () => {
+  const ctx = makeCtx(constRng(0.5));
+  const s = onMoonFloor(10, ctx);
+  knowTruth(s, byId('kanpekikyuu').minions);
+  spawnGroup(s, ctx, []);
+  const e = ofBoss(s, 'kanpekikyuu');
+  const hit = () => { const before = e.hp; damageEnemy(s, 1000, ctx, [], 'hero', e); return before - e.hp; };
+  assert.equal(hit(), 500);
+  const ev = [];
+  markSmooth(s, ctx, ev);
+  assert.equal(e.marks, 1);
+  assert.equal(ev[0].type, 'smoothMarked');
+  assert.equal(hit(), 750);
+  markSmooth(s, ctx, []);
+  assert.equal(hit(), 1000);
+  markSmooth(s, ctx, []);
+  assert.equal(e.marks, 2, '描き足すのは2回まで');
+});
+
+test('カンペキキュウ：勉強の正解で山と影が描き足される（正解のダメージもそのあとで入る）', () => {
+  const ctx = makeCtx(constRng(0.5));
+  const s = onMoonFloor(10, ctx);
+  knowTruth(s, byId('kanpekikyuu').minions);
+  spawnGroup(s, ctx, []);
+  const e = ofBoss(s, 'kanpekikyuu');
+  const q = questions.find((x) => !x.monster);
+  const session = createSession(s, 'quiz', ctx);
+  presentQuestion(session, q, ctx);
+  const right = session.current.choices.findIndex((c) => c.kind === 'answer');
+  const res = answer(s, session, right, ctx);
+  assert.equal(e.marks, 1);
+  assert.equal(res.damage, Math.round(Math.ceil(e.maxHp * balance.quiz.correctDamageRatio) * balance.moon.smoothDamage[1]));
+});
+
+test('ガリレオチョウセキ：満ち潮の盾で先頭への1体攻撃を弾く。全体攻撃（ひらめき・全体を叩く仲間）と勉強の正解は弾けず、敵が1体でもひらめきを使う', () => {
+  const ctx = makeCtx(constRng(0.5));
+  const s = onMoonFloor(20, ctx);
+  knowTruth(s, byId('garireochouseki').minions);
+  spawnGroup(s, ctx, []);
+  const e = ofBoss(s, 'garireochouseki');
+  let ev = [];
+  damageEnemy(s, 1000, ctx, ev, 'hero', e);
+  assert.equal(ev[0].dmg, 0);
+  assert.equal(ev[0].deflected, true);
+  ev = [];
+  damageEnemy(s, 1000, ctx, ev, 'quiz', e);
+  assert.equal(ev[0].dmg, 1000);
+  // 主人公の番：敵は1体だがひらめきを使う
+  s.hero.mp = 100;
+  s.adventure.heroCd = 0.01;
+  ev = tick(s, 0.05, ctx);
+  assert.ok(ev.some((x) => x.type === 'spell'), 'ひらめきを使う');
+  assert.ok(ev.some((x) => x.type === 'attack' && x.by === 'spell' && x.dmg > 0));
+});
+
+test('ツキジンセツ：いる間は新聞のビラで問題文の一部が隠れる（隠す場所は問題ごとに決まり、文の中に収まる）', () => {
+  const ctx = makeCtx(constRng(0.5));
+  const s = onMoonFloor(30, ctx);
+  assert.equal(newspaperActive(s), false);
+  spawnGroup(s, ctx, []);
+  assert.equal(newspaperActive(s), true);
+  for (const q of questions) {
+    const sp = flyerSpan(q);
+    assert.ok(sp.length >= 2 && sp.start >= 0 && sp.start + sp.length <= q.question.length, q.id);
+    assert.deepEqual(flyerSpan(q), sp, '何度出しても同じ場所');
+  }
+  damageEnemy(s, 1e12, ctx, [], 'quiz', ofBoss(s, 'tsukijinsetsu'));
+  assert.equal(newspaperActive(s), false);
+});
+
+test('ツキノウミセツ：いる間は水しぶきで主人公のすばやさが下がる。倒すと元に戻る', () => {
+  const ctx = makeCtx(constRng(0.5));
+  const s = onMoonFloor(40, ctx);
+  const agi = heroStats(s, ctx).agi;
+  spawnGroup(s, ctx, []);
+  assert.equal(heroStats(s, ctx).agi, Math.floor(agi * balance.moon.splashAgiMultiplier));
+  damageEnemy(s, 1e12, ctx, [], 'quiz', ofBoss(s, 'tsukinoumisetsu'));
+  assert.equal(heroStats(s, ctx).agi, agi);
+});
+
+test('チリノウミセツ：仲間を1人ずつ塵に沈めて動けなくする。航空宇宙工学を専攻にしていれば沈まない。ボスがいなくなると出てくる', () => {
+  const ctx = makeCtx(constRng(0.5));
+  const s = onMoonFloor(50, ctx);
+  knowTruth(s, byId('chirinoumisetsu').minions);
+  s.allies.push({ id: 'a', name: 'A', atk: 10, maxHp: 10, hp: 10, cd: 1.5 }, { id: 'b', name: 'B', atk: 10, maxHp: 10, hp: 10, cd: 1.5 });
+  spawnGroup(s, ctx, []);
+  ofBoss(s, 'chirinoumisetsu').hp = ofBoss(s, 'chirinoumisetsu').maxHp = 1e15;
+  s.hero.level = 1;                       // 主人公の攻撃では倒れないように
+  const sunk = [];
+  for (let t = 0; t < balance.moon.sinkIntervalSec * 2 + 0.5; t += 0.5) sunk.push(...tick(s, 0.5, ctx).filter((e) => e.type === 'allySunk').map((e) => e.name));
+  assert.deepEqual(sunk, ['A', 'B']);
+  const acts = [];
+  for (let t = 0; t < 5; t += 0.5) acts.push(...tick(s, 0.5, ctx).filter((e) => e.type === 'attack' && e.by === 'ally'));
+  assert.equal(acts.length, 0, '沈んだ仲間は動かない');
+  // 航空宇宙工学を専攻にすると、沈まない（沈んでいた仲間も出てくる）
+  major(s, ctx, 'aerospace');
+  const ev = tick(s, 0.5, ctx);
+  assert.ok(ev.some((e) => e.type === 'alliesFreed'));
+  assert.ok(s.allies.every((a) => !a.sunk));
+  for (let t = 0; t < 10; t += 0.5) assert.ok(!tick(s, 0.5, ctx).some((e) => e.type === 'allySunk'));
+});
+
+test('ブンレツセツ：HPが半分になると地球と月に分かれる。片方だけ倒すと吸収されて元に戻り、両方をほぼ同時に倒すと倒せる', () => {
+  const ctx = makeCtx(constRng(0.5));
+  const s = onMoonFloor(60, ctx);
+  knowTruth(s, byId('bunretsusetsu').minions);
+  s.hero.level = 1;
+  spawnGroup(s, ctx, []);
+  const boss = ofBoss(s, 'bunretsusetsu');
+  const max = boss.maxHp;
+  let ev = [];
+  damageEnemy(s, Math.ceil(max * 0.6), ctx, ev, 'quiz', boss);
+  assert.ok(ev.some((e) => e.type === 'split'));
+  const parts = s.adventure.enemies;
+  assert.deepEqual(parts.map((e) => [e.part, e.slot]), [['earth', 30], ['moon', 31]]);
+  assert.equal(parts[0].maxHp, Math.ceil(max / 2));
+  // 片方だけ倒す → 残った片方が absorbSec 秒で吸収して元の1体に戻る
+  ev = [];
+  damageEnemy(s, 1e12, ctx, ev, 'quiz', parts[0]);
+  assert.ok(ev.some((e) => e.type === 'partDown'));
+  assert.ok(!ev.some((e) => e.type === 'bossDefeated'));
+  assert.equal(s.adventure.enemies.length, 1);
+  const survivor = s.adventure.enemies[0];
+  const hp = survivor.hp;
+  s.adventure.heroCd = 1e9;               // 吸収されるまで、主人公は攻撃しない（攻撃するとすぐまた分かれる）
+  ev = [];
+  for (let t = 0; t < balance.moon.absorbSec + 0.2; t += 0.1) ev.push(...tick(s, 0.1, ctx));
+  assert.ok(ev.some((e) => e.type === 'merged'));
+  assert.equal(survivor.part, undefined);
+  assert.equal(survivor.maxHp, max);
+  assert.ok(survivor.hp >= hp && survivor.hp <= hp * 2);
+  // また分かれる。両方をすぐに倒すと、ボスを1回だけ倒したことになる
+  ev = [];
+  damageEnemy(s, 1, ctx, ev, 'quiz', survivor);
+  assert.ok(ev.some((e) => e.type === 'split'));
+  const gold = s.gold;
+  ev = [];
+  const [a, b] = s.adventure.enemies;
+  damageEnemy(s, 1e12, ctx, ev, 'quiz', a);
+  damageEnemy(s, 1e12, ctx, ev, 'quiz', b);
+  assert.equal(ev.filter((e) => e.type === 'bossDefeated').length, 1);
+  assert.equal(ev.filter((e) => e.type === 'defeat').length, 1, '報酬は1回');
+  assert.ok(s.gold > gold);
+  assert.equal(s.adventure.floor, 61);
+});
+
+test('ブンレツセツを倒すと月面の踏破：称号と図鑑の頁「月はどこから来たか」。知識なので生まれ変わっても残る', () => {
+  const ctx = makeCtx(constRng(0.5));
+  const s = onMoonFloor(60, ctx);
+  knowTruth(s, byId('bunretsusetsu').minions);
+  spawnGroup(s, ctx, []);
+  const ev = [];
+  const boss = ofBoss(s, 'bunretsusetsu');
+  // 分かれないように一気に倒す
+  boss.hp = 1;
+  damageEnemy(s, 1e12, ctx, ev, 'quiz', boss);
+  const c = ev.find((e) => e.type === 'moonCleared');
+  assert.deepEqual([c.title, c.page, c.first], ['月面踏破者', '月はどこから来たか', true]);
+  assert.equal(s.knowledge.moonCleared, true);
+  assert.ok(heroTitles(s, ctx).includes('月面踏破者'));
+  reincarnate(s, ctx);
+  assert.equal(s.knowledge.moonCleared, true);
+  assert.ok(heroTitles(s, ctx).includes('月面踏破者'));
+});
+
+test('前の版のセーブの読み込み（前世で倒したボスを戻す）は、月面のボスには触らない', () => {
+  const ctx = makeCtx();
+  const s = newGame(0);
+  s.life.generation = 2;
+  s.life.maxFloor = 5;
+  for (const m of moonBosses) s.bosses[m.id] = { status: 'defeated' };
+  assert.deepEqual(forgetPastLifeBosses(s, ctx).filter((id) => moonBosses.some((m) => m.id === id)), []);
+  assert.ok(moonBosses.every((m) => s.bosses[m.id].status === 'defeated'));
 });

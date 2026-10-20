@@ -84,6 +84,13 @@ async function boot() {
         const o = monsterSprites[m.id].oogiri = {};
         await Promise.all(Object.entries(m.sprites.oogiri).map(async ([mood, name]) => { o[mood] = await load(name); }));
       }
+      // 月面のボス：正解で山と影を描き足した絵（marked）・分かれた地球と月（parts）・倒したあとに残るもの（remains）
+      if (m.sprites.marked) monsterSprites[m.id].marked = await Promise.all(m.sprites.marked.map(load));
+      if (m.sprites.parts) {
+        const o = monsterSprites[m.id].parts = {};
+        await Promise.all(Object.entries(m.sprites.parts).map(async ([part, name]) => { o[part] = await load(name); }));
+      }
+      if (m.remains) monsterSprites[m.id].remains = await load(m.remains.sprite);
     }),
     ...recruits.filter((r) => r.sprites).map(async (r) => {
       recruitSprites[r.id] = { idle: await load(r.sprites.idle), attack: await load(r.sprites.attack) };
@@ -310,8 +317,24 @@ async function boot() {
       else if (e.type === 'retreat') notify(`${e.name}から逃げた。また挑戦できる`);
       else if (e.type === 'midbossReady') notify(`${e.name}に挑戦できるようになった！\n冒険画面の「挑戦する」を押すと戦える`, 'good');
       else if (e.type === 'midbossBroken') notify(`${(monsters.find((m) => m.id === e.monsterId) || {}).name || '中ボス'}の防御が崩れた！`, 'good');
-      else if (e.type === 'spawn' && e.kind === 'boss') notify(`ボス「${e.name}」が現れた！`, 'bad');
-      else if (e.type === 'bossDefeated') notify(`ボス「${e.name}」を倒した！${e.learned ? '\n図鑑に「なぜ信じられたか」が載った' : ''}`, 'good');
+      else if (e.type === 'spawn' && e.kind === 'boss') {
+        // 月面のボスは仕掛けを持つ（monsters.json の gimmickNote）
+        const m = monsters.find((x) => x.id === e.monsterId) || {};
+        notify(`ボス「${e.name}」が現れた！${m.gimmickNote ? `\n${m.gimmickNote}` : ''}`, 'bad');
+      }
+      else if (e.type === 'bossDefeated') {
+        const m = monsters.find((x) => x.id === e.monsterId) || {};
+        notify(`ボス「${e.name}」を倒した！${e.learned ? '\n図鑑に「なぜ信じられたか」が載った' : ''}${m.remains ? `\n${m.remains.note}` : ''}`, 'good');
+      }
+      else if (e.type === 'minions') notify(e.called.length ? `${e.name}が手下を呼んだ：${e.called.join('・')}` : `${e.name}の手下は来なかった（図鑑で正体を知っているので）`, e.called.length ? 'bad' : 'good');
+      else if (e.type === 'minionsFled') notify(`手下の${e.names.join('・')}は逃げていった`);
+      else if (e.type === 'smoothMarked') notify(e.marks >= e.max ? `${e.name}に山と影が描き足された！　もう攻撃は滑らない` : `${e.name}に山と影が描き足された！　攻撃が少し効くようになった`, 'good');
+      else if (e.type === 'split') notify(`${e.name}が地球と月に分かれた！\n両方をほぼ同時に倒そう（片方だけだと元に戻る）`, 'bad');
+      else if (e.type === 'partDown') notify(`${e.part === 'earth' ? '地球' : '月'}のほうを倒した！　急いでもう片方も`, 'good');
+      else if (e.type === 'merged') notify(`${e.name}が元の1体に戻った…`, 'bad');
+      else if (e.type === 'allySunk') notify(`${e.name}が塵に沈んで動けない！`, 'bad');
+      else if (e.type === 'alliesFreed') notify(`${e.names.join('・')}が塵から出てきた`, 'good');
+      else if (e.type === 'moonCleared') notify(e.first ? `月面を踏破した！　称号「${e.title}」を手に入れた\n図鑑に「${e.page}」の頁が開いた` : `月面をまた踏破した！`, 'good');
       else if (e.type === 'allyJoined') notify(e.benched ? `${e.name}が仲間になった！\nパーティーがいっぱいなので控えにいる（仲間が集まる場所で入れ替えられる）` : `${e.name}が仲間になった！`, 'good');
       else if (e.type === 'titleGained') notify(`称号「${e.title}」を手に入れた！`, 'good');
       else if (e.type === 'contractEnded') notify(`ゴールドが足りず、${e.name}との契約が切れた`, 'bad');

@@ -143,7 +143,7 @@ EOF
   - `pixel/editor.html` とスプライトJSONの形式（`serializeSprite`）を変更しない
   - ゲームは `pixel/sprites/*.json` と `pixel/palette.json` を **読むだけ**。`_original/` と `export/` は読まない
   - スプライトをゲーム用にコピー・変換して置かない（手直しした瞬間にゲームへ反映されるようにする）
-  - ゲームが読むスプライトは `monsters.json`（`idle`・`attack`、学校の先生は用紙を破りすてたときの `scold`（怒り顔）と `puzzled`（困惑顔）、大喜利を提出したときの `oogiri`（顔ごと）も）・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`（月面の街の `moon` も）、`stages.json` の `background`、`hero_idle` / `hero_attack` / `hero_old_idle`（年を取った主人公。ミニムービー用）、`hero_bow`（先生にあやまる主人公）、`hero_blush`（大喜利を書いて赤面する主人公）、`scene_classroom` / `scene_lectern`（用紙を破りすてたときの教室と教卓）、`scene_launchpad` / `rocket_flight`（ロケットのミニムービーの打ち上げ場と飛ぶロケット）、下の切り替えバーのアイコン（`index.html` のボタンの `data-icon`：`icon_adventure`・`icon_study`・`icon_town`・`icon_zukan`）だけ（ブラウザはフォルダの中身を一覧できないため）
+  - ゲームが読むスプライトは `monsters.json`（`idle`・`attack`、学校の先生は用紙を破りすてたときの `scold`（怒り顔）と `puzzled`（困惑顔）、大喜利を提出したときの `oogiri`（顔ごと）、月面のボスの `marked`・`parts` と `remains` の `sprite` も）・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`（月面の街の `moon` も）、`stages.json` の `background`、`hero_idle` / `hero_attack` / `hero_old_idle`（年を取った主人公。ミニムービー用）、`hero_bow`（先生にあやまる主人公）、`hero_blush`（大喜利を書いて赤面する主人公）、`scene_classroom` / `scene_lectern`（用紙を破りすてたときの教室と教卓）、`scene_launchpad` / `rocket_flight`（ロケットのミニムービーの打ち上げ場と飛ぶロケット）、下の切り替えバーのアイコン（`index.html` のボタンの `data-icon`：`icon_adventure`・`icon_study`・`icon_town`・`icon_zukan`）だけ（ブラウザはフォルダの中身を一覧できないため）
 - 計算（`sim.js`・`quiz.js`・`fields.js`・`save.js`・`genres.js`）はブラウザの機能（DOM・localStorage）に触らない。乱数は `ctx.rng` で渡す（テストで固定するため）
 - 対象はスマホのブラウザ（縦画面）とデスクトップ版 Chrome。将来ストアアプリ化するので、ブラウザ固有の機能に頼りすぎない
 
@@ -252,7 +252,7 @@ tools/check-questions.mjs … questions.json の検査
   - `fields` 学際分野：`unlockLevel` 解放と休眠の境目の熟練Lv、`shopDiscount` 行動経済学の店の値引き（0.2＝2割引）
   - `nande` 孫の「なんで？」の間隔（`firstSec`・`intervalSec`）と、答えられなかったときに孫が回復する割合（`wrongHealRatio`）
   - `boss` ボスの強さ：その階層のザコの数値に `hpMultiplier`・`atkMultiplier`・`defMultiplier`・`expMultiplier`・`goldMultiplier` を掛ける
-  - `rocket.launchSuccessRate` 打ち上げの成功率、`moon.floorOffset` 月面の敵の強さ（月面F階層＝地球の floorOffset＋F 階層の強さ。下の「月面」）
+  - `rocket.launchSuccessRate` 打ち上げの成功率、`moon.floorOffset` 月面の敵の強さ（月面F階層＝地球の floorOffset＋F 階層の強さ）。`moon` のそのほか（`smoothDamage`・`splashAgiMultiplier`・`sinkIntervalSec`・`splitAt`・`absorbSec`・`remainsSec`）は月面のボスの仕掛け（下の「月面」の表）
 - 主人公の名前は `hero.name`（8文字まで。最初の案内と施設で決める）
 - 品物は `items.json`、魔物は `monsters.json`、契約できる仲間は `recruits.json`
 
@@ -331,6 +331,7 @@ tools/check-questions.mjs … questions.json の検査
 
 - 月面は地球とは別の階層列（設計ページ「月面は地球側とは別の階層列」）。セーブの `adventure.world`（`earth`・`moon`）で今いる世界を持ち、`adventure.floor` は今いる世界の階層。もう片方の世界の階層は `earthFloor`・`moonFloor` に取っておく（`sim.js` の `goToWorld`）。打ち上げると月面の1階層から（前に行っていればその階層から）、帰ると打ち上げた地球の階層から
 - 月面の敵の強さ：月面F階層＝地球の（`moon.floorOffset`＋F）階層と同じ（`strengthFloor`）。`floorOffset` は300。ロケットに届くのは3世代目の50歳前後で、そのころの地球の最高階層はおよそ290（勉強なし）〜390（1分に1問）なので、月面1階層がその少し手前の強さになるようにした（Claude Code の判断）
+  - 目安（計算で再現。3世代目、仲間を雇い装備を買う）：50〜60歳で打ち上げると、1分に0.5〜1問正解で、着いてから4〜6年（現実で4〜6分）で月面のボス6体を倒し、80歳までに月面230〜310階層ほど
 - 月面には月面のザコだけが出て、地球には出ない（`monsters.json` の `world: "moon"`、`zakoPool`）。設計ページの19体。ジャンルは名前の後ろのかっこのとおりで、かっこの無いもの（9体）は月面の世界のジャンル（宇宙物理学）にした（Claude Code の判断）
 - 背景は `bg_moon`（黒い空に地球、灰色の月の砂とクレーター。`stages.json` の `world: "moon"` の世界。`stageFor(floor, stages, world)`・`currentStage`）。冒険画面の上は「月面◯階層」
 - 月面の最高階層は `life.moonMaxFloor`（地球の `life.maxFloor` とは別。前世のまとめにも「月面は◯階層」）
@@ -339,7 +340,23 @@ tools/check-questions.mjs … questions.json の検査
 - 月面の街：月面にいる間、施設画面は地球の街の代わりに月面の街（`town.json` の `moon`）になる（40HzP の依頼）。施設は帰還ロケット（`moon_rocket`）と月面基地（`moon_base`。地球の寝床と同じ）。地球の店・会社などは月面からは使えない（会社の利益と仲間の契約料は月面でも続く）（`facility.js` の `activeTown`）
 - 帰還ロケット：無料で、いつでも、必ず地球に帰れる（40HzP の依頼。`returnToEarth`）。帰りも同じミニムービー（月面の街から飛び立ち、地球の打ち上げ場に降りる）
 - 中ボスには月面でも挑める（中ボスの強さは階層によらないので、そのまま。Claude Code の判断）
-- 月面のボス（設計ページの6体。月面10〜60階層）はこれから作る
+- 月面のボス（設計ページの6体。`monsters.json` に `kind: "boss"`・`world: "moon"`・`floor`＝月面の階層）。月面10〜60階層に1体ずつ。月面61階層から先はボスなしで強くなるだけ（設計ページのとおり）。強さは地球のボスと同じく、その階層のザコ×`boss` の倍率。倒すとその人生ではもう出ない（生まれ変わるとまた出る）。誤答への干渉と科学史の効果は地球のボスと同じ（Notion の問題に関連する魔物として名前が書かれれば）
+
+  | 月面 | ボス | 手下 | 仕掛け（`gimmick`） |
+  |---|---|---|---|
+  | 10 | カンペキキュウ（完全球体説） | ジブンデヒカル・カザングチ | `smooth`：表面がつるつるで、受けるダメージが `moon.smoothDamage`（0.5→0.75→1）倍。勉強で正解するたびに山と影が1つ描き足され（`markSmooth`。2つまで）、絵も変わる（`sprites.marked`） |
+  | 20 | ガリレオチョウセキ（ガリレオの潮汐論） | カタガワミチシオ・ジュウロクヤ | `tide`：満ち潮の盾で、群れの先頭への1体攻撃（主人公のふつうの攻撃・先頭を叩く仲間）を弾く（0ダメージ）。全体攻撃（ひらめき・全体を叩く仲間）と勉強の正解は弾けない。盾があるときは、敵が1体でもひらめきを使う |
+  | 30 | ツキジンセツ（月の住人説） | アオイツキゾラ・ナビクハタ | `newspaper`：いる間、勉強の問題文（クイズ・過去問復習・テスト）の一部が新聞のビラで隠れる（`quiz.js` の `flyerSpan`。問題ごとに決まった場所を文の35%） |
+  | 40 | ツキノウミセツ（月の海は水の海） | カラカラツキ・ズットサムイ | `splash`：いる間、水しぶきで主人公のすばやさが `moon.splashAgiMultiplier`（0.5）倍。倒すと干上がった海に「静かの海」の立て札が残る（`remains` の絵を3秒。次の群れは `moon.remainsSec` 秒あとに出る） |
+  | 50 | チリノウミセツ（塵の海説） | フワフワツキ | `dust`：`moon.sinkIntervalSec`（4）秒ごとに、パーティーの仲間を1人ずつ塵に沈めて動けなくする（ボスがいなくなると出てくる）。航空宇宙工学を専攻にしていれば沈まない |
+  | 60 | ブンレツセツ（月の分裂説） | ハナレナイツキ・ジテンシナイ | `split`：HPが `moon.splitAt`（半分）を下回ると、地球と月の2体（`sprites.parts`、24×24）に分かれる（HPは半分ずつ）。片方だけ倒すと、`moon.absorbSec`（3）秒で残った片方が吸収して元の1体に戻る（HPは残った片方の2倍）。その間にもう片方も倒すと倒せる（報酬は1回） |
+
+  - 手下：ボスが出るとき、`minions` の月面のザコを手前に連れてくる（群れの先頭。描く場所は `render.js` の `MINION_SLOTS`）。図鑑で正体を開いている手下は呼べない（設計ページ「図鑑を埋めるほどボス戦が楽になる」。`bossMinions`）。ボスを倒すと残った手下は逃げる。手下を倒しても階層の撃破数には数えない
+  - 仕掛けの説明は `gimmickNote`（ボスが出たときの知らせと図鑑に出す）
+  - チリノウミセツの「沈まない」条件：設計ページは「ロケットの機体設計（航空宇宙工学）を済ませていれば沈まない」だが、月面に来ている時点で機体設計は必ず済んでいて仕掛けが働かなくなるので、「航空宇宙工学を専攻にしていれば（休眠していなければ）」にした（Claude Code の判断。40HzP に確認中）
+  - 設計ページの仕掛けのうち、ツキジンセツの「対照言語学が有効でも話しかけられない」は、対照言語学がまだ無いので作っていない
+  - 図鑑の文：設計ページに無い部分（カンペキキュウ・ガリレオチョウセキ・チリノウミセツ・ブンレツセツの「正体」と、ツキジンセツ・ツキノウミセツの「誰がどう覆したか」）は Claude Code が書いた。40HzP が確かめて直してよい
+- 月面の踏破：ブンレツセツ（`clear` を持つボス）を倒すと、`knowledge.moonCleared` が立ち、称号と図鑑の頁（`clear.page`。「月はどこから来たか」）が開く。知識なので生まれ変わっても残る。称号の名前は設計ページで「未定」なので、仮に「月面踏破者」にした（`clear.title` を直せば変わる）。頁の文は Claude Code が書いた（巨大衝突説など。40HzP が確かめて直してよい）
 - デバッグ画面の「ロケットと月面」で、ロケットを完成させる・打ち上げる・地球に帰るができる
 
 ## 学際分野（ジャンルの組み合わせ）
@@ -417,7 +434,7 @@ tools/check-questions.mjs … questions.json の検査
   - 図鑑の文（`myth`・`truth`・`whyBelieved`・`overturnedBy`）は、よく知られた科学史から Claude Code が書いた。設計ページでは一次資料で未確認なので、40HzP が確かめて直してよい
   - 強さは階層のザコ×`balance.json` の `boss` の倍率なので、足しても進み方（遊んだ時間ごとのレベルと最高階層）はほとんど変わらない（計算で確かめた。勉強なしでボス1体に2〜3回挑んで倒せる）
   - 21体とも、Notion の問題の「関連する魔物」に名前が書かれるまでは問題に干渉しない
-  - `boss.test.js` が「10〜210階層に1体ずつ・図鑑の項目がそろう・スプライトがある・自分の階層だけに出る」を確かめる。ボスを足すときは、そのテストの数と階層も合わせる
+  - `boss.test.js` が「10〜210階層に1体ずつ・図鑑の項目がそろう・スプライトがある・自分の階層だけに出る」を確かめる。ボスを足すときは、そのテストの数と階層も合わせる（月面のボスは `moon.test.js`）
 
 ## 10階層ごとの世界（背景）
 

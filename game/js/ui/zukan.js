@@ -6,6 +6,21 @@ import { el } from './dom.js';
 let root = null;
 let key = '';
 
+/** ボスのいる階層（月面のボスは「月面◯階層」） */
+const where = (m) => `${m.world === 'moon' ? '月面' : ''}${m.floor}階層`;
+
+/** 月面を踏破すると開く頁（monsters.json の clear.page）。踏破するまでは題だけ伏せて見せる */
+function pageCard(app, m) {
+  const p = m.clear.page;
+  if (!app.state.knowledge.moonCleared) {
+    return el('div', { class: 'zcard wide unknown' }, el('div', { class: 'zname' }, '？？？の頁'),
+      el('div', { class: 'muted' }, `月面を踏破する（${where(m)}の${m.name}を倒す）と開く`));
+  }
+  return el('div', { class: 'zcard wide page' },
+    el('div', { class: 'zname' }, p.title, el('span', { class: 'muted' }, `（称号「${m.clear.title}」）`)),
+    p.lines.map((line) => el('p', {}, line)));
+}
+
 export function init() {
   root = document.getElementById('screen-zukan');
   root.classList.add('pad');
@@ -19,14 +34,16 @@ function card(app, m) {
   const pic = el('div', { class: 'pic' }, spriteCanvas(sprite, 3, app.palette, { silhouette: z.stage === 0 }));
   if (z.stage === 0) {
     return el('div', { class: 'zcard unknown' + (m.kind === 'boss' ? ' wide' : '') }, pic, el('div', { class: 'zname' }, '？？？'),
-      el('div', { class: 'muted' }, m.kind === 'boss' ? `${m.floor}階層で待っているボス` : m.world === 'moon' ? '月面で待っている' : 'まだ出会っていない'));
+      el('div', { class: 'muted' }, m.kind === 'boss' ? `${where(m)}で待っているボス` : m.world === 'moon' ? '月面で待っている' : 'まだ出会っていない'));
   }
   if (m.kind === 'boss') {
     const label = (t) => el('span', { class: 'label' }, t);
     const known = z.stage >= 2;
     return el('div', { class: 'zcard wide' }, pic,
-      el('div', { class: 'zname' }, m.name, el('span', { class: 'muted' }, `（ボス・${m.floor}階層）`)),
+      el('div', { class: 'zname' }, m.name, el('span', { class: 'muted' }, `（ボス・${where(m)}）`)),
       label('かつての学説'), el('div', {}, m.myth),
+      // 月面のボスの仕掛け（会えば分かる）
+      ...(m.gimmickNote ? [label('仕掛け'), el('div', {}, m.gimmickNote)] : []),
       ...(known
         ? [label('正体'), el('div', {}, m.debated ? '研究が割れている' : m.truth),
           label('なぜ信じられたか'), el('div', {}, m.whyBelieved || ''),
@@ -57,7 +74,7 @@ function card(app, m) {
 
 export function update(app, force) {
   const zk = app.state.knowledge.zukan;
-  const k = JSON.stringify(zk);
+  const k = JSON.stringify([zk, app.state.knowledge.moonCleared]);
   if (!force && k === key) return;
   key = k;
   const list = app.ctx.monsters;
@@ -67,6 +84,6 @@ export function update(app, force) {
     el('div', { class: 'section' },
       el('h2', {}, '図鑑'),
       el('div', { class: 'muted', style: { marginBottom: '10px' } }, `出会った ${met}/${list.length}　正体が分かった ${known}/${list.length}`),
-      el('div', { class: 'zukan' }, list.map((m) => card(app, m)))),
+      el('div', { class: 'zukan' }, list.map((m) => card(app, m)), list.filter((m) => m.clear && m.clear.page).map((m) => pageCard(app, m)))),
   );
 }

@@ -1,6 +1,6 @@
 // 冒険画面の描画（90×160 のキャンバス）。攻撃エフェクト・ダメージ数字・HPバーはここで描く。
 import { drawSprite, drawPlaceholder, frameAt, cssColor } from './sprites.js';
-import { heroStats, isInvulnerable, currentStage, partyAllies } from './sim.js';
+import { heroStats, isInvulnerable, currentStage, partyAllies, gimmickIn, MINION_SLOT, PART_SLOT } from './sim.js';
 
 export const SCENE_W = 90;
 export const SCENE_H = 160;
@@ -26,6 +26,11 @@ const FORMATION = [
 const slotPos = (slot) => FORMATION[(slot || 0) % FORMATION.length];
 // 大きい敵（ボス 32×32 など）は群れの並びを使わず、右寄りに1体で立たせる
 const BIG_FEET = 141;
+// 月面のボスの手下（ボスの手前。slot 20, 21）と、分かれたボス（地球＝slot 30、月＝slot 31。24×24）
+const MINION_SLOTS = [{ x: 37, feet: 129 }, { x: 39, feet: 151 }];
+const PART_SLOTS = { earth: { x: 60, feet: 130 }, moon: { x: 40, feet: 152 } };
+const partOf = (slot) => (slot === PART_SLOT ? 'earth' : slot === PART_SLOT + 1 ? 'moon' : null);
+const REMAINS_SEC = 3; // 倒したあとに残るもの（干上がった海の立て札）を見せる秒数（次の群れは balance.moon.remainsSec 秒あとに出る）
 // 世界が変わるときの暗転（前半で暗くなり、真っ暗の瞬間に背景を入れ替え、後半で明るくなる）
 const STAGE_FADE_SEC = 0.5;
 
@@ -94,12 +99,26 @@ export function createRenderer(canvas, app) {
   const spriteOf = (id, kind) => (app.monsterSprites[id] || {})[kind] || null;
   const kindOf = new Map(app.ctx.monsters.map((m) => [m.id, m.kind]));
 
+  /**
+   * 敵の絵（待機と攻撃）。分かれたボスは地球か月の絵、正解で山と影を描き足したボスは描き足した絵（攻撃も同じ絵で前に出る）
+   */
+  function looksOf(monsterId, slot, marks) {
+    const all = app.monsterSprites[monsterId] || {};
+    const part = partOf(slot);
+    if (part && all.parts) return { idle: all.parts[part] || null, attack: null };
+    if (marks && all.marked) return { idle: all.marked[Math.min(marks, all.marked.length) - 1] || all.idle || null, attack: null };
+    return { idle: all.idle || null, attack: all.attack || null };
+  }
+
   /** 敵の絵の位置と大きさ：左端 x・足元 feet・幅 w・高さ h（中心は cx, cy、頭の上は top） */
   function enemyBox(monsterId, slot) {
-    const sp = spriteOf(monsterId, 'idle');
-    const w = sp ? sp.w : kindOf.get(monsterId) === 'boss' ? 32 : 16;
+    const part = partOf(slot);
+    const sp = looksOf(monsterId, slot, 0).idle;
+    const w = sp ? sp.w : part ? 24 : kindOf.get(monsterId) === 'boss' ? 32 : 16;
     const h = sp ? sp.h : w;
-    const p = w > 16 ? { x: SCENE_W - w - 3, feet: BIG_FEET } : slotPos(slot);
+    const p = part ? PART_SLOTS[part]
+      : w > 16 ? { x: SCENE_W - w - 3, feet: BIG_FEET }
+        : slot >= MINION_SLOT ? MINION_SLOTS[(slot - MINION_SLOT) % MINION_SLOTS.length] : slotPos(slot);
     const top = p.feet - h;
     return { x: p.x, feet: p.feet, w, h, top, cx: p.x + w / 2, cy: top + h / 2 };
   }
@@ -137,10 +156,12 @@ export function createRenderer(canvas, app) {
         anim.heroAt = now;
       } else if (e.type === 'spawn') {
         anim.spawnAt = now;
-      } else if (e.type === 'defeat') {
-        dying.push({ monsterId: e.monsterId, slot: e.slot, t0: now });
+      } else if (e.type === 'defeat' || e.type === 'partDown') {
+        dying.push({ monsterId: e.monsterId, slot: e.slot, marks: e.marks, t0: now });
         enemyAttackAt.delete(e.uid);
         enemyHitAt.delete(e.uid);
+        // 倒したあとに残るもの（ツキノウミセツ：干上がった海と「静かの海」の立て札）
+        if (e.type === 'defeat' && spriteOf(e.monsterId, 'remains')) fx.push({ type: 'remains', monsterId: e.monsterId, t0: now });
       }
     }
   }
@@ -183,11 +204,37 @@ export function createRenderer(canvas, app) {
         continue;
       }
       const sp = a.ally.hired ? (app.recruitSprites || {})[a.ally.id] || {} : { idle: spriteOf(a.ally.id, 'idle'), attack: spriteOf(a.ally.id, 'attack') };
+      if (a.ally.sunk) {
+        // 塵に沈んでいる（チリノウミセツ）：体の下半分が灰色の塵に埋まる
+        drawActor({ idle: sp.idle || null }, a.x, a.feet + 7, now, { flip: !a.ally.hired });
+        g.fillStyle = col('1'); g.fillRect(a.x - 1, a.feet - 5, 18, 6);
+        g.fillStyle = col('3'); g.fillRect(a.x, a.feet - 4, 16, 4);
+        g.fillStyle = col('4'); g.fillRect(a.x + 2, a.feet - 4, 11, 1);
+        continue;
+      }
       drawActor({ idle: sp.idle || null, attack: sp.attack || null }, a.x, a.feet, now, { attackAt: allyAt.get(a.ally.id) ?? -9, flip: !a.ally.hired, lunge: 2 });
+    }
+    // 水しぶき（ツキノウミセツ）：主人公がずぶぬれで、すばやさが下がっている
+    if (gimmickIn(state, 'splash')) {
+      const k = Math.floor(now * 4) % 2;
+      g.fillStyle = col('o');
+      for (const [dx, dy] of [[1, -15 + k], [14, -13 - k], [-1, -6 + k], [16, -4]]) g.fillRect(X.hero + dx, FEET_Y + dy, 1, 2);
     }
     if (now - anim.spellAt < 0.25) {
       g.fillStyle = col('g');
       for (const [dx, dy] of [[0, -2], [16, 2], [-2, 10], [17, 12], [8, -4]]) g.fillRect(X.hero + dx, FEET_Y - 16 + dy, 1, 1);
+    }
+
+    // 倒したあとに残るもの（干上がった海と立て札）。次の群れより奥に描く
+    for (let i = fx.length - 1; i >= 0; i--) {
+      const f = fx[i];
+      if (f.type !== 'remains') continue;
+      const t = now - f.t0;
+      if (t > REMAINS_SEC) { fx.splice(i, 1); continue; }
+      if (t > REMAINS_SEC - 0.6 && Math.floor(t * 20) % 2) continue;
+      const sp = spriteOf(f.monsterId, 'remains');
+      const p = enemyBox(f.monsterId, 0);
+      if (sp) drawSprite(g, sp, 0, p.x, p.feet - sp.h);
     }
 
     // 敵の群れ（奥から順に描く）
@@ -199,14 +246,23 @@ export function createRenderer(canvas, app) {
       const p = boxes.get(e);
       const shake = now - (enemyHitAt.get(e.uid) ?? -9) < 0.1 ? 1 : 0;
       const x = p.x + Math.round((1 - enter) * 40) + shake;
-      drawActor({ idle: spriteOf(e.monsterId, 'idle'), attack: spriteOf(e.monsterId, 'attack') }, x, p.feet, now, { attackAt: enemyAttackAt.get(e.uid) ?? -9, lunge: -3, size: p.w });
+      drawActor(looksOf(e.monsterId, e.slot, e.marks), x, p.feet, now, { attackAt: enemyAttackAt.get(e.uid) ?? -9, lunge: -3, size: p.w });
+    }
+    // 満ち潮の盾（ガリレオチョウセキ）：群れの先頭の前に、揺れる波の壁
+    if (enemies.length && gimmickIn(state, 'tide') && enter >= 1) {
+      const p = boxes.get(enemies[0]);
+      for (let y = p.top - 2; y <= p.feet; y++) {
+        const wx = p.x - 3 + Math.round(Math.sin(now * 6 + y * 0.6));
+        g.fillStyle = col(y % 4 === 0 ? '4' : 'n'); g.fillRect(wx, y, 1, 1);
+        g.fillStyle = col('m'); g.fillRect(wx - 1, y, 1, 1);
+      }
     }
     // 倒れた敵（点滅して消える）
     for (let i = dying.length - 1; i >= 0; i--) {
       const d = dying[i];
       const t = now - d.t0;
       if (t > 0.4) { dying.splice(i, 1); continue; }
-      if (Math.floor(t * 20) % 2 === 0) { const p = enemyBox(d.monsterId, d.slot); drawActor({ idle: spriteOf(d.monsterId, 'idle') }, p.x, p.feet, now, { size: p.w }); }
+      if (Math.floor(t * 20) % 2 === 0) { const p = enemyBox(d.monsterId, d.slot); drawActor({ idle: looksOf(d.monsterId, d.slot, d.marks).idle }, p.x, p.feet, now, { size: p.w }); }
     }
     // HPバーと、狙っている敵の印（▼）
     for (const e of enemies) {

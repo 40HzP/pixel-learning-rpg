@@ -1,11 +1,24 @@
 // 勉強画面（設計ページ「勉強画面の表示」）
-import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH } from '../quiz.js';
-import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap, ageYears } from '../sim.js';
+import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH, flyerSpan } from '../quiz.js';
+import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap, ageYears, newspaperActive } from '../sim.js';
 import { fieldById, fieldActive } from '../fields.js';
 import { GENRES } from '../genres.js';
 import { spriteCanvas } from '../sprites.js';
 import { el, stars } from './dom.js';
 import { teacherForAge } from './tear.js';
+
+/**
+ * 解いている問題の文。月面のボス・ツキジンセツが新聞のビラをまいている間は、一部がビラで隠れる
+ * （隠す場所は問題ごとに決まっている。quiz.js の flyerSpan）
+ */
+function questionText(app, q) {
+  if (!newspaperActive(app.state)) return el('div', { class: 'qtext' }, q.question);
+  const { start, length } = flyerSpan(q);
+  const t = q.question;
+  return el('div', {},
+    el('div', { class: 'flyer-note' }, '新聞のビラで、問題文の一部が隠れている（ツキジンセツ）'),
+    el('div', { class: 'qtext' }, t.slice(0, start), el('span', { class: 'flyer', role: 'img', 'aria-label': '新聞のビラ' }, '　'.repeat(length)), t.slice(start + length)));
+}
 
 // phase：menu・question（クイズ・過去問復習の1問）・result・summary・sheet（テストの用紙に答えている）・testResult（テストの採点）
 // revealed：「選択肢を表示する」を押したか（押すまで選択肢を出さず、制限時間も減らない。40HzP の依頼）。revealedAt：押した時刻
@@ -185,7 +198,7 @@ function renderSheet(app) {
         showLeft();
       },
     }, key === 'oogiri' ? '大喜利をする（フリースペース）' : cur.choices[key].text));
-    return el('div', { class: 'test-q' }, meta, el('div', { class: 'qtext' }, cur.question.question), el('div', { class: 'choices' }, buttons, free));
+    return el('div', { class: 'test-q' }, meta, questionText(app, cur.question), el('div', { class: 'choices' }, buttons, free));
   });
   showLeft();
   refs.body.replaceChildren(
@@ -316,7 +329,7 @@ function renderQuestion(app) {
   refs.body.replaceChildren(
     interferenceBanner(app, q),
     el('div', { class: 'qmeta' }, `${stars(q.difficulty)}　${progress}`, cur.trimmedBy ? el('span', { class: 'good' }, `　${cur.trimmedBy}で誤答が1つ消えた`) : null),
-    el('div', { class: 'qtext' }, q.question),
+    questionText(app, q),
     el('div', { class: 'timebar', id: 'timebar' }, el('i', { style: { width: ratio * 100 + '%' } })),
     view.revealed
       ? el('div', { class: 'choices' }, cur.choices.map((c, i) => el('button', { onclick: () => pick(app, i) }, c.text)))

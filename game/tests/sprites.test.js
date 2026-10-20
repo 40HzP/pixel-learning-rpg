@@ -19,3 +19,25 @@ test('monsters.json の sprites に書いた名前のスプライトがあり、
     }
   }
 });
+
+test('月面のボスの差分（描き足した山と影・分かれた地球と月・干上がった海）のスプライトがある', () => {
+  const read = (name) => {
+    assert.ok(existsSync(spriteFile(name)), `${name}.json がある`);
+    return JSON.parse(readFileSync(spriteFile(name), 'utf8'));
+  };
+  for (const m of monsters) {
+    for (const name of m.sprites.marked || []) {
+      const sp = read(name);
+      assert.deepEqual([sp.category, sp.w, sp.h, sp.frames.length], ['boss', 32, 32, 2], name);
+    }
+    for (const name of Object.values(m.sprites.parts || {})) {
+      const sp = read(name);
+      assert.deepEqual([sp.category, sp.w, sp.h, sp.frames.length], ['boss', 24, 24, 2], name);
+    }
+    if (m.remains) {
+      const sp = read(m.remains.sprite);
+      assert.deepEqual([sp.category, sp.w, sp.h], ['boss', 32, 32], m.remains.sprite);
+      assert.ok(m.remains.note);
+    }
+  }
+});

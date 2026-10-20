@@ -2,7 +2,7 @@
 // ctx = { balance, monsters, items, questions, rng }（questions は questions.json の questions 配列）
 
 import { GENRES } from './genres.js';
-import { genreState, raiseZukan, zukanEntry, breakMidbosses, damageEnemy, healEnemy, proficiencyCap } from './sim.js';
+import { genreState, raiseZukan, zukanEntry, breakMidbosses, damageEnemy, healEnemy, proficiencyCap, markSmooth } from './sim.js';
 import { fieldActive, fieldById } from './fields.js';
 
 export { GENRES };
@@ -267,6 +267,8 @@ export function answer(state, session, choiceIndex, ctx) {
 
     // 中ボスの防御は累計の正解数で崩れる（出てくる前の正解も数える）
     if (breakMidbosses(state, ctx, events).length) res.midbossBroken = true;
+    // 月面のボス（カンペキキュウ）：正解するたびに、つるつるの月に山と影が描き足される
+    markSmooth(state, ctx, events);
     if (target) {
       // 中ボスには正解のダメージを小さくする（勉強だけで一気に倒せないように）
       const ratio = interferer ? qb.interferedCorrectDamageRatio
@@ -287,6 +289,20 @@ export function answer(state, session, choiceIndex, ctx) {
   session.index++;
   session.current = null;
   return res;
+}
+
+/* ================= 新聞のビラ（月面のボス・ツキジンセツ） ================= */
+
+/**
+ * ツキジンセツが新聞のビラをまいている間、問題文のうち隠す部分 { start, length }。
+ * 問題ごとに決まった場所（問題の id から決める。表示し直しても動かない）を、文の長さの hideRatio だけ隠す
+ */
+export function flyerSpan(question, hideRatio = 0.35) {
+  const text = question.question;
+  const length = Math.max(2, Math.min(text.length - 1, Math.round(text.length * hideRatio)));
+  let h = 0;
+  for (const ch of String(question.id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return { start: h % Math.max(1, text.length - length + 1), length };
 }
 
 /* ================= 心理統計学（学際分野） ================= */

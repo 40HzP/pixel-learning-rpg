@@ -424,3 +424,8 @@ button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 /* ---------- デバッグ ---------- */
 .debug .section > div { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .debug button.on { background: var(--accent); color: #1a1626; }
+
+/* 月面のボス・ツキジンセツの新聞のビラ（問題文の一部を隠す） */
+.flyer { background: #f2efe6 repeating-linear-gradient(0deg, transparent 0 4px, #a9a7b8 4px 5px); color: transparent; border-radius: 2px; box-shadow: 0 0 0 1px #6e6b80; padding: 0 1px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.flyer-note { color: var(--bad); font-size: 13px; margin-bottom: 2px; }
+.zcard.page p { margin: 4px 0; font-size: 14px; line-height: 1.6; }

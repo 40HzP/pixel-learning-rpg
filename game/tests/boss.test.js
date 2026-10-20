@@ -7,7 +7,9 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { balance, monsters, makeCtx, newGame, seededRng, constRng } from './helpers.js';
 
-const boss = monsters.find((m) => m.kind === 'boss' && m.floor === 10);
+// 地球のボス（月面のボスは moon.test.js）
+const earthBosses = monsters.filter((m) => m.kind === 'boss' && !m.world);
+const boss = earthBosses.find((m) => m.floor === 10);
 
 /** 今いる敵を全部倒す（勉強の正解と同じ扱いで大きなダメージを入れる） */
 function clearEnemies(s, ctx, events) {
@@ -21,7 +23,7 @@ test('10階層のボスが monsters.json にあり、スプライトと図鑑の
 });
 
 test('ボスは設計ページの21個（かつての学説）。10階層ごとに1体ずつ（10〜210階層）。図鑑の項目と、待機・攻撃2枚ずつのスプライトがある', () => {
-  const bosses = monsters.filter((m) => m.kind === 'boss');
+  const bosses = earthBosses;
   assert.equal(bosses.length, 21);
   assert.deepEqual(bosses.map((m) => m.floor).sort((a, b) => a - b), Array.from({ length: 21 }, (_, i) => (i + 1) * 10));
   assert.equal(new Set(bosses.map((m) => m.name)).size, 21, '名前が重ならない');
@@ -36,7 +38,7 @@ test('ボスは設計ページの21個（かつての学説）。10階層ごと�
 
 test('ボスはそれぞれ自分の階層だけに出て、倒すと次の階層へ進む（20〜210階層）', () => {
   const ctx = makeCtx(constRng(0.3));
-  for (const b of monsters.filter((m) => m.kind === 'boss' && m.floor > 10)) {
+  for (const b of earthBosses.filter((m) => m.floor > 10)) {
     const s = newGame(0);
     s.adventure.floor = b.floor - 1;
     assert.notEqual((pendingBoss(s, ctx) || {}).id, b.id);
@@ -121,7 +123,7 @@ test('生まれ変わると、前世で倒したボスにまた会える（40HzP
 
 test('前の版のセーブ：2世代目以降で、この人生の最高階層かそれより先にいる「倒した」ボスは、前世で倒したものなので、また出るようにする', () => {
   const ctx = makeCtx(constRng(0.5));
-  const bosses = monsters.filter((m) => m.kind === 'boss');
+  const bosses = earthBosses;
   const setup = (generation, maxFloor) => {
     const s = newGame(0);
     s.life.generation = generation;
