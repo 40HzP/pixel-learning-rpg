@@ -1,5 +1,5 @@
 // 勉強画面（設計ページ「勉強画面の表示」）
-import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH, flyerSpan, recordTorn, remedialOpen } from '../quiz.js';
+import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH, flyerSpan, recordTorn, remedialOpen, adoptedQuestions } from '../quiz.js';
 import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap, ageYears, newspaperActive } from '../sim.js';
 import { fieldById, fieldActive } from '../fields.js';
 import { GENRES } from '../genres.js';
@@ -11,6 +11,13 @@ import { teacherForAge } from './tear.js';
 const choiceText = (c) => (c.cited ? [c.text, el('span', { class: 'cite' }, '要出典')] : c.text);
 /** 要出典の印を付けたことの一言（問題の上の行） */
 const citedNote = (cur) => (cur.citedBy ? el('span', { class: 'good' }, `　${cur.citedBy}が俗説に「要出典」を付けた`) : null);
+
+/** ユーザーの作問から採用した問題なら、解説の下に作問者（ペンネーム）を出す。自分の問題なら、そうと分かるように */
+function credit(app, q) {
+  if (!q.author) return null;
+  const mine = adoptedQuestions(app.state, app.ctx).includes(q);
+  return el('div', { class: 'credit' }, q.author.name ? `作問：${q.author.name}` : 'みんなの作問から採用', mine ? el('b', {}, '（あなたが作った問題）') : null);
+}
 
 /**
  * 解いている問題の文。月面のボス・ツキジンセツが新聞のビラをまいている間は、一部がビラで隠れる
@@ -101,7 +108,10 @@ function renderMenu(app) {
       remedialOpen(app.state, app.ctx)
         ? el('button', { disabled: !k.torn.length, onclick: () => start(app, 'remedial') },
           '補習', el('small', {}, k.torn.length ? `破りすてたテストの問題（${k.torn.length}問）・小学校教師` : '破りすてたテストの問題はない'))
-        : null),
+        : null,
+      // 作問：問題を作って送る（Notion のフォーム）。採用された自分の問題もここで見る
+      el('button', { onclick: () => { view.phase = 'compose'; renderBody(app); scrollTop(); } },
+        '作問', el('small', {}, `問題を作って送る${adoptedQuestions(app.state, app.ctx).length ? `・採用 ${adoptedQuestions(app.state, app.ctx).length}問` : ''}`))),
     el('div', { class: 'prof-list' },
       el('span', { class: 'head' }, 'ジャンル'), el('span', { class: 'head' }, '熟練'), el('span', { class: 'head' }, '次のLvまで'),
       prof.flatMap((g) => {
@@ -281,7 +291,7 @@ function renderTestResult(app) {
       class: c.kind === 'answer' ? 'correct' : j === r.chosen ? 'wrong' : '',
     }, choiceText(c)))),
     r.oogiri ? el('div', { class: 'oogiri-answer' }, el('span', { class: 'label' }, '大喜利の答え'), r.oogiri) : null,
-    el('div', { class: 'explain' }, el('div', { class: 'accent' }, `正解：${r.question.answer}`), r.question.explanation),
+    el('div', { class: 'explain' }, el('div', { class: 'accent' }, `正解：${r.question.answer}`), r.question.explanation, credit(app, r.question)),
     el('ul', { class: 'effects' }, effectLines(app, r, true).map(([cls, t]) => el('li', { class: cls }, t)))));
   const buttons = () => el('div', { class: 'btnrow' },
     el('button', { class: 'primary', onclick: () => start(app, 'test', s.genre) }, 'もう一度'),
@@ -427,7 +437,7 @@ function renderResult(app) {
       disabled: true,
       class: c.kind === 'answer' ? 'correct' : i === view.chosen ? 'wrong' : '',
     }, choiceText(c)))),
-    el('div', { class: 'explain' }, el('div', { class: 'accent' }, `正解：${r.question.answer}`), r.question.explanation),
+    el('div', { class: 'explain' }, el('div', { class: 'accent' }, `正解：${r.question.answer}`), r.question.explanation, credit(app, r.question)),
     el('ul', { class: 'effects' }, effectLines(app, r).map(([cls, t]) => el('li', { class: cls }, t))),
     el('div', { class: 'btnrow' }, buttons),
   );
@@ -447,6 +457,40 @@ function renderSummary(app) {
   );
 }
 
+/* ---------- 作問（問題を作って送る。40HzP の依頼） ---------- */
+/**
+ * 作問：Notion の「作問の受付」のフォーム（data/submit.json の formUrl）を開いて問題を送る。ゲームは通信しない（ブラウザで別のページを開くだけ）。
+ * フォームに作問者コードを書いてもらい、採用された問題（questions.json の author.code が同じもの）をここに並べる
+ */
+function renderCompose(app) {
+  const code = app.state.legacy.author.code;
+  const sub = app.submit || {};
+  const adopted = adoptedQuestions(app.state, app.ctx);
+  const copy = () => {
+    try { navigator.clipboard.writeText(code).then(() => app.notify(`作問者コード ${code} をコピーした`), () => {}); } catch (e) { /* コピーできない環境では手で写す */ }
+  };
+  const open = sub.formUrl
+    ? el('button', { class: 'primary', onclick: () => { copy(); window.open(sub.formUrl, '_blank', 'noopener'); } }, 'コードをコピーして作問フォームを開く')
+    : el('button', { disabled: true }, '作問フォームは準備中');
+  refs.body.replaceChildren(
+    el('div', { class: 'compose' },
+      el('h3', { class: 'subhead' }, '作問（問題を作って送る）'),
+      el('p', {}, '自分で作った問題を送れます。チェックして採用された問題は、ゲームに入ります（手直しして使うことがあります。採用されないこともあります）。'),
+      el('div', { class: 'author-code' }, '作問者コード ', el('b', {}, code), el('button', { onclick: copy }, 'コピー')),
+      el('p', { class: 'muted' }, 'フォームの「作問者コード」にこのコードを書くと、採用されたときにゲームで知らせます。「ペンネーム」を書くと、問題の解説に「作問：ペンネーム」と出ます。本名や連絡先は書かないでください。'),
+      el('div', { class: 'compose-fields' },
+        el('div', {}, el('b', {}, '必ず書くこと：'), (sub.required || []).join('・')),
+        el('div', {}, el('b', {}, '書かなくてもよいこと：'), (sub.optional || []).join('・'))),
+      el('div', { class: 'btnrow' }, open),
+      el('h3', { class: 'subhead' }, `採用されたあなたの問題（${adopted.length}問）`),
+      adopted.length
+        ? el('div', { class: 'list' }, adopted.map((q) => el('div', { class: 'item' },
+          el('div', { class: 'name' }, q.question, el('small', {}, `${q.genre}　${stars(q.difficulty)}　正解：${q.answer}`)))))
+        : el('div', { class: 'muted' }, 'まだありません'),
+      el('div', { class: 'btnrow' }, el('button', { onclick: () => { view.phase = 'menu'; renderBody(app); } }, 'メニューへ'))),
+  );
+}
+
 function renderBody(app) {
   renderInfo(app);
   if (view.phase === 'question') renderQuestion(app);
@@ -454,6 +498,7 @@ function renderBody(app) {
   else if (view.phase === 'testResult') renderTestResult(app);
   else if (view.phase === 'result') renderResult(app);
   else if (view.phase === 'summary') renderSummary(app);
+  else if (view.phase === 'compose') renderCompose(app);
   else renderMenu(app);
 }
 

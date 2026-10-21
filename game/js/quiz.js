@@ -338,6 +338,42 @@ export function answer(state, session, choiceIndex, ctx) {
   return res;
 }
 
+/* ================= 作問（ユーザーの問題の受付。40HzP の依頼） ================= */
+
+// 作問者コードに使う字（見まちがえやすい 0・O・1・I は使わない）
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+/** 作問者コード（例：K7Q2-9MXP）。採用された問題の author.code と同じなら、その人が作った問題 */
+export function makeAuthorCode(rng) {
+  const pick = () => CODE_CHARS[Math.floor(rng() * CODE_CHARS.length)];
+  return Array.from({ length: 8 }, pick).join('').replace(/^(.{4})/, '$1-');
+}
+
+/** 作問者コードが無ければ決める（転生しても変わらない：legacy）。コードを返す */
+export function ensureAuthorCode(state, rng) {
+  const a = state.legacy.author;
+  if (!a.code) a.code = makeAuthorCode(rng);
+  return a.code;
+}
+
+/** 書きまちがいを吸収したコード（大文字・ハイフンと空白を除く） */
+const normCode = (code) => String(code || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+
+/** この人が作って採用された問題（questions.json の author.code が作問者コードと同じ） */
+export function adoptedQuestions(state, ctx) {
+  const mine = normCode(state.legacy.author.code);
+  if (!mine) return [];
+  return ctx.questions.filter((q) => q.author && normCode(q.author.code) === mine);
+}
+
+/** まだ知らせていない採用の問題を返し、知らせたことにする（起動したときに一度だけ知らせる） */
+export function takeNewAdoptions(state, ctx) {
+  const seen = state.legacy.author.seen;
+  const fresh = adoptedQuestions(state, ctx).filter((q) => !seen.includes(q.id));
+  for (const q of fresh) seen.push(q.id);
+  return fresh;
+}
+
 /* ================= 新聞のビラ（月面のボス・ツキジンセツ） ================= */
 
 /**

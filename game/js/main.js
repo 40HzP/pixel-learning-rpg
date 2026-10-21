@@ -5,7 +5,7 @@ import {
   launchRocket, returnToEarth, ADVISOR_PLACES,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
-import { forgetMissingQuestions } from './quiz.js';
+import { forgetMissingQuestions, ensureAuthorCode, takeNewAdoptions } from './quiz.js';
 import { MAJOR_SLOTS } from './fields.js';
 import { loadPalette, loadSprite, spriteCanvas } from './sprites.js';
 import { createRenderer, SCENE_W, SCENE_H } from './render.js';
@@ -53,16 +53,19 @@ function loadSave(balance, notify) {
 
 /* ================= 起動 ================= */
 
+/** 作問者コード用の乱数（ほかの人と重なりにくいように、ブラウザの暗号用の乱数を使う） */
+const cryptoRng = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
+
 async function boot() {
   const params = new URLSearchParams(location.search);
-  let balance, monsters, items, questions, recruits, town, stages, business, fields;
+  let balance, monsters, items, questions, recruits, town, stages, business, fields, submit;
   try {
-    [balance, { monsters }, { items }, { questions }, { recruits }, town, { stages }, business, fields] = await Promise.all([
+    [balance, { monsters }, { items }, { questions }, { recruits }, town, { stages }, business, fields, submit] = await Promise.all([
       fetchJSON('data/balance.json'), fetchJSON('data/monsters.json'),
       fetchJSON('data/items.json'), fetchJSON('data/questions.json'),
       fetchJSON('data/recruits.json'), fetchJSON('data/town.json'),
       fetchJSON('data/stages.json'), fetchJSON('data/business.json'),
-      fetchJSON('data/fields.json'),
+      fetchJSON('data/fields.json'), fetchJSON('data/submit.json'),
     ]);
   } catch (e) {
     document.querySelector('#loading .dialog').textContent = 'ゲームのデータを読めませんでした。\n' + e.message;
@@ -125,6 +128,7 @@ async function boot() {
   const ctx = { balance, monsters, items, questions, recruits, business, fields, rng: Math.random };
   const app = {
     ctx, palette, monsterSprites, recruitSprites,
+    submit,           // 作問フォーム（data/submit.json）
     heroSprites: { idle: heroIdle, attack: heroAttack, old: heroOld, bow: heroBow, blush: heroBlush },
     sceneSprites: { classroom, lectern, launchpad, rocket },
     stages: stageList,
@@ -141,7 +145,7 @@ async function boot() {
     notify,
     handleEvents,
     save: saveNow,
-    replaceState(next) { app.state = next; forgetMissingQuestions(next, ctx); forgetPastLifeBosses(next, ctx); fitParty(next, ctx); app.rate = createRateTracker(); for (const s of Object.values(screens)) s.reset && s.reset(app); refreshActive(true); },
+    replaceState(next) { app.state = next; ensureAuthorCode(next, cryptoRng); forgetMissingQuestions(next, ctx); forgetPastLifeBosses(next, ctx); fitParty(next, ctx); app.rate = createRateTracker(); for (const s of Object.values(screens)) s.reset && s.reset(app); refreshActive(true); },
     sleepNow() {
       const from = app.state.adventure.floor;
       const r = sleepAtBed(app.state, ctx);
@@ -161,6 +165,8 @@ async function boot() {
     returnHome: () => returnHome(),  // 帰還ロケットで地球に帰る（無料）
   };
   app.state = loadSave(balance, notify);
+  ensureAuthorCode(app.state, cryptoRng); // 作問者コード（作った問題が採用されたら知らせるため）
+  const adoptedOnLoad = takeNewAdoptions(app.state, ctx); // 採用された問題があれば、起動したときに一度だけ知らせる
   forgetMissingQuestions(app.state, ctx); // 同期で外した問題が過去問復習に残らないように
   forgetPastLifeBosses(app.state, ctx); // 前の版のセーブで、前世で倒したボスにもまた会えるように
   const benchedOnLoad = fitParty(app.state, ctx); // パーティーは5人まで（前のセーブで超えていたら控えに回す）
@@ -171,6 +177,10 @@ async function boot() {
   app.renderer = createRenderer(document.getElementById('scene'), app);
 
   for (const s of Object.values(screens)) s.init(app);
+  if (adoptedOnLoad.length) {
+    setTimeout(() => notify(`あなたが作った問題が採用された！（${adoptedOnLoad.length}問）\n${adoptedOnLoad.slice(0, 3).map((q) => `「${q.question.length > 24 ? q.question.slice(0, 24) + '…' : q.question}」`).join('\n')}\n勉強の「作問」で見られる`, 'good'), 1200);
+    saveNow();
+  }
   if (benchedOnLoad.length) setTimeout(() => notify(`パーティーは${ctx.balance.ally.partyMax}人までになった。${benchedOnLoad.join('・')}を控えに回した（仲間が集まる場所で入れ替えられる）`), 1500);
 
   /* ---------- 通知 ---------- */

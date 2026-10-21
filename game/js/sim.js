@@ -57,6 +57,7 @@ export function createState(balance) {
       titles: [],                                   // 前世までにもらった称号
       lives: [],                                    // 前世のまとめ：{ generation, name, age, level, maxFloor, gold }
       rocket: { buildCostPaid: false, steps: {} },  // ロケット計画の工程（建造費を払ったか・工程ごとに進んだゲーム内の時間）
+      author: { code: null, seen: [] },            // 作問：作問者コード（はじめて起動したときに決まる）・もう知らせた採用の問題id
     },
   };
 }

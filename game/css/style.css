@@ -204,6 +204,14 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .choices button { text-align: left; min-height: 52px; line-height: 1.4; }
 .choices button.correct { border-color: var(--good); background: #1f4a3a; }
 .choices button.wrong { border-color: var(--bad); background: #6e1f2e; }
+.credit { margin-top: 6px; font-size: 13px; color: var(--muted); }
+.credit b { color: var(--good); font-weight: normal; }
+.compose p { font-size: 14px; margin: 6px 0; line-height: 1.5; }
+.author-code { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--panel); border: 2px solid var(--line); padding: 6px 10px; margin: 8px 0; }
+.author-code b { font-size: 20px; letter-spacing: 2px; color: var(--accent); }
+.author-code button { padding: 4px 10px; font-size: 14px; }
+.compose-fields { font-size: 13px; display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+.compose .item .name { font-size: 14px; line-height: 1.4; }
 .cite { display: inline-block; margin-left: 6px; padding: 0 4px; font-size: 12px; line-height: 1.5; color: #fff; background: var(--bad); vertical-align: middle; }
 /* 「選択肢を表示する」：押すまで選択肢を出さず、制限時間も減らない */
 .reveal { display: flex; flex-direction: column; gap: 6px; text-align: center; }
