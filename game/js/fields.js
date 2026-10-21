@@ -73,10 +73,13 @@ export const fieldTitles = (state, ctx) => fieldDefs(ctx).filter((f) => isUnlock
 
 /**
  * 画面用の一覧。未解放は名前を伏せ、片方のジャンル（熟練の高いほう）だけ見せる（hint）。
- * 隠しの学際分野は解放するまで出さない
+ * 隠しの学際分野は解放するまで出さない。
+ * guide（高校教師が学校の顧問のときの進路指導）なら、未解放のうち解放にいちばん近いもの（足りない熟練Lvの合計が少ないもの）の
+ * もう片方のジャンルも見せる（hint.other）
  */
-export function fieldList(state, ctx) {
-  return fieldDefs(ctx).filter((f) => f.group !== 'hidden' || isUnlocked(state, f.id)).map((f) => {
+export function fieldList(state, ctx, guide = false) {
+  const need = ctx.balance.fields.unlockLevel;
+  const list = fieldDefs(ctx).filter((f) => f.group !== 'hidden' || isUnlocked(state, f.id)).map((f) => {
     const unlocked = isUnlocked(state, f.id);
     const levels = f.genres.map((g) => lv(state, g));
     const shown = levels[1] > levels[0] ? 1 : 0;
@@ -87,6 +90,15 @@ export function fieldList(state, ctx) {
       active: fieldActive(state, ctx, f.id),
       low: lowGenres(state, f, ctx),
       hint: unlocked ? null : { genre: f.genres[shown], level: levels[shown] },
+      short: levels.reduce((sum, x) => sum + Math.max(0, need - x), 0), // 解放まで足りない熟練Lvの合計
     };
   });
+  if (guide) {
+    const near = list.filter((f) => !f.unlocked).reduce((a, f) => (!a || f.short < a.short ? f : a), null);
+    if (near) {
+      const i = near.genres.indexOf(near.hint.genre) === 0 ? 1 : 0;
+      near.hint.other = { genre: near.genres[i], level: near.levels[i] };
+    }
+  }
+  return list;
 }

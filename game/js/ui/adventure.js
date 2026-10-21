@@ -76,8 +76,9 @@ export function update(app) {
   r.floor.textContent = bossFloor ? `${where} ボス` : `${where} ${adv.kills}/${ctx.balance.floor.monstersPerFloor}体`;
   r.name.textContent = s.life.generation > 1 ? `${s.hero.name}（${s.life.generation}世代目）` : s.hero.name;
   r.lv.textContent = s.hero.level;
-  const party = partyAllies(s).length, bench = s.allies.length - party;
-  r.allies.textContent = s.allies.length ? `仲間 ${party}${bench ? `（控え${bench}）` : ''}` : '';
+  const party = partyAllies(s).length, advisors = s.allies.filter((a) => a.advisor).length, bench = s.allies.length - party - advisors;
+  const rest = [bench ? `控え${bench}` : '', advisors ? `顧問${advisors}` : ''].filter(Boolean).join('・');
+  r.allies.textContent = s.allies.length ? `仲間 ${party}${rest ? `（${rest}）` : ''}` : '';
   r.hp.textContent = `${Math.ceil(s.hero.hp)}/${hs.maxHp}`;
   r.hpbar.style.width = pct(s.hero.hp, hs.maxHp);
   r.mp.textContent = `${Math.floor(s.hero.mp)}/${hs.maxMp}`;

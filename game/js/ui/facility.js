@@ -1,5 +1,6 @@
 // 施設画面＝街。bg_town の上に施設の外観を並べ（並べる位置は data/town.json）、建物をタップするとその施設に入る。
-// 入れる施設：店・仲間が集まる場所・寝床・会社・ロケット発射場・専攻の付け替え・拠点（構造工学を解放するまで準備中）・病院。
+// 入れる施設：店・仲間が集まる場所・寝床・会社・ロケット発射場・学校・研究室（専攻の付け替えと顧問）・拠点（構造工学を解放するまで準備中）・病院。
+// 仲間にした中ボスは、学校・研究室・会社・ロケット発射場に顧問として置ける（advisorSection）。
 // 月面にいる間は、地球の街の代わりに月面の街（town.json の moon：帰還ロケット・月面基地）が出る。
 // 小さな広場に立っている主人公をタップすると、主人公のステータスと名前の変更
 import {
@@ -8,6 +9,7 @@ import {
   canFound, foundCompany, closeCompany, companiesProfit, industryList, industryOutlook, generationMultiplier, ageYears, payRocketBuildCost, rocketSteps,
   hireStaff, dismissStaff, bestStaffGrade, staffCost, staffBonus, buildBase, baseActive,
   lifespanOf, treatmentInfo, receiveTreatment, onMoon, launchInfo,
+  ADVISOR_PLACES, advisorDef, advisorSlots, advisorsAt, advisorActive, setAdvisor, citationsLeft, rocketBuildCost, hrFactor, nextBoss,
 } from '../sim.js';
 import { fieldList, fieldById, fieldActive, isUnlocked, setMajor, MAJOR_SLOTS } from '../fields.js';
 import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor } from '../sprites.js';
@@ -247,30 +249,107 @@ function guildPanel(app) {
       : null,
     others.length ? el('h3', { class: 'subhead' }, '中ボスだった仲間（契約料なし）') : null,
     others.length ? note(`パーティーに入れるか控えに回すかを、いつでも選べる。パーティーは契約した仲間と合わせて${partyMax(ctx)}人まで。控えの仲間は戦わず、冒険画面にも出ない`) : null,
+    others.length ? note('街の施設に「顧問」として置くこともできる（1人1つの役目で、置いている間は戦わない。学校・研究室・会社・ロケット発射場に1人ずつ）') : null,
     others.length ? el('div', { style: { marginBottom: '6px' } }, 'パーティー ', el('b', {}, `${partyAllies(s).length}/${partyMax(ctx)}人`)) : null,
     others.length
       ? el('div', { class: 'list' }, others.map((a) => {
         const on = inParty(a);
         const full = !on && partyFull(s, ctx);
-        return el('div', { class: 'item' + (on ? '' : ' benched') },
+        const d = advisorDef(ctx, a.id);
+        const place = d && ADVISOR_PLACES[d.place];
+        const placeFull = d && !a.advisor && advisorsAt(s, ctx, d.place).length >= advisorSlots(ctx, d.place);
+        let status;
+        if (on) status = el('small', { style: { color: 'var(--good)' } }, 'パーティーにいる');
+        else if (a.advisor) status = el('small', { style: { color: 'var(--good)' } }, `${place}の顧問（${d.role}）`);
+        else status = el('small', { style: { color: 'var(--muted)' } }, full ? '控え（パーティーがいっぱい）' : '控え（戦わない）');
+        const btns = [el('button', {
+          class: on || full ? '' : 'primary',
+          disabled: full,
+          'aria-pressed': on ? 'true' : 'false',
+          onclick: () => {
+            const res = setInParty(app.state, a.id, !on, ctx);
+            if (!res.ok) { app.notify(res.reason, 'bad'); return; }
+            app.notify(on ? `${a.name}を控えに回した` : `${a.name}をパーティーに入れた`);
+            app.save();
+            update(app, true);
+          },
+        }, on ? '外す' : '入れる')];
+        if (d && !d.soon) btns.push(advisorButton(app, a, d, placeFull));
+        return el('div', { class: 'item' + (on ? '' : a.advisor ? ' on' : ' benched') },
           el('div', { class: 'name' }, a.name,
             el('small', {}, `攻撃 ${fmt(a.atk)}　HP ${fmt(a.maxHp)}`),
-            el('small', { style: { color: on ? 'var(--good)' : 'var(--muted)' } }, on ? 'パーティーにいる' : full ? '控え（パーティーがいっぱい）' : '控え（戦わない）')),
-          el('button', {
-            class: on || full ? '' : 'primary',
-            disabled: full,
-            'aria-pressed': on ? 'true' : 'false',
-            onclick: () => {
-              const res = setInParty(app.state, a.id, !on, ctx);
-              if (!res.ok) { app.notify(res.reason, 'bad'); return; }
-              app.notify(on ? `${a.name}を控えに回した` : `${a.name}をパーティーに入れた`);
-              app.save();
-              update(app, true);
-            },
-          }, on ? '外す' : '入れる'));
+            status,
+            d ? el('small', {}, `顧問にすると：${place}で${d.role}${d.soon ? `（${d.soon}）` : ''}`) : null),
+          el('div', { class: 'btns' }, btns));
       }))
       : null,
   ];
+}
+
+/* ---------- 顧問（仲間にした中ボス。設計ページ「仲間にした後の役目（顧問）」） ---------- */
+
+/** 顧問にする・やめさせるボタン（仲間が集まる場所と、置く施設の顧問の欄で同じもの） */
+function advisorButton(app, a, d, placeFull) {
+  const on = !!a.advisor;
+  return el('button', {
+    class: on || placeFull ? '' : 'primary',
+    disabled: !on && placeFull,
+    'aria-pressed': on ? 'true' : 'false',
+    onclick: () => {
+      const r = setAdvisor(app.state, a.id, !on, app.ctx);
+      if (!r.ok) { app.notify(r.reason, 'bad'); return; }
+      app.notify(on ? `${a.name}の顧問をやめさせた（${r.benched ? '控え' : 'パーティー'}に戻った）` : `${a.name}を${r.place}の顧問にした（${d.role}）`, 'good');
+      app.save();
+      update(app, true);
+    },
+  }, on ? '顧問をやめる' : '顧問にする');
+}
+
+/** 顧問の役目の説明に、今の数字を足したもの */
+function advisorText(app, m) {
+  const s = app.state;
+  const a = app.ctx.balance.advisor;
+  const extra = {
+    teacher_elementary: () => `（破りすてた問題：${s.knowledge.torn.length}問）`,
+    teacher_junior: () => `（${a.periodicTestProgress}問分）`,
+    reviewer: () => `（眠るまでに${a.citationsPerSleep}回。今はあと${citationsLeft(s, app.ctx)}回）`,
+    interviewer: () => `（社員の効果 +${pct(a.hrStaffBonus)}）`,
+    politician: () => `（建造費の${pct(a.rocketSubsidy)}：${fmt(Math.round(app.ctx.balance.rocket.buildCost * a.rocketSubsidy))}G）`,
+  }[m.id];
+  return m.advisor.desc + (extra ? extra() : '');
+}
+
+/**
+ * 顧問の欄：places の場所ごとに、置ける中ボスとその役目を並べ、顧問にする・やめさせるを選ぶ。
+ * まだ仲間にしていない中ボスは、名前と役目だけ見せる（倒すと仲間になって置ける）
+ */
+function advisorSection(app, places) {
+  const s = app.state;
+  const ctx = app.ctx;
+  return places.flatMap((place) => {
+    const slots = advisorSlots(ctx, place);
+    const now = advisorsAt(s, ctx, place);
+    const full = now.length >= slots;
+    const rows = ctx.monsters.filter((m) => m.advisor && m.advisor.place === place).map((m) => {
+      const d = m.advisor;
+      const a = s.allies.find((x) => x.id === m.id && !x.hired);
+      let status;
+      let btn = null;
+      if (!a) status = el('small', {}, `まだ仲間にしていない（${m.appearAge}歳から挑戦できる中ボス。倒すと仲間になる）`);
+      else if (d.soon) status = el('small', {}, `準備中（${d.soon}置ける）`);
+      else {
+        status = a.advisor ? el('small', { style: { color: 'var(--good)' } }, '顧問にいる（効果が出ている。戦わない）')
+          : el('small', {}, full ? `${inParty(a) ? 'パーティー' : '控え'}にいる（顧問の枠がいっぱい。今の顧問をやめさせると置ける）` : `${inParty(a) ? 'パーティー' : '控え'}にいる`);
+        btn = advisorButton(app, a, d, full);
+      }
+      return el('div', { class: 'item' + (a && a.advisor ? ' on' : !a || d.soon ? ' locked' : '') },
+        el('div', { class: 'name' }, `${m.name}：${d.role}`, el('small', {}, advisorText(app, m)), status), btn);
+    });
+    return [
+      el('h3', { class: 'subhead' }, `${ADVISOR_PLACES[place]}の顧問（${now.length}/${slots}人）`),
+      el('div', { class: 'list' }, rows),
+    ];
+  });
 }
 
 /** 社員の質の名前 */
@@ -283,6 +362,7 @@ function companyCard(app, p) {
   const c = p.company;
   const ind = p.industry;
   const best = bestStaffGrade(s, ctx);
+  const hr = hrFactor(s, ctx);
   const act = (fn, msg) => () => {
     const res = fn();
     if (!res.ok) { app.notify(res.reason, 'bad'); return; }
@@ -297,7 +377,7 @@ function companyCard(app, p) {
     let info;
     if (st) {
       info = [el('span', {}, `${r.name}（${gradeName(ctx, st.grade)}）`),
-        el('small', { style: { color: 'var(--good)' } }, `利益 +${pct(staffBonus(ctx, ind, r.id, st.grade))}${special ? '（よく効く）' : ''}　1か月 ${fmt(staffCost(ctx, r.id, st.grade))}G`)];
+        el('small', { style: { color: 'var(--good)' } }, `利益 +${pct(staffBonus(ctx, ind, r.id, st.grade, hr))}${special ? '（よく効く）' : ''}　1か月 ${fmt(staffCost(ctx, r.id, st.grade))}G`)];
       if (best > st.grade) {
         const b = el('button', { class: 'primary', onclick: act(() => hireStaff(app.state, c.uid, r.id, ctx), () => `${ind.name}の${r.name}を「${gradeName(ctx, best)}」に替えた`) },
           `${gradeName(ctx, best)}に替える`, el('small', {}, `1か月 ${fmt(staffCost(ctx, r.id, best))}G`));
@@ -312,7 +392,7 @@ function companyCard(app, p) {
       }, 'やめる'));
     } else {
       info = [el('span', { class: 'muted' }, `${r.name}：空き`),
-        el('small', {}, `${r.desc}。雇うと利益 +${pct(staffBonus(ctx, ind, r.id, best))}${special ? '（よく効く）' : ''}`)];
+        el('small', {}, `${r.desc}。雇うと利益 +${pct(staffBonus(ctx, ind, r.id, best, hr))}${special ? '（よく効く）' : ''}`)];
       const b = el('button', { onclick: act(() => hireStaff(app.state, c.uid, r.id, ctx), () => `${ind.name}に${r.name}（${gradeName(ctx, best)}）を雇った`) },
         `雇う（${gradeName(ctx, best)}）`, el('small', {}, `1か月 ${fmt(staffCost(ctx, r.id, best))}G`));
       live.buttons.push({ btn: b, price: staffCost(ctx, r.id, best) });
@@ -325,6 +405,7 @@ function companyCard(app, p) {
     el('div', { class: 'zname' }, ind.name, el('span', { class: 'muted' }, `（${formatDate(c.foundedAt)}に起業）`)),
     el('div', { class: 'profit' }, '1か月の利益 ', el('b', {}, `${fmt(p.total)}G`)),
     el('small', {}, `${ind.name}の利益 ${fmt(p.base)}G × 社員 +${pct(p.staffBonus)} × ジャンルの熟練 +${pct(p.genreBonus)}（${genreText}）`),
+    hr > 1 ? el('small', { class: 'good' }, `人事（就職面接官）：社員の効果 +${pct(hr - 1)}`) : null,
     el('div', { class: 'staff-list' }, rows),
     el('button', {
       class: 'close-company',
@@ -392,6 +473,7 @@ function companyPanel(app) {
       : null,
     note(`社員の質は${biz.staffGenre}の熟練で上がる。今は${biz.staffGenre} Lv${psych}なので「${gradeName(ctx, best)}」まで雇える${next ? `（Lv${next.psychLevel}で「${next.name}」）` : '（いちばん上）'}。優秀な社員ほど利益を増やすが、契約料も高い`),
     ...all.companies.map((p) => companyCard(app, p)),
+    ...advisorSection(app, ['company']),
     cards.length ? el('h3', { class: 'subhead' }, '起業する') : null,
     cards.length ? note(`会社はいくつでも持てる（同じ業種は1つまで）。${biz.unlock.genre}の熟練が上がると、利益の大きい業種が解放される（今 Lv${lv}）。利益は時間がたつと少しずつ所持金に入る`) : null,
     cards.length && econ ? note(`${econ.name}：起業できる業種ごとに、収益の期待値（社員を雇ったときの1か月の手取りと、元手を取り戻すまでの期間）を出している`) : null,
@@ -407,7 +489,8 @@ function companyPanel(app) {
 function rocketPanel(app) {
   const s = app.state;
   const ctx = app.ctx;
-  const cost = app.ctx.balance.rocket.buildCost;
+  const cost = rocketBuildCost(s, ctx);
+  const subsidy = advisorActive(s, ctx, 'politician');
   const paid = s.legacy.rocket.buildCostPaid;
   const ratio = Math.min(1, s.gold / cost);
   const btn = el('button', {
@@ -433,7 +516,7 @@ function rocketPanel(app) {
     else if (st.active) how = '専攻にしているので進んでいる';
     else if (!isUnlocked(s, f.id)) how = `${f.name}を解放すると進められる`;
     else if (s.knowledge.majors.includes(f.id)) how = `${f.name}が休眠しているので止まっている`;
-    else how = `${f.name}を専攻にすると進む（専攻の付け替え）`;
+    else how = `${f.name}を専攻にすると進む（学校・研究室で付け替える）`;
     return el('div', { class: 'item rocket-step' + (st.done ? '' : st.active ? '' : ' locked') },
       el('div', { class: 'name' }, st.name, el('small', {}, `${f.name}（${f.genres.join('＋')}）`),
         el('div', { class: 'timebar' }, bar), text, how ? el('small', { class: st.active ? 'good' : '' }, how) : null),
@@ -454,6 +537,7 @@ function rocketPanel(app) {
     note('ロケットができると、打ち上げて月面の階層に行ける。工程は生まれ変わっても残る。ゴールドは生まれ変わると無くなるので、建造費は1つの人生のうちに貯めて払う'),
     el('h3', { class: 'subhead' }, '建造費'),
     el('div', { class: 'profit' }, '所持金 ', live.gold, `G ／ ${fmt(cost)}G`),
+    subsidy && !paid ? el('small', { class: 'good' }, `補助金（政治家）：建造費 ${fmt(ctx.balance.rocket.buildCost)}G のうち ${fmt(ctx.balance.rocket.buildCost - cost)}G を肩代わりしてくれる`) : null,
     el('div', { class: 'timebar' }, el('i', { style: { width: `${(paid ? 1 : ratio) * 100}%` } })),
     el('div', { class: 'btnrow' }, btn),
     el('h3', { class: 'subhead' }, '工程（学際分野を専攻にしている間に進む）'),
@@ -465,6 +549,7 @@ function rocketPanel(app) {
     el('div', { class: 'profit' }, '成功率 ', el('b', {}, info.rateVisible ? rate : '？？？'),
       el('small', { class: 'muted' }, info.rateVisible ? `（${fieldById(ctx, 'probability').name}で見えている）` : `（${fieldById(ctx, 'probability').name}を専攻にすると見える）`)),
     el('div', { class: 'btnrow' }, launchBtn),
+    ...advisorSection(app, ['rocket']),
   ];
 }
 
@@ -493,14 +578,17 @@ const years = (hours) => `${(hours / HOURS_PER_YEAR).toFixed(1)}年`;
 const realSpan = (sec) => (sec >= 5400 ? `${(sec / 3600).toFixed(1)}時間` : sec >= 90 ? `${Math.round(sec / 60)}分` : `${Math.max(1, Math.round(sec))}秒`);
 
 /**
+ * 学校・研究室：専攻の付け替えと、学校・研究室の顧問。
  * 専攻の付け替え：解放した学際分野を主専攻・副専攻の2枠に入れる。効果が出るのは専攻に入れたものだけ。
- * 未解放の学際分野は名前を伏せ、片方のジャンルだけ見せる（隠しの学際分野は解放するまで出さない）
+ * 未解放の学際分野は名前を伏せ、片方のジャンルだけ見せる（隠しの学際分野は解放するまで出さない）。
+ * 高校教師が学校の顧問なら、解放にいちばん近い未解放の学際分野の、もう片方のジャンルも見せる（進路指導）
  */
 function majorPanel(app) {
   const s = app.state;
   const ctx = app.ctx;
   const need = ctx.balance.fields.unlockLevel;
-  const list = fieldList(s, ctx);
+  const guide = advisorActive(s, ctx, 'teacher_high');
+  const list = fieldList(s, ctx, guide);
   const byId = Object.fromEntries(list.map((f) => [f.id, f]));
   const change = (slot, id, msg) => () => {
     const r = setMajor(app.state, slot, id, ctx);
@@ -520,8 +608,12 @@ function majorPanel(app) {
   });
   const row = (f) => {
     if (!f.unlocked) {
-      return el('div', { class: 'item field locked' },
-        el('div', { class: 'name' }, '？？？', el('small', {}, `${f.hint.genre}＋？（今 ${f.hint.genre} Lv${f.hint.level}）`), el('small', {}, f.desc)));
+      const o = f.hint.other;
+      return el('div', { class: 'item field locked' + (o ? ' guided' : '') },
+        el('div', { class: 'name' }, '？？？',
+          el('small', {}, o ? `${f.hint.genre}＋${o.genre}（今 ${f.hint.genre} Lv${f.hint.level}・${o.genre} Lv${o.level}）` : `${f.hint.genre}＋？（今 ${f.hint.genre} Lv${f.hint.level}）`),
+          o ? el('small', { class: 'good' }, `進路指導（高校教師）：あと少しで解放できる。どちらもLv${need}にしよう`) : null,
+          el('small', {}, f.desc)));
     }
     const btns = [];
     if (f.group !== 'hidden') {
@@ -536,7 +628,15 @@ function majorPanel(app) {
       btns.length ? el('div', { class: 'btns' }, btns) : null);
   };
   const got = list.filter((f) => f.unlocked).length;
+  // 大学教授が研究室の顧問なら、次に戦うボスの「当時の根拠」を先に教えてくれる（予習）
+  const boss = advisorActive(s, ctx, 'professor') ? nextBoss(s, ctx) : null;
   return [
+    ...advisorSection(app, ['school', 'lab']),
+    boss ? el('div', { class: 'prep' },
+      el('div', {}, el('b', {}, '予習（大学教授）'), `：次に戦うボスは${boss.world === 'moon' ? '月面' : ''}${boss.floor}階層の${boss.name}（${boss.myth}）`),
+      el('div', {}, `当時の根拠：${boss.whyBelieved}`),
+      el('small', { class: 'muted' }, 'このボスと戦うときは、この根拠を書いた選択肢が誤答に混ざってくる')) : null,
+    el('h3', { class: 'subhead' }, '専攻の付け替え'),
     note(`2つのジャンルの熟練がどちらもLv${need}以上になると、その組み合わせの学際分野が解放され、称号がもらえる。効果が出るのは主専攻・副専攻に入れた2つだけ（いつでも付け替えられる）。熟練がLv${need}より下がると休眠して止まり、戻すと復活する`),
     el('div', { class: 'list' }, slots),
     el('h3', { class: 'subhead' }, `学際分野（解放 ${got}／${list.length}）`),
@@ -567,7 +667,7 @@ function basePanel(app) {
   const bf = s.adventure.baseFloor;
   return [
     el('div', { class: 'profit' }, '拠点 ', el('b', {}, bf ? `${bf}階層` : 'まだない'), bf && !baseActive(s, ctx) ? el('span', { class: 'bad' }, '（働いていない）') : null),
-    on ? null : note(`${f.name}が専攻に入っていない（または休眠している）ので、拠点は建てられず、働かない。街の「専攻の付け替え」で主専攻か副専攻にする`),
+    on ? null : note(`${f.name}が専攻に入っていない（または休眠している）ので、拠点は建てられず、働かない。街の「学校・研究室」で主専攻か副専攻にする`),
     el('div', { class: 'btnrow' }, btn),
     note('拠点より深い階層でやられると、拠点の階層の最初から再開する（拠点の階層そのものでやられたときは1階層から）。建て直すと拠点は移る。生まれ変わると拠点は無くなる'),
   ];
@@ -704,9 +804,9 @@ export function update(app, force) {
     return;
   }
   town = null;
-  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched]), s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket.buildCostPaid, s.life.generation, s.life.ailing, s.life.treatments,
+  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched, !!a.advisor]), s.citationsUsed, s.knowledge.torn.length, s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket.buildCostPaid, s.life.generation, s.life.ailing, s.life.treatments,
     // 学際分野（解放・休眠・専攻・熟練）と拠点・ロケットの工程（進み具合は作り直さずに書き換える）
-    fieldList(s, app.ctx).map((f) => [f.unlocked, f.dormant, f.slot, f.levels]), s.adventure.baseFloor, rocketSteps(s, app.ctx).map((st) => [st.done, st.active])]);
+    fieldList(s, app.ctx).map((f) => [f.unlocked, f.dormant, f.slot, f.levels]), s.adventure.baseFloor, rocketSteps(s, app.ctx).map((st) => [st.done, st.active]), (nextBoss(s, app.ctx) || {}).id]);
   // 名前を入力している途中は作り直さない（入力が消えないように）
   const typing = root.contains(document.activeElement) && document.activeElement.tagName === 'INPUT';
   if (force || ((k !== key || !live) && !typing)) { key = k; buildPanel(app); }

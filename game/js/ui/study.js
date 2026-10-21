@@ -1,11 +1,16 @@
 // 勉強画面（設計ページ「勉強画面の表示」）
-import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH, flyerSpan } from '../quiz.js';
+import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH, flyerSpan, recordTorn, remedialOpen } from '../quiz.js';
 import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap, ageYears, newspaperActive } from '../sim.js';
 import { fieldById, fieldActive } from '../fields.js';
 import { GENRES } from '../genres.js';
 import { spriteCanvas } from '../sprites.js';
 import { el, stars } from './dom.js';
 import { teacherForAge } from './tear.js';
+
+/** 選択肢の文。学会の査読者（研究室の顧問）が「要出典」の印を付けた俗説には印を出す */
+const choiceText = (c) => (c.cited ? [c.text, el('span', { class: 'cite' }, '要出典')] : c.text);
+/** 要出典の印を付けたことの一言（問題の上の行） */
+const citedNote = (cur) => (cur.citedBy ? el('span', { class: 'good' }, `　${cur.citedBy}が俗説に「要出典」を付けた`) : null);
 
 /**
  * 解いている問題の文。月面のボス・ツキジンセツが新聞のビラをまいている間は、一部がビラで隠れる
@@ -91,7 +96,12 @@ function renderMenu(app) {
       el('div', { class: 'row' }, sel,
         el('button', { onclick: () => start(app, 'test', view.genre) }, 'テスト', el('small', {}, `このジャンルから${testCount(app)}問・時間制限なし`))),
       el('button', { disabled: !k.review.length, onclick: () => start(app, 'review') },
-        '過去問復習', el('small', {}, k.review.length ? `間違えた問題・騙された問題（${k.review.length}問）` : 'まだありません'))),
+        '過去問復習', el('small', {}, k.review.length ? `間違えた問題・騙された問題（${k.review.length}問）` : 'まだありません')),
+      // 小学校教師が学校の顧問なら、破りすてたテストの問題を集めた補習
+      remedialOpen(app.state, app.ctx)
+        ? el('button', { disabled: !k.torn.length, onclick: () => start(app, 'remedial') },
+          '補習', el('small', {}, k.torn.length ? `破りすてたテストの問題（${k.torn.length}問）・小学校教師` : '破りすてたテストの問題はない'))
+        : null),
     el('div', { class: 'prof-list' },
       el('span', { class: 'head' }, 'ジャンル'), el('span', { class: 'head' }, '熟練'), el('span', { class: 'head' }, '次のLvまで'),
       prof.flatMap((g) => {
@@ -160,6 +170,7 @@ function refreshSheetMeta(app) {
     m.meta.replaceChildren(`${m.i + 1}問目　${stars(q.difficulty)}`,
       m.cur.trimmedBy ? el('span', { class: 'good' }, `　${m.cur.trimmedBy}で誤答が1つ消えた`) : '',
       im ? el('span', { class: 'meddle' }, `　${im.name}が口を挟んでいる`) : '',
+      citedNote(m.cur) || '',
       b ? el('span', { class: 'good' }, `　${b.monster.name}は口を挟めない（${b.field.name}）`) : '');
   }
 }
@@ -197,7 +208,7 @@ function renderSheet(app) {
         if (key === 'oogiri') free.focus();
         showLeft();
       },
-    }, key === 'oogiri' ? '大喜利をする（フリースペース）' : cur.choices[key].text));
+    }, key === 'oogiri' ? '大喜利をする（フリースペース）' : choiceText(cur.choices[key])));
     return el('div', { class: 'test-q' }, meta, questionText(app, cur.question), el('div', { class: 'choices' }, buttons, free));
   });
   showLeft();
@@ -223,6 +234,8 @@ const paperHead = (app, s) => el('div', { class: 'paper-head' },
  */
 function tearTest(app) {
   if (view.phase !== 'sheet') return;
+  recordTorn(app.state, view.session); // 破りすてた問題は覚えておく（小学校教師を学校の顧問にすると補習で出る）
+  app.save();
   view.phase = 'menu'; // 確認は出さない（40HzP の依頼）
   view.session = null;
   renderBody(app);
@@ -253,7 +266,10 @@ function renderTestResult(app) {
   const g = app.state.knowledge.genres[s.genre] || { level: 0, progress: 0 };
   const per = app.ctx.balance.quiz.correctPerProficiencyLevel;
   const cap = proficiencyCap(app.state, app.ctx.balance);
+  const per0 = s.periodic; // 中学校教師（学校の顧問）の定期テスト：全問正解で熟練の進みが多くなる
   const summary = [
+    per0 ? ['good', per0.capped ? `定期テスト（中学校教師）：全問正解！（熟練はもう上限）` : `定期テスト（中学校教師）：全問正解！　熟練の進みが${per0.progress}問分多くなった`] : null,
+    per0 && per0.levelUp ? ['good', `${per0.levelUp.genre}の熟練が Lv ${per0.levelUp.level} になった！`] : null,
     ok ? ['good', `経験値の倍率が ×${expMultiplier(app.state, app.ctx.balance).toFixed(2)} になった`] : null,
     ['', g.level < cap ? `${s.genre}：熟練 Lv ${g.level}　次のLvまで ${g.progress}/${per}回` : `${s.genre}：熟練 Lv ${g.level}（最大）`],
   ].filter(Boolean);
@@ -263,7 +279,7 @@ function renderTestResult(app) {
     el('div', { class: 'choices' }, r.choices.map((c, j) => el('button', {
       disabled: true,
       class: c.kind === 'answer' ? 'correct' : j === r.chosen ? 'wrong' : '',
-    }, c.text))),
+    }, choiceText(c)))),
     r.oogiri ? el('div', { class: 'oogiri-answer' }, el('span', { class: 'label' }, '大喜利の答え'), r.oogiri) : null,
     el('div', { class: 'explain' }, el('div', { class: 'accent' }, `正解：${r.question.answer}`), r.question.explanation),
     el('ul', { class: 'effects' }, effectLines(app, r, true).map(([cls, t]) => el('li', { class: cls }, t)))));
@@ -328,11 +344,11 @@ function renderQuestion(app) {
   const ratio = Math.max(0, view.remaining / cur.timeLimit);
   refs.body.replaceChildren(
     interferenceBanner(app, q),
-    el('div', { class: 'qmeta' }, `${stars(q.difficulty)}　${progress}`, cur.trimmedBy ? el('span', { class: 'good' }, `　${cur.trimmedBy}で誤答が1つ消えた`) : null),
+    el('div', { class: 'qmeta' }, `${stars(q.difficulty)}　${progress}`, cur.trimmedBy ? el('span', { class: 'good' }, `　${cur.trimmedBy}で誤答が1つ消えた`) : null, citedNote(cur)),
     questionText(app, q),
     el('div', { class: 'timebar', id: 'timebar' }, el('i', { style: { width: ratio * 100 + '%' } })),
     view.revealed
-      ? el('div', { class: 'choices' }, cur.choices.map((c, i) => el('button', { onclick: () => pick(app, i) }, c.text)))
+      ? el('div', { class: 'choices' }, cur.choices.map((c, i) => el('button', { onclick: () => pick(app, i) }, choiceText(c))))
       : el('div', { class: 'reveal' },
         el('button', { class: 'primary', onclick: () => reveal(app) }, '選択肢を表示する'),
         el('div', { class: 'muted' }, `押すと制限時間（${cur.timeLimit}秒）が始まる`)),
@@ -386,6 +402,7 @@ function effectLines(app, r, brief = false) {
     if (r.levelUp) lines.push(['good', `${r.levelUp.genre}の熟練が Lv ${r.levelUp.level} になった！`]);
     else if (!brief && g && g.level < proficiencyCap(app.state, app.ctx.balance)) lines.push(['', `${r.question.genre}：次のLvまで ${g.progress}/${per}回`]);
     for (const z of r.zukan) lines.push(['good', `図鑑：${name(z.monsterId)}の正体が判明した`]);
+    if (r.untorn && remedialOpen(app.state, app.ctx)) lines.push(['good', '破りすてた問題に正解した（補習から外れた）']);
   } else {
     if (r.fooled) lines.push(['bad', `${r.targetName}に騙された！　${r.targetName}が${r.healed}回復した`]);
     lines.push(['', '過去問復習に入った']);
@@ -409,7 +426,7 @@ function renderResult(app) {
     el('div', { class: 'choices' }, r.choices.map((c, i) => el('button', {
       disabled: true,
       class: c.kind === 'answer' ? 'correct' : i === view.chosen ? 'wrong' : '',
-    }, c.text))),
+    }, choiceText(c)))),
     el('div', { class: 'explain' }, el('div', { class: 'accent' }, `正解：${r.question.answer}`), r.question.explanation),
     el('ul', { class: 'effects' }, effectLines(app, r).map(([cls, t]) => el('li', { class: cls }, t))),
     el('div', { class: 'btnrow' }, buttons),
@@ -423,7 +440,7 @@ function renderSummary(app) {
     el('div', { class: 'result-head' }, `${MODES[s.mode]}終了：${s.results.length}問中${ok}問正解`),
     el('ul', { class: 'effects' }, s.results.map((r) => el('li', { class: r.correct ? 'good' : 'bad' }, `${r.correct ? '○' : '×'} ${r.question.question}`))),
     el('div', { class: 'btnrow' },
-      s.mode !== 'review' || app.state.knowledge.review.length
+      (s.mode !== 'review' || app.state.knowledge.review.length) && (s.mode !== 'remedial' || app.state.knowledge.torn.length)
         ? el('button', { class: 'primary', onclick: () => start(app, s.mode, s.genre) }, 'もう一度')
         : null,
       el('button', { onclick: () => { view.phase = 'menu'; view.session = null; renderBody(app); } }, 'メニューへ')),

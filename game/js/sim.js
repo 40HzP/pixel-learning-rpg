@@ -30,7 +30,8 @@ export function createState(balance) {
     gold: 0,
     equipment: { weapon: null, armor: null },
     owned: [],                                      // 買った品物のid
-    allies: [],                                     // 中ボス：{ id, name, atk, maxHp, hp, cd }／契約：{ id, name, hired: true, cd, paidUntil }
+    allies: [],                                     // 中ボス：{ id, name, atk, maxHp, hp, cd, benched?（控え）, advisor?（顧問） }／契約：{ id, name, hired: true, cd, paidUntil }
+    citationsUsed: 0,                               // 学会の査読者（顧問）の「要出典」を、前に眠ってから使った回数
     companies: [],                                  // 起業した会社：{ uid, industry, foundedAt, staff: [{ id, grade, paidUntil }] }（業種ごとに1社まで）
     nextCompanyUid: 1,
     // enemies：今出ている群れ（先頭が狙う相手）。baseFloor：拠点（構造工学）。evadeAcc：ためた回避率。
@@ -40,6 +41,7 @@ export function createState(balance) {
       genres: {},                                   // ジャンル名 → { level, progress, correct, studied }
       totalCorrect: 0,
       review: [],                                   // 過去問復習の問題id
+      torn: [],                                     // 破りすてたテストの問題id（小学校教師の補習で出す。正解すると外れる）
       recent: [],                                   // 直近に出した問題id
       zukan: {},                                    // 魔物id → { stage: 0|1|2, fooled }
       fields: {},                                   // 解放した学際分野：学際分野id → { at, generation, dormant }（fields.js）
@@ -152,6 +154,7 @@ export function reincarnate(state, ctx) {
   state.equipment = fresh.equipment;
   state.owned = [];
   state.allies = [];
+  state.citationsUsed = 0;
   state.companies = [];
   state.adventure = fresh.adventure;
   state.midbosses = {};
@@ -1052,14 +1055,15 @@ export function sleep(state, ctx, reason = 'bed') {
     }
     g.studied = false;
   }
+  state.citationsUsed = 0; // 学会の査読者の「要出典」は眠ると戻る
   state.lastSleep = { reason, up, down, hours: s.gameHours, at: state.life.gameHours, floor: state.adventure.floor, world: state.adventure.world || 'earth' };
   return state.lastSleep;
 }
 
 /* ================= パーティー ================= */
 
-/** パーティーにいる仲間（控えに回した中ボスだった仲間は戦わず、冒険画面にも出ない） */
-export const inParty = (ally) => !ally.benched;
+/** パーティーにいる仲間（控えに回した中ボスだった仲間と、顧問に置いた中ボスだった仲間は戦わず、冒険画面にも出ない） */
+export const inParty = (ally) => !ally.benched && !ally.advisor;
 export const partyAllies = (state) => state.allies.filter(inParty);
 /** パーティーの上限（balance.ally.partyMax 人。契約した仲間も数える。戦うのも冒険画面に並ぶのもこの人数まで） */
 export const partyMax = (ctx) => ctx.balance.ally.partyMax;
@@ -1072,9 +1076,10 @@ export const partyFull = (state, ctx) => partyAllies(state).length >= partyMax(c
 export function setInParty(state, id, on, ctx) {
   const ally = state.allies.find((a) => a.id === id && !a.hired);
   if (!ally) return { ok: false, reason: '中ボスだった仲間ではありません' };
-  if (!on) { ally.benched = true; return { ok: true }; }
+  if (!on) { delete ally.advisor; ally.benched = true; return { ok: true }; }
   if (!inParty(ally) && partyFull(state, ctx)) return { ok: false, reason: `パーティーは${partyMax(ctx)}人まで。だれかを外してから入れる` };
   delete ally.benched;
+  delete ally.advisor;
   return { ok: true };
 }
 
@@ -1090,6 +1095,66 @@ export function fitParty(state, ctx) {
     over--;
   }
   return moved;
+}
+
+/* ================= 顧問（仲間にした中ボス） ================= */
+
+/**
+ * 仲間にした中ボスは、街の施設に「顧問」として置ける（設計ページ「仲間にした後の役目（顧問）」。40HzP の依頼）。
+ * 置いている間はパーティーから外れて戦わない。効果は1人1つで、置く場所は中ボスごとに決まっている（monsters.json の advisor.place）。
+ * 場所ごとに置ける人数は balance.advisor.slots。advisor.soon のある中ボス（税務調査官）は、その仕組みができるまで置けない
+ */
+export const ADVISOR_PLACES = { school: '学校', lab: '研究室', company: '会社', rocket: 'ロケット発射場' };
+export const advisorDef = (ctx, id) => (ctx.monsters.find((m) => m.id === id) || {}).advisor || null;
+export const advisorSlots = (ctx, place) => (ctx.balance.advisor.slots || {})[place] || 0;
+/** その場所に顧問として置いている仲間 */
+export const advisorsAt = (state, ctx, place) => state.allies.filter((a) => a.advisor && (advisorDef(ctx, a.id) || {}).place === place);
+/** 中ボスだった仲間（id）を顧問に置いていて、効果が出ているか */
+export const advisorActive = (state, ctx, id) => {
+  const d = advisorDef(ctx, id);
+  return !!d && !d.soon && state.allies.some((a) => a.id === id && a.advisor && !a.hired);
+};
+
+/**
+ * 中ボスだった仲間を顧問に置く（on=true）・顧問をやめさせる（on=false）。いつでも何度でも変えられる。
+ * 置くとパーティーから外れる。やめさせると、パーティーに空きがあればパーティーに、なければ控えに戻る
+ */
+export function setAdvisor(state, id, on, ctx) {
+  const ally = state.allies.find((a) => a.id === id && !a.hired);
+  if (!ally) return { ok: false, reason: '中ボスだった仲間ではありません' };
+  const d = advisorDef(ctx, id);
+  if (!d) return { ok: false, reason: `${ally.name}は顧問にならない` };
+  if (!on) {
+    if (!ally.advisor) return { ok: false, reason: `${ally.name}は顧問ではありません` };
+    delete ally.advisor;
+    if (partyFull(state, ctx)) ally.benched = true;
+    else delete ally.benched;
+    return { ok: true, benched: !!ally.benched };
+  }
+  if (ally.advisor) return { ok: false, reason: `${ally.name}はもう顧問にいる` };
+  if (d.soon) return { ok: false, reason: `${ally.name}の${d.role}は、${d.soon}置ける` };
+  const place = ADVISOR_PLACES[d.place];
+  if (advisorsAt(state, ctx, d.place).length >= advisorSlots(ctx, d.place)) return { ok: false, reason: `${place}の顧問の枠がいっぱい（今の顧問をやめさせてから置く）` };
+  delete ally.benched;
+  ally.advisor = true;
+  return { ok: true, place };
+}
+
+/** 就職面接官（会社の顧問）の人事：社員の効果に掛ける倍率 */
+export const hrFactor = (state, ctx) => 1 + (advisorActive(state, ctx, 'interviewer') ? ctx.balance.advisor.hrStaffBonus : 0);
+
+/** ロケットの建造費。政治家（ロケット発射場の顧問）の補助金で balance.advisor.rocketSubsidy の分だけ安くなる */
+export const rocketBuildCost = (state, ctx) =>
+  Math.round(ctx.balance.rocket.buildCost * (1 - (advisorActive(state, ctx, 'politician') ? ctx.balance.advisor.rocketSubsidy : 0)));
+
+/** 学会の査読者（研究室の顧問）の「要出典」が、眠るまでにあと何回使えるか */
+export const citationsLeft = (state, ctx) => Math.max(0, ctx.balance.advisor.citationsPerSleep - (state.citationsUsed || 0));
+
+/** 次に戦うボス（今いる世界で、この人生でまだ倒していないボスのうち、いちばん手前の階層）。大学教授（研究室の顧問）の予習で使う */
+export function nextBoss(state, ctx) {
+  const world = state.adventure.world || 'earth';
+  return ctx.monsters.filter((m) => m.kind === 'boss' && worldOf(m) === world && bossState(state, m.id).status !== 'defeated')
+    .sort((a, b) => a.floor - b.floor)[0] || null;
 }
 
 /* ================= 仲間が集まる場所（契約） ================= */
@@ -1231,11 +1296,11 @@ const gradeOf = (ctx, i) => ctx.business.staffGrades[Math.max(0, Math.min(i, ctx
 /** 社員の1か月の契約料（基本×質の costMultiplier） */
 export const staffCost = (ctx, id, grade) => Math.round((recruitById(ctx, id) || { monthlyCost: 0 }).monthlyCost * gradeOf(ctx, grade).costMultiplier);
 
-/** 社員1人がその会社の利益を増やす割合（基本×質の bonusMultiplier×業種のよく効く社員なら specialtyMultiplier） */
-export function staffBonus(ctx, ind, id, grade) {
+/** 社員1人がその会社の利益を増やす割合（基本×質の bonusMultiplier×業種のよく効く社員なら specialtyMultiplier×人事の倍率 hr（hrFactor）） */
+export function staffBonus(ctx, ind, id, grade, hr = 1) {
   const r = recruitById(ctx, id);
   const special = ind && ind.specialty === id;
-  return (r ? r.profitBonus || 0 : 0) * gradeOf(ctx, grade).bonusMultiplier * (special ? ind.specialtyMultiplier : 1);
+  return (r ? r.profitBonus || 0 : 0) * gradeOf(ctx, grade).bonusMultiplier * (special ? ind.specialtyMultiplier : 1) * hr;
 }
 
 /**
@@ -1273,15 +1338,17 @@ export function dismissStaff(state, uid, id) {
 
 /**
  * 会社1つの1か月あたりの利益（社員の契約料を引く前）と内訳。
- * 利益＝業種の monthlyProfit ×（1＋社員の staffBonus の合計）×（1＋関係するジャンルの熟練Lvの合計×genreBonusPerLevel）×世代の倍率
+ * 利益＝業種の monthlyProfit ×（1＋社員の staffBonus の合計）×（1＋関係するジャンルの熟練Lvの合計×genreBonusPerLevel）×世代の倍率。
+ * 就職面接官を会社の顧問に置いていると、社員の効果が人事の倍率（hrFactor）だけ大きくなる
  */
 export function companyProfit(state, company, ctx) {
   const ind = industryById(ctx, company.industry);
   if (!ind) return null;
+  const hr = hrFactor(state, ctx);
   const staff = company.staff.map((st) => {
     const r = recruitById(ctx, st.id);
     if (!r) return null;
-    return { id: r.id, name: r.name, grade: st.grade, gradeName: gradeOf(ctx, st.grade).name, bonus: staffBonus(ctx, ind, st.id, st.grade), special: ind.specialty === r.id };
+    return { id: r.id, name: r.name, grade: st.grade, gradeName: gradeOf(ctx, st.grade).name, bonus: staffBonus(ctx, ind, st.id, st.grade, hr), special: ind.specialty === r.id };
   }).filter(Boolean);
   const bonus = staff.reduce((sum, x) => sum + x.bonus, 0);
   const genreLevels = ind.genres.reduce((sum, g) => sum + genreLevel(state, g), 0);
@@ -1299,7 +1366,7 @@ export function industryOutlook(state, ind, ctx) {
   const grade = bestStaffGrade(state, ctx);
   const plain = companyProfit(state, { industry: ind.id, staff: [] }, ctx);
   const perBonus = plain.base * (1 + plain.genreBonus) * plain.generation; // 社員の効果1あたりの利益
-  const staff = (ctx.recruits || []).filter((r) => isStaff(r) && perBonus * staffBonus(ctx, ind, r.id, grade) > staffCost(ctx, r.id, grade));
+  const staff = (ctx.recruits || []).filter((r) => isStaff(r) && perBonus * staffBonus(ctx, ind, r.id, grade, hrFactor(state, ctx)) > staffCost(ctx, r.id, grade));
   const p = companyProfit(state, { industry: ind.id, staff: staff.map((r) => ({ id: r.id, grade })) }, ctx);
   const cost = staff.reduce((sum, r) => sum + staffCost(ctx, r.id, grade), 0);
   const net = p.total - cost;
@@ -1344,15 +1411,15 @@ function advanceRocket(state, dt, ctx, events) {
 }
 
 /**
- * ロケットの建造費（balance.rocket.buildCost）を払う。払った工程は転生しても残る（設計ページ「工程ごとに完了を保存する」）
+ * ロケットの建造費（balance.rocket.buildCost。政治家の補助金があれば rocketBuildCost）を払う。払った工程は転生しても残る（設計ページ「工程ごとに完了を保存する」）
  */
 export function payRocketBuildCost(state, ctx) {
-  const cost = ctx.balance.rocket.buildCost;
+  const cost = rocketBuildCost(state, ctx);
   if (state.legacy.rocket.buildCostPaid) return { ok: false, reason: 'もう建造費は払った' };
   if (state.gold < cost) return { ok: false, reason: 'ゴールドが足りません' };
   state.gold -= cost;
   state.legacy.rocket.buildCostPaid = true;
-  return { ok: true };
+  return { ok: true, cost };
 }
 
 /** 打ち上げの成功率が見えるか：確率論（学際分野）を専攻にしていて休眠していない（設計ページ「確率論があれば成功率が見える」） */

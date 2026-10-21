@@ -2,22 +2,23 @@
 // ctx = { balance, monsters, items, questions, rng }（questions は questions.json の questions 配列）
 
 import { GENRES } from './genres.js';
-import { genreState, raiseZukan, zukanEntry, breakMidbosses, damageEnemy, healEnemy, proficiencyCap, markSmooth } from './sim.js';
+import { genreState, raiseZukan, zukanEntry, breakMidbosses, damageEnemy, healEnemy, proficiencyCap, markSmooth, advisorActive, citationsLeft } from './sim.js';
 import { fieldActive, fieldById } from './fields.js';
 
 export { GENRES };
 
-export const MODES = { quiz: 'クイズ', test: 'テスト', review: '過去問復習' };
+export const MODES = { quiz: 'クイズ', test: 'テスト', review: '過去問復習', remedial: '補習' };
 
 /**
- * セーブに残っている、もう無い問題（同期で外した問題など）を、過去問復習と直近の出題から外す。
- * 残したままだと「過去問復習」が押せるのに1問も出ない。外した数を返す
+ * セーブに残っている、もう無い問題（同期で外した問題など）を、過去問復習・補習・直近の出題から外す。
+ * 残したままだと「過去問復習」が押せるのに1問も出ない。過去問復習から外した数を返す
  */
 export function forgetMissingQuestions(state, ctx) {
   const ids = new Set(ctx.questions.map((q) => q.id));
   const k = state.knowledge;
   const before = k.review.length;
   k.review = k.review.filter((id) => ids.has(id));
+  k.torn = (k.torn || []).filter((id) => ids.has(id));
   k.recent = k.recent.filter((id) => ids.has(id));
   return before - k.review.length;
 }
@@ -79,19 +80,32 @@ export const timeLimitFor = (difficulty, balance) => balance.quiz.timeLimitSec[M
 
 /**
  * mode: 'quiz'（全ジャンルから1問）| 'test'（genre から testQuestions 問を1枚の用紙で。presentTest・gradeTest）|
- * 'review'（過去問復習、最大 testQuestions 問）
+ * 'review'（過去問復習、最大 testQuestions 問）| 'remedial'（補習：破りすてたテストの問題、最大 testQuestions 問。小学校教師が学校の顧問のとき）
  */
 export function createSession(state, mode, ctx, genre = null) {
   let total = 1;
   if (mode === 'test') total = ctx.balance.quiz.testQuestions;
   if (mode === 'review') total = Math.min(ctx.balance.quiz.testQuestions, state.knowledge.review.length);
+  if (mode === 'remedial') total = Math.min(ctx.balance.quiz.testQuestions, state.knowledge.torn.length);
   return { mode, genre, total, index: 0, asked: [], current: null, results: [] };
 }
 
 export function candidatesFor(state, session, ctx) {
   if (session.mode === 'test') return ctx.questions.filter((q) => q.genre === session.genre);
   if (session.mode === 'review') return ctx.questions.filter((q) => state.knowledge.review.includes(q.id));
+  if (session.mode === 'remedial') return ctx.questions.filter((q) => state.knowledge.torn.includes(q.id));
   return ctx.questions;
+}
+
+/** 補習が使えるか：小学校教師を学校の顧問に置いている（破りすてた問題が無ければ、押しても出ない） */
+export const remedialOpen = (state, ctx) => advisorActive(state, ctx, 'teacher_elementary');
+
+/** テストの用紙を破りすてた：用紙の問題を「破りすてた問題」に入れる（小学校教師の補習で出す）。入れた数を返す */
+export function recordTorn(state, session) {
+  const torn = state.knowledge.torn;
+  let n = 0;
+  for (const cur of session.sheet || []) if (!torn.includes(cur.question.id)) { torn.push(cur.question.id); n++; }
+  return n;
 }
 
 /** 次の問題を出す。出せなければ null（セッション終了） */
@@ -104,6 +118,7 @@ export function nextQuestion(state, session, ctx) {
   if (!q) { session.current = null; return null; }
   const cur = presentQuestion(session, q, ctx);
   trimChoices(state, cur, ctx);
+  citeMyth(state, cur, ctx);
   return cur;
 }
 
@@ -121,6 +136,7 @@ export function presentTest(state, session, ctx) {
     if (!q) break;
     const cur = presentQuestion(session, q, ctx);
     trimChoices(state, cur, ctx);
+    citeMyth(state, cur, ctx);
     sheet.push(cur);
   }
   session.current = null;
@@ -136,10 +152,12 @@ export const OOGIRI_MAX_LENGTH = 60;
  * テストを提出して採点する。picks[i] は i 問目で選んだ選択肢の番号（null は答えていない＝不正解）か、
  * 大喜利の答え { oogiri: '書いた文' }（40HzP の依頼。選択肢のほかに自由に書ける。不正解として数え、騙されたことにはしない。何も書いていなければ答えていない）。
  * 1問ずつ answer と同じに数える（熟練・累計正解数・過去問復習・干渉・敵へのダメージ）。干渉は提出した瞬間の敵の群れで決まる。
- * 結果の並びを返す（answer の結果に question・choices・chosen を付け、大喜利なら oogiri に書いた文を入れる）
+ * 結果の並びを返す（answer の結果に question・choices・chosen を付け、大喜利なら oogiri に書いた文を入れる）。
+ * 中学校教師を学校の顧問に置いていて全問正解すると、定期テストとして熟練の進みが balance.advisor.periodicTestProgress 問分多くなる
+ * （session.periodic に { genre, progress, levelUp }）
  */
 export function gradeTest(state, session, picks, ctx) {
-  return session.sheet.map((cur, i) => {
+  const results = session.sheet.map((cur, i) => {
     session.current = cur;
     const pick = picks[i] ?? null;
     const oogiri = pick && typeof pick === 'object' ? String(pick.oogiri ?? '').trim().slice(0, OOGIRI_MAX_LENGTH) : '';
@@ -148,6 +166,39 @@ export function gradeTest(state, session, picks, ctx) {
     if (oogiri) Object.assign(r, { timeout: false, oogiri });
     return Object.assign(r, { question: cur.question, choices: cur.choices, chosen });
   });
+  session.periodic = null;
+  if (results.length && results.every((r) => r.correct) && advisorActive(state, ctx, 'teacher_junior')) {
+    const n = ctx.balance.advisor.periodicTestProgress;
+    const g = genreState(state, session.genre);
+    let levelUp = null;
+    for (let i = 0; i < n; i++) levelUp = addProgress(state, session.genre, ctx) || levelUp;
+    session.periodic = { genre: session.genre, progress: n, levelUp, capped: g.level >= proficiencyCap(state, ctx.balance) && !levelUp };
+  }
+  return results;
+}
+
+/** 熟練の進みを1問分進める（上限の Lv なら進まない）。Lv が上がったら { genre, level } を返す */
+function addProgress(state, genre, ctx) {
+  const g = genreState(state, genre);
+  if (g.level >= proficiencyCap(state, ctx.balance)) return null;
+  g.progress++;
+  if (g.progress < ctx.balance.quiz.correctPerProficiencyLevel) return null;
+  g.progress = 0;
+  g.level++;
+  return { genre, level: g.level };
+}
+
+/**
+ * 学会の査読者（研究室の顧問）の要出典：問題を出したとき、口を挟んでいる魔物がいれば、その魔物が混ぜた俗説の選択肢（誤答1）に
+ * 印（choice.cited）を付ける。眠るまでに balance.advisor.citationsPerSleep 回まで（眠ると戻る）。付けたら current.citedBy に名前
+ */
+function citeMyth(state, cur, ctx) {
+  if (!advisorActive(state, ctx, 'reviewer') || citationsLeft(state, ctx) <= 0 || !interferingEnemy(state, cur.question, ctx)) return;
+  const myth = cur.choices.find((c) => c.kind === 'myth');
+  if (!myth) return;
+  myth.cited = true;
+  cur.citedBy = (ctx.monsters.find((m) => m.id === 'reviewer') || {}).name || '';
+  state.citationsUsed = (state.citationsUsed || 0) + 1;
 }
 
 /**
@@ -253,16 +304,12 @@ export function answer(state, session, choiceIndex, ctx) {
   if (correct) {
     g.correct++;
     k.totalCorrect++;
-    if (g.level < proficiencyCap(state, ctx.balance)) {
-      g.progress++;
-      if (g.progress >= qb.correctPerProficiencyLevel) {
-        g.progress = 0;
-        g.level++;
-        res.levelUp = { genre: q.genre, level: g.level };
-      }
-    }
+    res.levelUp = addProgress(state, q.genre, ctx);
     const ri = k.review.indexOf(q.id);
     if (ri >= 0) k.review.splice(ri, 1);
+    // 破りすてた問題も、正解すると補習から外れる
+    const ti = k.torn.indexOf(q.id);
+    if (ti >= 0) { k.torn.splice(ti, 1); res.untorn = true; }
     if (relatedMonster && raiseZukan(state, relatedMonster.id, 2, events)) res.zukan.push({ monsterId: relatedMonster.id, stage: 2 });
 
     // 中ボスの防御は累計の正解数で崩れる（出てくる前の正解も数える）

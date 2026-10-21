@@ -2,7 +2,7 @@
 import {
   createState, startGame, tick, clockFrame, createClock, HOURS_PER_YEAR,
   createRateTracker, trackTime, trackGain, sleepAtBed, stageFor, fitParty, lifespanFor, generationMultiplier, heroStats, forgetPastLifeBosses,
-  launchRocket, returnToEarth,
+  launchRocket, returnToEarth, ADVISOR_PLACES,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
 import { forgetMissingQuestions } from './quiz.js';
@@ -335,7 +335,12 @@ async function boot() {
       else if (e.type === 'allySunk') notify(`${e.name}が塵に沈んで動けない！`, 'bad');
       else if (e.type === 'alliesFreed') notify(`${e.names.join('・')}が塵から出てきた`, 'good');
       else if (e.type === 'moonCleared') notify(e.first ? `月面を踏破した！　称号「${e.title}」を手に入れた\n図鑑に「${e.page}」の頁が開いた` : `月面をまた踏破した！`, 'good');
-      else if (e.type === 'allyJoined') notify(e.benched ? `${e.name}が仲間になった！\nパーティーがいっぱいなので控えにいる（仲間が集まる場所で入れ替えられる）` : `${e.name}が仲間になった！`, 'good');
+      else if (e.type === 'allyJoined') {
+        // 顧問にもできる中ボスなら、置く場所と役目も知らせる
+        const adv = (ctx.monsters.find((m) => m.id === e.id) || {}).advisor;
+        const tip = adv && !adv.soon ? `\n${ADVISOR_PLACES[adv.place]}の顧問（${adv.role}）にもできる` : '';
+        notify((e.benched ? `${e.name}が仲間になった！\nパーティーがいっぱいなので控えにいる（仲間が集まる場所で入れ替えられる）` : `${e.name}が仲間になった！`) + tip, 'good');
+      }
       else if (e.type === 'titleGained') notify(`称号「${e.title}」を手に入れた！`, 'good');
       else if (e.type === 'contractEnded') notify(`ゴールドが足りず、${e.name}との契約が切れた`, 'bad');
       else if (e.type === 'fieldUnlocked') found.push(e);
@@ -351,8 +356,8 @@ async function boot() {
     if (met.length) notify(`図鑑に載った：${met.join('・')}`);
     // 学際分野の解放（前のセーブで、もう条件を満たしていたときは一度にいくつも来る）
     if (found.length === 1 && found[0].hidden) notify(`隠しの学際分野「${found[0].name}」を見つけた！\n称号「${found[0].title}」を手に入れた`, 'good');
-    else if (found.length === 1) notify(`学際分野「${found[0].name}」を解放した！（${found[0].genres.join('＋')}）\n称号「${found[0].title}」を手に入れた。街の「専攻の付け替え」で専攻にすると効果が出る`, 'good');
-    else if (found.length) notify(`学際分野を解放した：${found.map((e) => e.name).join('・')}\n称号も手に入れた。街の「専攻の付け替え」で専攻にすると効果が出る`, 'good');
+    else if (found.length === 1) notify(`学際分野「${found[0].name}」を解放した！（${found[0].genres.join('＋')}）\n称号「${found[0].title}」を手に入れた。街の「学校・研究室」で専攻にすると効果が出る`, 'good');
+    else if (found.length) notify(`学際分野を解放した：${found.map((e) => e.name).join('・')}\n称号も手に入れた。街の「学校・研究室」で専攻にすると効果が出る`, 'good');
   }
 
   /* ---------- セーブ ---------- */
