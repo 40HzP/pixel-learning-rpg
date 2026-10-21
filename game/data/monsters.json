@@ -993,7 +993,6 @@
       "overturnedBy": "アポロの月の石をうまく説明できず、巨大衝突説（ジャイアント・インパクト説）が有力になった",
       "debated": false,
       "minions": ["hanarenaitsuki", "jitenshinai"],
-      "stats": { "hp": 75000000, "atk": 2250000, "def": 3000000, "exp": 5060, "gold": 5060 },
       "gimmick": "split",
       "gimmickNote": "HPが半分になると、地球と月の2体に分かれる。片方だけ倒すと、もう片方に吸収されて元に戻る。両方をほぼ同時に倒す",
       "clear": {

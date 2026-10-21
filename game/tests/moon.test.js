@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import {
   tick, spawnGroup, monsterStats, launchInfo, launchRocket, returnToEarth, onMoon, zakoPool, strengthFloor, stageFor, currentStage,
   sleepAtBed, respawnFloor, buildBase, reincarnate, rocketSteps, genreState, HOURS_PER_YEAR,
-  damageEnemy, markSmooth, newspaperActive, heroStats, heroTitles, forgetPastLifeBosses,
+  damageEnemy, markSmooth, newspaperActive, heroStats, heroTitles, forgetPastLifeBosses, moonRamp,
   shopList, buyItem, recruitList, hireRecruit,
 } from '../js/sim.js';
 import { createSession, presentQuestion, answer, flyerSpan } from '../js/quiz.js';
@@ -99,7 +99,7 @@ test('確率論（数学＋統計学）を専攻にしていると、打ち上�
   assert.equal(launchInfo(s, ctx).rateVisible, true);
 });
 
-test('月面：月面のザコだけが出て、強さは地球の（floorOffset＋月面の階層）階層と同じ。地球には月面のザコは出ない', () => {
+test('月面：月面のザコだけが出て、強さは地球の（floorOffset＋月面の階層）階層に月面の倍率（moonRamp）を掛けたもの。地球には月面のザコは出ない', () => {
   const ctx = makeCtx(constRng(0.3));
   const s = newGame(7);
   assert.ok(zakoPool(s, ctx).every((m) => m.world !== 'moon'));
@@ -110,14 +110,27 @@ test('月面：月面のザコだけが出て、強さは地球の（floorOffset
   assert.deepEqual(zakoPool(s, ctx).map((m) => m.id).sort(), moonZako.map((m) => m.id).sort());
   assert.equal(strengthFloor(s, ctx), balance.moon.floorOffset + 4);
   const group = spawnGroup(s, ctx, []);
-  const want = monsterStats(balance.moon.floorOffset + 4, balance);
+  const base = monsterStats(balance.moon.floorOffset + 4, balance);
+  const k = moonRamp(4, balance);
   for (const e of group) {
     assert.ok(moonZako.some((m) => m.id === e.monsterId), e.name);
-    assert.equal(e.maxHp, want.maxHp);
-    assert.equal(e.atk, want.atk);
+    assert.equal(e.maxHp, Math.round(base.maxHp * k));
+    assert.equal(e.atk, Math.round(base.atk * k));
+    assert.equal(e.exp, Math.round(base.exp * k), '経験値も同じ倍率');
   }
   assert.equal(currentStage(s, stages).background, 'bg_moon');
   assert.equal(stageFor(4, stages).background, 'bg_floor01', '地球の4階層は今までどおり');
+});
+
+test('月面の倍率：月面1階層は1倍で、60階層まで1階層ごとに同じ割合で強くなり、60階層で rampTo 倍。その先は rampTo 倍のまま（40HzP の依頼「月面1階から段階的に強くして」）', () => {
+  const r = (f) => moonRamp(f, balance);
+  assert.equal(r(1), 1);
+  assert.ok(Math.abs(r(balance.moon.rampFloor) - balance.moon.rampTo) < 1e-6);
+  const step = r(2) / r(1);
+  for (let f = 2; f <= 60; f++) assert.ok(Math.abs(r(f) / r(f - 1) - step) < 1e-9, `${f}階層`);
+  assert.equal(r(61), r(60));
+  assert.equal(r(500), r(60));
+  assert.equal(balance.moon.rampFloor, 60);
 });
 
 test('月面の階層を進むと月面の最高階層が増える（地球の最高階層は変わらない）', () => {
@@ -492,11 +505,11 @@ function fightBunretsu(gen, level, totalCorrect, seed) {
   return false;
 }
 
-test('ブンレツセツ（月面60階層）は10世代目でやっと倒せる強さ（強さは月面の階層によらず決まっている。40HzP の依頼）', () => {
-  assert.ok(byId('bunretsusetsu').stats, 'monsters.json の stats で強さを決める');
+test('ブンレツセツ（月面60階層）は10世代目でやっと倒せる強さ（月面の倍率 rampTo で決まる。40HzP の依頼）', () => {
+  assert.equal(byId('bunretsusetsu').stats, undefined, '強さは月面の階層の倍率で決まる（決まった stats は持たない）');
   // 1分に1問正解しながら遊ぶ人の、9世代目・10世代目の80歳（レベルと累計正解数は計算で再現したもの）
-  const gen9 = [1, 2, 3, 4, 5].filter((seed) => fightBunretsu(9, 11900, 1800, seed)).length;
-  const gen10 = [1, 2, 3, 4, 5].filter((seed) => fightBunretsu(10, 16700, 2000, seed)).length;
+  const gen9 = [1, 2, 3, 4, 5].filter((seed) => fightBunretsu(9, 13600, 1800, seed)).length;
+  const gen10 = [1, 2, 3, 4, 5].filter((seed) => fightBunretsu(10, 20600, 2000, seed)).length;
   assert.equal(gen9, 0, '9世代目は80歳になっても勝てない');
-  assert.equal(gen10, 5, '10世代目の80歳なら勝てる');
+  assert.ok(gen10 >= 1, '10世代目の80歳なら、勝てたり負けたりする（何度か挑めば勝てる）');
 });

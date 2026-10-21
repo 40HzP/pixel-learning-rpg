@@ -382,6 +382,25 @@ export const onMoon = (state) => state.adventure.world === 'moon';
  */
 export const strengthFloor = (state, ctx) => state.adventure.floor + (onMoon(state) ? ctx.balance.moon.floorOffset : 0);
 
+/**
+ * 月面の強さの倍率（40HzP の依頼「月面1階から段階的に強くして」）：月面1階層は1倍で、月面 moon.rampFloor（60）階層まで
+ * 階層ごとに同じ割合で増え、rampFloor で moon.rampTo 倍になる。その先は rampTo 倍のまま（地球と同じく1階層ごとに少しずつ強くなる）。
+ * 主人公は世代ごとに掛け算で強くなるので、月面も掛け算で強くして、何世代もかけて登る階層にした（60階層は10世代目でやっと越えられる）
+ */
+export function moonRamp(floor, balance) {
+  const m = balance.moon;
+  const f = Math.min(Math.max(floor, 1), m.rampFloor);
+  return m.rampTo ** ((f - 1) / (m.rampFloor - 1));
+}
+
+/** 今いる階層の敵（ザコ）の数値。月面は地球の（floorOffset＋階層）の数値に、HP・攻撃・防御・経験値・ゴールドとも moonRamp を掛ける */
+export function floorStats(state, ctx) {
+  const s = monsterStats(strengthFloor(state, ctx), ctx.balance);
+  if (!onMoon(state)) return s;
+  const k = moonRamp(state.adventure.floor, ctx.balance);
+  return Object.fromEntries(Object.entries(s).map(([key, v]) => [key, key === 'def' ? Math.round(v * k) : Math.max(1, Math.round(v * k))]));
+}
+
 /** 今いる世界に出るザコ（月面には月面のザコだけ、地球には地球のザコだけが出る） */
 export const zakoPool = (state, ctx) => ctx.monsters.filter((m) => m.kind === 'monster' && worldOf(m) === (state.adventure.world || 'earth'));
 
@@ -486,7 +505,7 @@ function absorbParts(state, dt, ctx, events) {
 }
 
 function makeEnemy(monster, state, ctx, slot) {
-  const s = monsterStats(strengthFloor(state, ctx), ctx.balance);
+  const s = floorStats(state, ctx);
   const e = {
     uid: state.adventure.nextUid++, slot,
     monsterId: monster.id, name: monster.name, kind: monster.kind,
