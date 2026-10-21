@@ -49,6 +49,7 @@ export function createState(balance) {
       fields: {},                                   // 解放した学際分野：学際分野id → { at, generation, dormant }（fields.js）
       majors: [null, null],                         // 主専攻・副専攻（学際分野id）
       moonCleared: false,                           // 月面を踏破した（月面の最後のボスを倒した。称号と図鑑の頁が残る）
+      authorGenres: [],                             // 作問権のあるジャンル（2つのジャンルを Lv5 にするともらえる。一度もらうと熟練が下がっても残る）
     },
     midbosses: {},                                  // 中ボスid → { status: waiting|appeared|broken|defeated, announced }
     bosses: {},                                     // ボスid → { status: waiting|appeared|defeated }（一度倒したボスは、その人生ではもう出ない。生まれ変わるとまた出る）
@@ -712,6 +713,7 @@ export function tick(state, dt, ctx) {
   earnCompany(state, dt, ctx);
   settleTaxes(state, ctx, events);
   updateFields(state, ctx, events);
+  updateAuthorRights(state, ctx, events);
   advanceRocket(state, dt, ctx, events);
   announceMidbosses(state, ctx, events);
   breakMidbosses(state, ctx, events);
@@ -1100,6 +1102,34 @@ export function fitParty(state, ctx) {
     over--;
   }
   return moved;
+}
+
+/* ================= 作問権 ================= */
+
+/**
+ * 作問権（設計ページ「作問権（いずれか2ジャンルをLv5）：そのジャンルの作問申請ができる。腕のある人だけが投稿するので審査の負担も減る」）。
+ * 熟練が balance.authoring.rightsLevel（5）以上のジャンルが rightsGenres（2）つそろうと作問権がもらえ、Lv5 以上のジャンルの問題を作って送れる。
+ * そのあと Lv5 に届いたジャンルも足していく。一度もらったジャンルは、睡眠で熟練が下がっても残る（knowledge なので生まれ変わっても残る）。
+ * 新しくもらったら authorRights（first：はじめての作問権）
+ */
+export function updateAuthorRights(state, ctx, events) {
+  const a = ctx.balance.authoring;
+  const k = state.knowledge;
+  const high = GENRES.filter((g) => (k.genres[g] || { level: 0 }).level >= a.rightsLevel);
+  const first = k.authorGenres.length === 0;
+  if (first && high.length < a.rightsGenres) return;
+  const added = high.filter((g) => !k.authorGenres.includes(g));
+  if (!added.length) return;
+  k.authorGenres.push(...added);
+  events.push({ type: 'authorRights', genres: added, first });
+}
+
+/** 作問権の進み具合：持っているか・作問できるジャンル・熟練の高いジャンル（作問権がまだ無いときの目安） */
+export function authorRightsInfo(state, ctx) {
+  const a = ctx.balance.authoring;
+  const k = state.knowledge;
+  const levels = GENRES.map((g) => ({ genre: g, level: (k.genres[g] || { level: 0 }).level })).filter((x) => x.level > 0).sort((x, y) => y.level - x.level);
+  return { granted: k.authorGenres.length > 0, genres: [...k.authorGenres], need: a.rightsGenres, level: a.rightsLevel, reached: levels.filter((x) => x.level >= a.rightsLevel).length, top: levels.slice(0, 5) };
 }
 
 /* ================= 顧問（仲間にした中ボス） ================= */

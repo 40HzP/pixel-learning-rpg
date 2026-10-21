@@ -345,6 +345,9 @@ async function boot() {
       else if (e.type === 'allySunk') notify(`${e.name}が塵に沈んで動けない！`, 'bad');
       else if (e.type === 'alliesFreed') notify(`${e.names.join('・')}が塵から出てきた`, 'good');
       else if (e.type === 'moonCleared') notify(e.first ? `月面を踏破した！　称号「${e.title}」を手に入れた\n図鑑に「${e.page}」の頁が開いた` : `月面をまた踏破した！`, 'good');
+      else if (e.type === 'authorRights') {
+        notify(e.first ? `作問権を手に入れた！\n${e.genres.join('・')}の問題を作って送れる（勉強の「作問」から）` : `作問できるジャンルが増えた：${e.genres.join('・')}`, 'good');
+      }
       else if (e.type === 'taxPaid') {
         // 決算（法人化した会社の法人税）
         const lines = [`決算：法人税 ${fmt(e.tax)}G を納めた（今年の法人の利益 ${fmt(e.earned)}G）`];

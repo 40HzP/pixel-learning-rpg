@@ -1,6 +1,6 @@
 // 勉強画面（設計ページ「勉強画面の表示」）
 import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH, flyerSpan, recordTorn, remedialOpen, adoptedQuestions } from '../quiz.js';
-import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap, ageYears, newspaperActive } from '../sim.js';
+import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap, ageYears, newspaperActive, authorRightsInfo } from '../sim.js';
 import { fieldById, fieldActive } from '../fields.js';
 import { GENRES } from '../genres.js';
 import { spriteCanvas } from '../sprites.js';
@@ -111,7 +111,9 @@ function renderMenu(app) {
         : null,
       // 作問：問題を作って送る（Notion のフォーム）。採用された自分の問題もここで見る
       el('button', { onclick: () => { view.phase = 'compose'; renderBody(app); scrollTop(); } },
-        '作問', el('small', {}, `問題を作って送る${adoptedQuestions(app.state, app.ctx).length ? `・採用 ${adoptedQuestions(app.state, app.ctx).length}問` : ''}`))),
+        '作問', el('small', {}, authorRightsInfo(app.state, app.ctx).granted
+          ? `問題を作って送る${adoptedQuestions(app.state, app.ctx).length ? `・採用 ${adoptedQuestions(app.state, app.ctx).length}問` : ''}`
+          : `作問権：どれか${app.ctx.balance.authoring.rightsGenres}つのジャンルを Lv${app.ctx.balance.authoring.rightsLevel} に`))),
     el('div', { class: 'prof-list' },
       el('span', { class: 'head' }, 'ジャンル'), el('span', { class: 'head' }, '熟練'), el('span', { class: 'head' }, '次のLvまで'),
       prof.flatMap((g) => {
@@ -460,12 +462,41 @@ function renderSummary(app) {
 /* ---------- 作問（問題を作って送る。40HzP の依頼） ---------- */
 /**
  * 作問：Notion の「作問の受付」のフォーム（data/submit.json の formUrl）を開いて問題を送る。ゲームは通信しない（ブラウザで別のページを開くだけ）。
- * フォームに作問者コードを書いてもらい、採用された問題（questions.json の author.code が同じもの）をここに並べる
+ * フォームに作問者コードを書いてもらい、採用された問題（questions.json の author.code が同じもの）をここに並べる。
+ * 作問権（どれか2つのジャンルを Lv5）が無いうちは、フォームを開けず、作問権までの進み具合だけを出す
  */
+/** 作問の画面を作り直す目印（作問権をもらった・作問できるジャンルが増えた） */
+const composeKey = (app) => app.state.knowledge.authorGenres.join(',');
+
 function renderCompose(app) {
+  view.composeKey = composeKey(app);
   const code = app.state.legacy.author.code;
   const sub = app.submit || {};
   const adopted = adoptedQuestions(app.state, app.ctx);
+  const rights = authorRightsInfo(app.state, app.ctx);
+  const back = el('div', { class: 'btnrow' }, el('button', { onclick: () => { view.phase = 'menu'; renderBody(app); } }, 'メニューへ'));
+  const adoptedList = [
+    el('h3', { class: 'subhead' }, `採用されたあなたの問題（${adopted.length}問）`),
+    adopted.length
+      ? el('div', { class: 'list' }, adopted.map((q) => el('div', { class: 'item' },
+        el('div', { class: 'name' }, q.question, el('small', {}, `${q.genre}　${stars(q.difficulty)}　正解：${q.answer}`)))))
+      : el('div', { class: 'muted' }, 'まだありません'),
+  ];
+  if (!rights.granted) {
+    refs.body.replaceChildren(
+      el('div', { class: 'compose' },
+        el('h3', { class: 'subhead' }, '作問（問題を作って送る）'),
+        el('p', {}, `自分で作った問題を送るには「作問権」が要ります。どれか${rights.need}つのジャンルの熟練を Lv${rights.level} にすると、そのジャンルの問題を作って送れるようになります（腕のある人の問題だけが届くように）。`),
+        el('div', { class: 'author-code' }, `熟練 Lv${rights.level} のジャンル `, el('b', {}, `${rights.reached}/${rights.need}`)),
+        rights.top.length
+          ? el('p', { class: 'muted' }, `熟練の高いジャンル：${rights.top.map((x) => `${x.genre} Lv${x.level}`).join('・')}`)
+          : el('p', { class: 'muted' }, 'まだ熟練の上がったジャンルがない。テストで1つのジャンルを続けて解くと上がりやすい'),
+        el('div', { class: 'btnrow' }, el('button', { disabled: true }, '作問権がまだ無い')),
+        ...(adopted.length ? adoptedList : []),
+        back),
+    );
+    return;
+  }
   const copy = () => {
     try { navigator.clipboard.writeText(code).then(() => app.notify(`作問者コード ${code} をコピーした`), () => {}); } catch (e) { /* コピーできない環境では手で写す */ }
   };
@@ -476,18 +507,15 @@ function renderCompose(app) {
     el('div', { class: 'compose' },
       el('h3', { class: 'subhead' }, '作問（問題を作って送る）'),
       el('p', {}, '自分で作った問題を送れます。チェックして採用された問題は、ゲームに入ります（手直しして使うことがあります。採用されないこともあります）。'),
+      el('div', { class: 'rights' }, el('b', {}, '作問権'), `：${rights.genres.join('・')}（フォームの「メインジャンル」は、このどれかにしてください）`),
       el('div', { class: 'author-code' }, '作問者コード ', el('b', {}, code), el('button', { onclick: copy }, 'コピー')),
       el('p', { class: 'muted' }, 'フォームの「作問者コード」にこのコードを書くと、採用されたときにゲームで知らせます。「ペンネーム」を書くと、問題の解説に「作問：ペンネーム」と出ます。本名や連絡先は書かないでください。'),
       el('div', { class: 'compose-fields' },
         el('div', {}, el('b', {}, '必ず書くこと：'), (sub.required || []).join('・')),
         el('div', {}, el('b', {}, '書かなくてもよいこと：'), (sub.optional || []).join('・'))),
       el('div', { class: 'btnrow' }, open),
-      el('h3', { class: 'subhead' }, `採用されたあなたの問題（${adopted.length}問）`),
-      adopted.length
-        ? el('div', { class: 'list' }, adopted.map((q) => el('div', { class: 'item' },
-          el('div', { class: 'name' }, q.question, el('small', {}, `${q.genre}　${stars(q.difficulty)}　正解：${q.answer}`)))))
-        : el('div', { class: 'muted' }, 'まだありません'),
-      el('div', { class: 'btnrow' }, el('button', { onclick: () => { view.phase = 'menu'; renderBody(app); } }, 'メニューへ'))),
+      ...adoptedList,
+      back),
   );
 }
 
@@ -531,6 +559,7 @@ export function update(app, force) {
     return;
   }
   if (view.phase === 'sheet') refreshSheetMeta(app);
+  if (view.phase === 'compose' && composeKey(app) !== view.composeKey) renderBody(app);
   if (view.phase === 'question') {
     // 干渉中の魔物は、戦っている敵が変わると変わる
     if (interferenceKey(app, view.session.current.question) !== view.interferingId) {

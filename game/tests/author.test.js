@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { makeAuthorCode, ensureAuthorCode, adoptedQuestions, takeNewAdoptions } from '../js/quiz.js';
-import { reincarnate } from '../js/sim.js';
+import { reincarnate, updateAuthorRights, authorRightsInfo, genreState, tick } from '../js/sim.js';
 import { GENRES } from '../js/genres.js';
 import { serialize, deserialize } from '../js/save.js';
 import { balance, questions, makeCtx, newGame, seededRng } from './helpers.js';
@@ -54,4 +54,41 @@ test('問題ジャンルは設計ページの38個（都市計画・気象学・
   assert.equal(GENRES.length, 38);
   for (const g of ['都市計画', '気象学', '哲学', '美術', '考古学']) assert.ok(GENRES.includes(g), g);
   assert.equal(new Set(GENRES).size, GENRES.length);
+});
+
+test('作問権：どれか2つのジャンルの熟練を Lv5 にするともらえ、Lv5 のジャンルの問題を送れる。あとから Lv5 になったジャンルも足す。熟練が下がっても、生まれ変わっても残る', () => {
+  const ctx = makeCtx();
+  const s = newGame(7);
+  const lv = balance.authoring.rightsLevel;
+  assert.equal(balance.authoring.rightsGenres, 2);
+  assert.equal(lv, 5);
+  let ev = [];
+  genreState(s, '物理').level = lv;
+  updateAuthorRights(s, ctx, ev);
+  assert.deepEqual(ev, [], '1つだけでは、まだ');
+  assert.equal(authorRightsInfo(s, ctx).granted, false);
+  assert.equal(authorRightsInfo(s, ctx).reached, 1);
+  genreState(s, '数学').level = lv;
+  ev = tick(s, 0.1, ctx).filter((e) => e.type === 'authorRights');
+  assert.equal(ev.length, 1, '時間が進むと（tick）作問権を手に入れる');
+  assert.equal(ev[0].first, true);
+  assert.deepEqual([...ev[0].genres].sort(), ['数学', '物理'].sort());
+  assert.deepEqual(authorRightsInfo(s, ctx).genres.sort(), ['数学', '物理'].sort());
+  // あとから Lv5 になったジャンルも足す
+  genreState(s, '化学').level = lv;
+  ev = [];
+  updateAuthorRights(s, ctx, ev);
+  assert.deepEqual(ev, [{ type: 'authorRights', genres: ['化学'], first: false }]);
+  // 熟練が下がっても残る
+  genreState(s, '物理').level = 2;
+  ev = [];
+  updateAuthorRights(s, ctx, ev);
+  assert.deepEqual(ev, []);
+  assert.ok(authorRightsInfo(s, ctx).genres.includes('物理'));
+  reincarnate(s, ctx);
+  assert.deepEqual(s.knowledge.authorGenres.sort(), ['化学', '数学', '物理'].sort());
+  // 前のセーブ（作問権の項目が無い）も読める
+  const old = JSON.parse(serialize(newGame(7)));
+  delete old.state.knowledge.authorGenres;
+  assert.deepEqual(deserialize(JSON.stringify(old), balance).knowledge.authorGenres, []);
 });

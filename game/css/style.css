@@ -210,6 +210,8 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .author-code { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--panel); border: 2px solid var(--line); padding: 6px 10px; margin: 8px 0; }
 .author-code b { font-size: 20px; letter-spacing: 2px; color: var(--accent); }
 .author-code button { padding: 4px 10px; font-size: 14px; }
+.rights { font-size: 14px; background: var(--panel); border: 2px solid var(--good); padding: 6px 10px; margin: 8px 0; }
+.rights b { color: var(--good); }
 .compose-fields { font-size: 13px; display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
 .compose .item .name { font-size: 14px; line-height: 1.4; }
 .cite { display: inline-block; margin-left: 6px; padding: 0 4px; font-size: 12px; line-height: 1.5; color: #fff; background: var(--bad); vertical-align: middle; }

@@ -55,5 +55,6 @@
   "nande": { "firstSec": 3, "intervalSec": 10, "wrongHealRatio": 0.1 },
   "advisor": { "slots": { "school": 1, "lab": 1, "company": 1, "rocket": 1 }, "citationsPerSleep": 3, "periodicTestProgress": 1, "hrStaffBonus": 0.25, "rocketSubsidy": 0.1, "taxCut": 0.5 },
   "corporation": { "profitBonus": 0.5, "taxRate": 0.3 },
+  "authoring": { "rightsLevel": 5, "rightsGenres": 2 },
   "rateWindowSec": 60
 }
