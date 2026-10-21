@@ -1,7 +1,7 @@
 // game/data/questions.json を検査する。  node tools/check-questions.mjs
 // 誤り（止める）：選択肢がそろっていない・重複・ジャンルが設計ページの問題ジャンル（genres.js）以外・難易度が1〜5以外・idの重複
 // 警告（止めない）：関連する魔物が monsters.json に無い・サブジャンルが問題ジャンル以外・作問者コードの形がちがう
-// 作問（ユーザーの問題）から採用した問題は author: { code: 作問者コード, name: ペンネームか null } を持つ（無い問題は author が無いか null）
+// 作問（ユーザーの問題）から採用した問題は author: { code: 作問者コードか null, name: ペンネームか null } を持つ（どちらかはある。無い問題は author が無いか null）
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { GENRES } from '../game/js/genres.js';
@@ -41,9 +41,9 @@ for (const [i, q] of questions.entries()) {
   if (!Number.isInteger(q.difficulty) || q.difficulty < 1 || q.difficulty > 5) errors.push(`${label}: 難易度 ${q.difficulty} は1〜5ではありません`);
   if (q.monster != null && !monsterNames.has(q.monster)) warnings.push(`${label}: 関連する魔物「${q.monster}」が monsters.json にありません`);
   if (q.author != null) {
-    if (typeof q.author !== 'object' || !nonEmpty(q.author.code)) errors.push(`${label}: author には作問者コード（code）が要ります`);
-    else if (!/^[0-9A-Z]{4}-?[0-9A-Z]{4}$/.test(q.author.code.trim().toUpperCase())) warnings.push(`${label}: 作問者コード「${q.author.code}」の形がちがいます（例：K7Q2-9MXP）。作問者に採用が知らされません`);
-    if (q.author && q.author.name != null && typeof q.author.name !== 'string') errors.push(`${label}: author.name は文字か null`);
+    if (typeof q.author !== 'object' || (!nonEmpty(q.author.code) && !nonEmpty(q.author.name))) errors.push(`${label}: author には作問者コード（code）かペンネーム（name）が要ります`);
+    else if (nonEmpty(q.author.code) && !/^[0-9A-Z]{4}-?[0-9A-Z]{4}$/.test(q.author.code.trim().toUpperCase())) warnings.push(`${label}: 作問者コード「${q.author.code}」の形がちがいます（例：K7Q2-9MXP）。作問者に採用が知らされません`);
+    for (const key of ['code', 'name']) if (q.author && q.author[key] != null && typeof q.author[key] !== 'string') errors.push(`${label}: author.${key} は文字か null`);
   }
 
   byGenre[q.genre] = (byGenre[q.genre] || 0) + 1;

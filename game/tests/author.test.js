@@ -32,6 +32,9 @@ test('採用された問題：questions.json の author.code が作問者コー�
   // コードが無ければ、どの問題も自分のものではない
   const t = newGame(7);
   assert.deepEqual(adoptedQuestions(t, ctx), []);
+  // ペンネームだけで作問者コードの無い問題は、だれの問題でもない（解説に名前だけ出る）
+  const anon = { ...makeCtx(), questions: [{ ...questions[0], author: { code: null, name: '名前だけ' } }] };
+  assert.deepEqual(adoptedQuestions(s, anon), []);
 });
 
 test('作問者コードと知らせた問題はセーブに残る。前のセーブも読める', () => {
