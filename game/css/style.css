@@ -349,6 +349,8 @@ button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 .item.field.on { border-color: var(--good); }
 .item.on { border-color: var(--good); }
 .item.field.guided { opacity: .85; border-style: dashed; border-color: var(--good); }
+.tax-box { font-size: 13px; color: var(--muted); margin: 4px 0 8px; }
+.company.corp { border-color: var(--accent); }
 .prep { background: var(--panel); border: 2px dashed var(--accent); padding: 6px 10px; margin: 10px 0 4px; font-size: 14px; }
 .field-group { font-size: 13px; margin: 10px 0 4px; }
 .outlook { font-size: 13px; background: var(--panel2); padding: 4px 6px; line-height: 1.5; }

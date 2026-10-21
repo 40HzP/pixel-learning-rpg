@@ -335,6 +335,13 @@ async function boot() {
       else if (e.type === 'allySunk') notify(`${e.name}が塵に沈んで動けない！`, 'bad');
       else if (e.type === 'alliesFreed') notify(`${e.names.join('・')}が塵から出てきた`, 'good');
       else if (e.type === 'moonCleared') notify(e.first ? `月面を踏破した！　称号「${e.title}」を手に入れた\n図鑑に「${e.page}」の頁が開いた` : `月面をまた踏破した！`, 'good');
+      else if (e.type === 'taxPaid') {
+        // 決算（法人化した会社の法人税）
+        const lines = [`決算：法人税 ${fmt(e.tax)}G を納めた（今年の法人の利益 ${fmt(e.earned)}G）`];
+        if (e.saved > 0) lines.push(`税務調査官のおかげで ${fmt(e.saved)}G 安くなった`);
+        if (e.owed > 0) lines.push(`${fmt(e.owed)}G 足りなかった。このあとの会社の利益から払う`);
+        notify(lines.join('\n'), e.owed > 0 ? 'bad' : '');
+      }
       else if (e.type === 'allyJoined') {
         // 顧問にもできる中ボスなら、置く場所と役目も知らせる
         const adv = (ctx.monsters.find((m) => m.id === e.id) || {}).advisor;

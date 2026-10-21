@@ -10,6 +10,7 @@ import {
   hireStaff, dismissStaff, bestStaffGrade, staffCost, staffBonus, buildBase, baseActive,
   lifespanOf, treatmentInfo, receiveTreatment, onMoon, launchInfo,
   ADVISOR_PLACES, advisorDef, advisorSlots, advisorsAt, advisorActive, setAdvisor, citationsLeft, rocketBuildCost, hrFactor, nextBoss,
+  canIncorporate, incorporate, corporateTax, LAW_ECONOMICS,
 } from '../sim.js';
 import { fieldList, fieldById, fieldActive, isUnlocked, setMajor, MAJOR_SLOTS } from '../fields.js';
 import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor } from '../sprites.js';
@@ -401,11 +402,23 @@ function companyCard(app, p) {
     return el('div', { class: 'staff-row' }, el('div', { class: 'name' }, ...info), el('div', { class: 'btns' }, btns));
   });
   const genreText = ind.genres.map((g) => `${g} Lv${genreLv(s, g)}`).join('・');
-  return el('div', { class: 'company' },
-    el('div', { class: 'zname' }, ind.name, el('span', { class: 'muted' }, `（${formatDate(c.foundedAt)}に起業）`)),
+  // 法人化（法と経済学）：利益が増えるかわりに、毎年の決算で法人税を払う
+  const law = fieldById(ctx, LAW_ECONOMICS);
+  const corpBtn = c.corp || !canIncorporate(s, ctx) ? null : el('button', {
+    class: 'primary',
+    onclick: () => {
+      if (!confirm(`${ind.name}を法人化しますか？\n利益が${pct(ctx.balance.corporation.profitBonus)}増えるかわりに、毎年の決算で法人税（利益の${pct(ctx.balance.corporation.taxRate)}）を払う。法人化はやめられない`)) return;
+      act(() => incorporate(app.state, c.uid, ctx), () => `${ind.name}を法人化した！（株式会社${ind.name}）`)();
+    },
+  }, '法人化する', el('small', {}, `利益 +${pct(ctx.balance.corporation.profitBonus)}・法人税 ${pct(ctx.balance.corporation.taxRate)}`));
+  return el('div', { class: 'company' + (c.corp ? ' corp' : '') },
+    el('div', { class: 'zname' }, c.corp ? `株式会社${ind.name}` : ind.name, el('span', { class: 'muted' }, `（${formatDate(c.foundedAt)}に起業${c.corp ? `・${formatDate(c.incorporatedAt)}に法人化` : ''}）`)),
     el('div', { class: 'profit' }, '1か月の利益 ', el('b', {}, `${fmt(p.total)}G`)),
-    el('small', {}, `${ind.name}の利益 ${fmt(p.base)}G × 社員 +${pct(p.staffBonus)} × ジャンルの熟練 +${pct(p.genreBonus)}（${genreText}）`),
+    el('small', {}, `${ind.name}の利益 ${fmt(p.base)}G × 社員 +${pct(p.staffBonus)} × ジャンルの熟練 +${pct(p.genreBonus)}（${genreText}）${c.corp ? ` × 法人化 +${pct(p.corpBonus)}` : ''}`),
     hr > 1 ? el('small', { class: 'good' }, `人事（就職面接官）：社員の効果 +${pct(hr - 1)}`) : null,
+    c.corp ? el('small', {}, `法人なので、毎年の決算で法人税（利益の${pct(ctx.balance.corporation.taxRate)}）を払う`)
+      : corpBtn ? el('div', { class: 'btnrow' }, corpBtn)
+        : el('small', {}, `${law.name}（${law.genres.join('＋')}）を専攻にすると法人化できる（利益が増えるかわりに法人税を払う）`),
     el('div', { class: 'staff-list' }, rows),
     el('button', {
       class: 'close-company',
@@ -471,6 +484,7 @@ function companyPanel(app) {
     all.companies.length
       ? el('div', { class: 'profit' }, `会社 ${all.companies.length}社　1か月の利益 合計 `, el('b', {}, `${fmt(all.total)}G`))
       : null,
+    s.companies.some((c) => c.corp) || s.tax.owed > 0 ? (live.tax = el('div', { class: 'tax-box' })) : null,
     note(`社員の質は${biz.staffGenre}の熟練で上がる。今は${biz.staffGenre} Lv${psych}なので「${gradeName(ctx, best)}」まで雇える${next ? `（Lv${next.psychLevel}で「${next.name}」）` : '（いちばん上）'}。優秀な社員ほど利益を増やすが、契約料も高い`),
     ...all.companies.map((p) => companyCard(app, p)),
     ...advisorSection(app, ['company']),
@@ -759,7 +773,7 @@ const PANELS = {
 
 function buildPanel(app) {
   const t = activeTown(app);
-  live = { gold: el('span'), hp: el('b'), mp: el('b'), bed: el('span'), buttons: [], rocket: [], base: null, exam: null };
+  live = { gold: el('span'), hp: el('b'), mp: el('b'), bed: el('span'), buttons: [], rocket: [], base: null, exam: null, tax: null };
   const f = t.facilities.find((x) => x.id === view);
   let title, sprite, body;
   if (view === 'hero') {
@@ -804,7 +818,7 @@ export function update(app, force) {
     return;
   }
   town = null;
-  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched, !!a.advisor]), s.citationsUsed, s.knowledge.torn.length, s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket.buildCostPaid, s.life.generation, s.life.ailing, s.life.treatments,
+  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched, !!a.advisor]), s.citationsUsed, s.knowledge.torn.length, s.tax.owed > 0, s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket.buildCostPaid, s.life.generation, s.life.ailing, s.life.treatments,
     // 学際分野（解放・休眠・専攻・熟練）と拠点・ロケットの工程（進み具合は作り直さずに書き換える）
     fieldList(s, app.ctx).map((f) => [f.unlocked, f.dormant, f.slot, f.levels]), s.adventure.baseFloor, rocketSteps(s, app.ctx).map((st) => [st.done, st.active]), (nextBoss(s, app.ctx) || {}).id]);
   // 名前を入力している途中は作り直さない（入力が消えないように）
@@ -825,6 +839,13 @@ export function update(app, force) {
       r.bar.style.width = `${(st.hours / st.need) * 100}%`;
       r.text.textContent = `${years(st.hours)}／${years(st.need)}`;
     }
+  }
+  if (live.tax) {
+    // 法人税（決算は年齢が1つ上がるとき）。今年の法人の利益で変わるので、作り直さずに書き換える
+    const t = corporateTax(s, app.ctx);
+    const saved = t.saved > 0 ? `（税務調査官の税務顧問で ${fmt(t.saved)}G 安い）` : '';
+    live.tax.textContent = `法人税：今年の法人の利益 ${fmt(s.tax.earned)}G → ${ageYears(s) + 1}歳になったときの決算で 約${fmt(t.tax)}G${saved}`
+      + (s.tax.owed > 0 ? `。払いきれなかった法人税 ${fmt(s.tax.owed)}G を会社の利益から払っている` : '');
   }
   if (live.exam) {
     // 病院の診察（年齢で変わるので、作り直さずに書き換える）

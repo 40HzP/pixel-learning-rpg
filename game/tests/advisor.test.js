@@ -69,7 +69,7 @@ test('顧問に置くとパーティーから外れて戦わない。場所ご�
   assert.equal(s.allies[1].benched, undefined);
 });
 
-test('顧問をやめさせたとき、パーティーがいっぱいなら控えに戻る。契約した仲間と、まだ仕組みのない税務調査官は顧問にならない', () => {
+test('顧問をやめさせたとき、パーティーがいっぱいなら控えに戻る。契約した仲間は顧問にならない。仕組みがまだ無い役目（advisor.soon）は置けない', () => {
   const ctx = makeCtx();
   const s = withAllies(['teacher_high', 'tax_inspector']);
   assert.equal(setAdvisor(s, 'teacher_high', true, ctx).ok, true);
@@ -80,9 +80,12 @@ test('顧問をやめさせたとき、パーティーがいっぱいなら控�
   assert.equal(off.benched, true);
   assert.equal(s.allies[0].benched, true);
   assert.equal(setAdvisor(s, 'warrior', true, ctx).ok, false);
-  const tax = setAdvisor(s, 'tax_inspector', true, ctx);
-  assert.equal(tax.ok, false);
-  assert.match(tax.reason, /法人化/);
+  assert.equal(setAdvisor(s, 'tax_inspector', true, ctx).ok, true, '税務調査官は法人化ができたので置ける');
+  // まだ仕組みが無い役目は置けない（データに soon を書いた場合）
+  const later = { ...ctx, monsters: monsters.map((m) => (m.id === 'teacher_high' ? { ...m, advisor: { ...m.advisor, soon: '○○ができてから' } } : m)) };
+  const soon = setAdvisor(s, 'teacher_high', true, later);
+  assert.equal(soon.ok, false);
+  assert.match(soon.reason, /○○ができてから/);
 });
 
 test('補習（小学校教師・学校）：破りすてたテストの問題を集めて出し、正解すると補習から外れる', () => {

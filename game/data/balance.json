@@ -53,6 +53,7 @@
   "moon": { "floorOffset": 300, "rampFloor": 60, "rampTo": 1700, "smoothDamage": [0.5, 0.75, 1], "splashAgiMultiplier": 0.5, "sinkIntervalSec": 4, "splitAt": 0.5, "absorbSec": 3, "remainsSec": 2.5 },
   "fields": { "unlockLevel": 3, "shopDiscount": 0.2 },
   "nande": { "firstSec": 3, "intervalSec": 10, "wrongHealRatio": 0.1 },
-  "advisor": { "slots": { "school": 1, "lab": 1, "company": 1, "rocket": 1 }, "citationsPerSleep": 3, "periodicTestProgress": 1, "hrStaffBonus": 0.25, "rocketSubsidy": 0.1 },
+  "advisor": { "slots": { "school": 1, "lab": 1, "company": 1, "rocket": 1 }, "citationsPerSleep": 3, "periodicTestProgress": 1, "hrStaffBonus": 0.25, "rocketSubsidy": 0.1, "taxCut": 0.5 },
+  "corporation": { "profitBonus": 0.5, "taxRate": 0.3 },
   "rateWindowSec": 60
 }

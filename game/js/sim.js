@@ -32,8 +32,10 @@ export function createState(balance) {
     owned: [],                                      // 買った品物のid
     allies: [],                                     // 中ボス：{ id, name, atk, maxHp, hp, cd, benched?（控え）, advisor?（顧問） }／契約：{ id, name, hired: true, cd, paidUntil }
     citationsUsed: 0,                               // 学会の査読者（顧問）の「要出典」を、前に眠ってから使った回数
-    companies: [],                                  // 起業した会社：{ uid, industry, foundedAt, staff: [{ id, grade, paidUntil }] }（業種ごとに1社まで）
+    companies: [],                                  // 起業した会社：{ uid, industry, foundedAt, staff: [{ id, grade, paidUntil }], corp?（法人化した）, incorporatedAt? }（業種ごとに1社まで）
     nextCompanyUid: 1,
+    // 法人税（法と経済学で法人化した会社）：今年の法人の利益（決算で税を計算する元）・払いきれなかった法人税・前に決算した年齢
+    tax: { earned: 0, owed: 0, year: 0 },
     // enemies：今出ている群れ（先頭が狙う相手）。baseFloor：拠点（構造工学）。evadeAcc：ためた回避率。
     // world：今いる世界（earth＝地球、moon＝月面）。floor は今いる世界の階層で、もう片方の世界の階層は earthFloor・moonFloor に取っておく
     adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1, baseFloor: null, evadeAcc: 0, world: 'earth', earthFloor: null, moonFloor: 1 },
@@ -156,6 +158,7 @@ export function reincarnate(state, ctx) {
   state.allies = [];
   state.citationsUsed = 0;
   state.companies = [];
+  state.tax = fresh.tax;
   state.adventure = fresh.adventure;
   state.midbosses = {};
   state.bosses = {};
@@ -706,6 +709,7 @@ export function tick(state, dt, ctx) {
   }
   payContracts(state, ctx, events);
   earnCompany(state, dt, ctx);
+  settleTaxes(state, ctx, events);
   updateFields(state, ctx, events);
   advanceRocket(state, dt, ctx, events);
   announceMidbosses(state, ctx, events);
@@ -1339,7 +1343,8 @@ export function dismissStaff(state, uid, id) {
 /**
  * 会社1つの1か月あたりの利益（社員の契約料を引く前）と内訳。
  * 利益＝業種の monthlyProfit ×（1＋社員の staffBonus の合計）×（1＋関係するジャンルの熟練Lvの合計×genreBonusPerLevel）×世代の倍率。
- * 就職面接官を会社の顧問に置いていると、社員の効果が人事の倍率（hrFactor）だけ大きくなる
+ * 就職面接官を会社の顧問に置いていると、社員の効果が人事の倍率（hrFactor）だけ大きくなる。
+ * 法人化した会社（法と経済学）は、さらに ×（1＋balance.corporation.profitBonus）。そのかわり毎年の決算で法人税を払う（settleTaxes）
  */
 export function companyProfit(state, company, ctx) {
   const ind = industryById(ctx, company.industry);
@@ -1354,7 +1359,8 @@ export function companyProfit(state, company, ctx) {
   const genreLevels = ind.genres.reduce((sum, g) => sum + genreLevel(state, g), 0);
   const genreBonus = genreLevels * ctx.business.genreBonusPerLevel;
   const gm = generationMultiplier(state, ctx.balance);
-  return { company, industry: ind, base: ind.monthlyProfit, staff, staffBonus: bonus, genreLevels, genreBonus, generation: gm, total: Math.round(ind.monthlyProfit * (1 + bonus) * (1 + genreBonus) * gm) };
+  const corpBonus = company.corp ? ctx.balance.corporation.profitBonus : 0;
+  return { company, industry: ind, base: ind.monthlyProfit, staff, staffBonus: bonus, genreLevels, genreBonus, corpBonus, generation: gm, total: Math.round(ind.monthlyProfit * (1 + bonus) * (1 + genreBonus) * (1 + corpBonus) * gm) };
 }
 
 /**
@@ -1373,16 +1379,78 @@ export function industryOutlook(state, ind, ctx) {
   return { grade, staff: staff.map((r) => r.name), profit: p.total, cost, net, paybackMonths: net > 0 ? ind.cost / net : null };
 }
 
-/** 全部の会社の利益（1か月あたり）。companies は会社ごとの内訳 */
+/** 全部の会社の利益（1か月あたり）。companies は会社ごとの内訳、corpTotal は法人化した会社の利益の合計 */
 export function companiesProfit(state, ctx) {
   const companies = state.companies.map((c) => companyProfit(state, c, ctx)).filter(Boolean);
-  return { companies, total: companies.reduce((sum, p) => sum + p.total, 0) };
+  return { companies, total: companies.reduce((sum, p) => sum + p.total, 0), corpTotal: companies.reduce((sum, p) => sum + (p.company.corp ? p.total : 0), 0) };
 }
 
-/** 会社の利益は時間がたつと少しずつ入る（1か月で companiesProfit().total） */
+/**
+ * 会社の利益は時間がたつと少しずつ入る（1か月で companiesProfit().total）。
+ * 法人化した会社の利益は、決算で法人税を計算するために今年の分をためておく。払いきれなかった法人税があれば、会社の利益から先に払う
+ */
 function earnCompany(state, dt, ctx) {
   if (!state.companies.length) return;
-  state.gold += companiesProfit(state, ctx).total * (dt * ctx.balance.time.gameHoursPerRealSecond) / HOURS_PER_MONTH;
+  const all = companiesProfit(state, ctx);
+  const months = (dt * ctx.balance.time.gameHoursPerRealSecond) / HOURS_PER_MONTH;
+  let income = all.total * months;
+  state.tax.earned += all.corpTotal * months;
+  if (state.tax.owed > 0) {
+    const pay = Math.min(state.tax.owed, income);
+    state.tax.owed -= pay;
+    income -= pay;
+  }
+  state.gold += income;
+}
+
+/* ---------- 法人化と法人税（法と経済学。設計ページ「会社を法人化できる。収益が上がる代わりに税金イベントが起きる」） ---------- */
+
+export const LAW_ECONOMICS = 'law_economics';
+
+/** 会社を法人化できるか：法と経済学（学際分野）を専攻にしていて休眠していない */
+export const canIncorporate = (state, ctx) => fieldActive(state, ctx, LAW_ECONOMICS);
+
+/**
+ * 会社を法人化する（費用なし・やめられない）。法人化した会社は利益が balance.corporation.profitBonus だけ増え、
+ * 毎年の決算で法人税を払う。法人化したあとで法と経済学を専攻から外しても、法人のまま
+ */
+export function incorporate(state, uid, ctx) {
+  const c = companyByUid(state, uid);
+  if (!c) return { ok: false, reason: '会社がありません' };
+  if (c.corp) return { ok: false, reason: 'もう法人化している' };
+  if (!canIncorporate(state, ctx)) return { ok: false, reason: `${(fieldById(ctx, LAW_ECONOMICS) || {}).name}を専攻にすると法人化できる` };
+  c.corp = true;
+  c.incorporatedAt = state.life.gameHours;
+  return { ok: true };
+}
+
+/**
+ * 法人税：今年の法人の利益（earned）× balance.corporation.taxRate。
+ * 税務調査官を会社の顧問に置いていると、税務顧問として取られる額が balance.advisor.taxCut だけ減る。{ full, tax, saved }
+ */
+export function corporateTax(state, ctx, earned = state.tax.earned) {
+  const full = Math.round(earned * ctx.balance.corporation.taxRate);
+  const cut = advisorActive(state, ctx, 'tax_inspector') ? ctx.balance.advisor.taxCut : 0;
+  const tax = Math.round(full * (1 - cut));
+  return { full, tax, saved: full - tax };
+}
+
+/**
+ * 決算（税金イベント）：年齢が1つ上がるたびに、今年の法人の利益にかかる法人税を払う。
+ * 足りなければ払えるだけ払い、残りは払いきれなかった法人税（tax.owed）として、このあとの会社の利益から先に払う
+ */
+export function settleTaxes(state, ctx, events) {
+  const year = ageYears(state);
+  if (year <= state.tax.year) return;
+  state.tax.year = year;
+  const earned = state.tax.earned;
+  state.tax.earned = 0;
+  if (earned <= 0) return;
+  const { tax, saved } = corporateTax(state, ctx, earned);
+  const paid = Math.min(Math.max(0, state.gold), tax);
+  state.gold -= paid;
+  state.tax.owed += tax - paid;
+  events.push({ type: 'taxPaid', age: year, earned: Math.round(earned), tax, paid, owed: tax - paid, saved });
 }
 
 /* ================= ロケット計画 ================= */
