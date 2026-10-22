@@ -29,6 +29,8 @@
     "correctPerProficiencyLevel": 10,
     "recentAvoid": 5,
     "mythHealRatio": 0.3,
+    "historySize": 10,
+    "favoritesMax": 5,
     "testQuestions": 5,
     "difficultyMixByLevel": [
       [70, 30, 0, 0, 0],

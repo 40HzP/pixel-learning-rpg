@@ -42,7 +42,9 @@ export function createState(balance) {
     knowledge: {                                    // 転生で引き継ぐ前提のもの（第2段階）
       genres: {},                                   // ジャンル名 → { level, progress, correct, studied }
       totalCorrect: 0,
-      review: [],                                   // 過去問復習の問題id
+      review: [],                                   // 間違えたままの問題id（正解すると外れる。心理統計学で見る）
+      history: [],                                  // 過去問復習の「最近解いた問題」：{ id, correct, chosen, oogiri? } の新しい順（正誤を問わず10問まで）
+      favorites: [],                                // 過去問復習の「お気に入り」：問題id（5問まで）
       torn: [],                                     // 破りすてたテストの問題id（小学校教師の補習で出す。正解すると外れる）
       recent: [],                                   // 直近に出した問題id
       zukan: {},                                    // 魔物id → { stage: 0|1|2, fooled }
@@ -138,7 +140,7 @@ export const generationMultiplier = (state, balance) => balance.reincarnation.mu
 /**
  * 寿命で亡くなり、次の世代に生まれ変わる。
  * 最初からになるもの：Lv・経験値・ゴールド・品物と装備・仲間（契約も）・会社・中ボス・ボス（倒したボスにもまた会う。40HzP の依頼）・階層（月面にいても地球の1階層から）・年齢。
- * 引き継ぐもの：知識（熟練・累計正解数・過去問復習・図鑑・学際分野と専攻）・称号・名前・ロケット計画の工程。
+ * 引き継ぐもの：知識（熟練・累計正解数・間違えたままの問題・過去問復習・図鑑・学際分野と専攻）・称号・名前・ロケット計画の工程。
  * 拠点（adventure.baseFloor）は階層と一緒に無くなる。
  * 年齢を選ぶまで（meta.startAge＝null）時間は止まる。前世のまとめを返す
  */

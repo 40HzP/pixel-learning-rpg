@@ -1,5 +1,5 @@
 // 勉強画面（設計ページ「勉強画面の表示」）
-import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH, flyerSpan, recordTorn, remedialOpen, adoptedQuestions, testShareText, SHARE_HASHTAG } from '../quiz.js';
+import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH, flyerSpan, recordTorn, remedialOpen, adoptedQuestions, testShareText, SHARE_HASHTAG, toggleFavorite, isFavorite, reviewLists } from '../quiz.js';
 import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap, ageYears, newspaperActive, authorRightsInfo } from '../sim.js';
 import { fieldById, fieldActive } from '../fields.js';
 import { GENRES } from '../genres.js';
@@ -34,7 +34,7 @@ function questionText(app, q) {
     el('div', { class: 'qtext' }, t.slice(0, start), el('span', { class: 'flyer', role: 'img', 'aria-label': '新聞のビラ' }, '　'.repeat(length)), t.slice(start + length)));
 }
 
-// phase：menu・question（クイズ・過去問復習の1問）・result・summary・testGenre（テストのジャンルを選ぶ）・sheet（テストの用紙に答えている）・testResult（テストの採点）
+// phase：menu・question（クイズ・過去問復習で解き直す1問）・result・summary・reviewList（過去問復習：最近解いた問題とお気に入り）・testGenre（テストのジャンルを選ぶ）・sheet（テストの用紙に答えている）・testResult（テストの採点）
 // revealed：「選択肢を表示する」を押したか（押すまで選択肢を出さず、制限時間も減らない。40HzP の依頼）。revealedAt：押した時刻
 // picks：テストの問題ごとに選んだ選択肢の番号（'oogiri' は大喜利）。oogiri：大喜利に書いた文。doodle：テストの用紙の落書き（ui/doodle.js）
 const fresh = () => ({ phase: 'menu', session: null, remaining: 0, revealed: false, revealedAt: 0, result: null, chosen: null, genre: null, interferingId: null, picks: [], oogiri: [], testResults: null, sheetMeta: [], doodle: createDoodle() });
@@ -129,8 +129,11 @@ function renderMenu(app) {
       menuButton(app, 'quiz', 'クイズ', '全ジャンルから1問', { onclick: () => start(app, 'quiz') }),
       // テスト：押すとジャンルを選ぶ画面（40HzP の依頼「テスト→ジャンル選択の順に」）
       menuButton(app, 'test', 'テスト', `ジャンルを選んで${app.ctx.balance.quiz.testQuestions}問まで・時間制限なし`, { onclick: () => openTestGenre(app) }),
-      menuButton(app, 'review', '過去問復習', k.review.length ? `間違えた問題・騙された問題（${k.review.length}問）` : 'まだありません',
-        { disabled: !k.review.length, onclick: () => start(app, 'review') }),
+      // 過去問復習：正解・不正解を問わず最近解いた問題と、お気に入りを見返す（40HzP の依頼）
+      menuButton(app, 'review', '過去問復習', k.history.length || k.favorites.length
+        ? `最近解いた${k.history.length}問・お気に入り${k.favorites.length}/${app.ctx.balance.quiz.favoritesMax}問を見返す`
+        : 'まだありません（問題を解くと、ここで見返せる）',
+      { disabled: !k.history.length && !k.favorites.length, onclick: () => openReview(app) }),
       // 小学校教師が学校の顧問なら、破りすてたテストの問題を集めた補習
       remedialOpen(app.state, app.ctx)
         ? menuButton(app, 'remedial', '補習', k.torn.length ? `破りすてたテストの問題（${k.torn.length}問）・小学校教師` : '破りすてたテストの問題はない',
@@ -167,7 +170,7 @@ function analysisBox(app) {
       ? [el('ol', {}, a.myths.slice(0, 5).map((x) => el('li', {}, `${x.monster.name}「${x.monster.myth}」に${x.fooled}回`))),
         el('div', {}, `騙されやすいジャンル：${join(a.genres, '回')}`)]
       : el('div', { class: 'muted' }, 'まだ俗説に騙されたことがない'),
-    a.review.length ? el('div', {}, `間違えたままの問題：${join(a.review, '問')}（過去問復習で解き直せる）`) : null);
+    a.review.length ? el('div', {}, `間違えたままの問題：${join(a.review, '問')}`) : null);
 }
 
 /* ---------- テストのジャンルを選ぶ（ジャンルごとに色とアイコンの付いたボタン。40HzP の依頼） ---------- */
@@ -206,8 +209,8 @@ function genreButton(app, genre, color, count) {
   return tintButton(app, { cls: 'genre-btn', color, sprite: app.genreSprites[genre], title: genre, sub: `${n}問・熟練Lv${lv}`, onclick: () => start(app, 'test', genre) });
 }
 
-function start(app, mode, genre = null) {
-  view.session = createSession(app.state, mode, app.ctx, genre);
+function start(app, mode, genre = null, pool = null) {
+  view.session = createSession(app.state, mode, app.ctx, genre, pool);
   if (genre) view.genre = genre;
   if (mode === 'test') startTest(app);
   else ask(app);
@@ -358,6 +361,7 @@ function renderTestResult(app) {
     }, choiceText(c)))),
     r.oogiri ? el('div', { class: 'oogiri-answer' }, el('span', { class: 'label' }, '大喜利の答え'), r.oogiri) : null,
     el('div', { class: 'explain' }, el('div', { class: 'accent' }, `正解：${r.question.answer}`), r.question.explanation, credit(app, r.question)),
+    el('div', { class: 'share-hide' }, favButton(app, r.question)),
     // share-hide：ツイートの画像には出さない行（経験値の倍率・熟練レベルなど。40HzP の依頼）
     el('ul', { class: 'effects share-hide' }, effectLines(app, r, true).map(([cls, t]) => el('li', { class: cls }, t)))));
   const buttons = () => el('div', { class: 'btnrow' },
@@ -518,7 +522,6 @@ function effectLines(app, r, brief = false) {
     if (r.untorn && remedialOpen(app.state, app.ctx)) lines.push(['good', '破りすてた問題に正解した（補習から外れた）']);
   } else {
     if (r.fooled) lines.push(['bad', `${r.targetName}に騙された！　${r.targetName}が${r.healed}回復した`]);
-    lines.push(['', '過去問復習に入った']);
   }
   if (r.blocked) lines.push(['good', `${r.blocked.field}で、${r.blocked.name}の口出しを封じていた`]);
   return lines;
@@ -541,8 +544,90 @@ function renderResult(app) {
       class: c.kind === 'answer' ? 'correct' : i === view.chosen ? 'wrong' : '',
     }, choiceText(c)))),
     el('div', { class: 'explain' }, el('div', { class: 'accent' }, `正解：${r.question.answer}`), r.question.explanation, credit(app, r.question)),
+    favButton(app, r.question),
     el('ul', { class: 'effects' }, effectLines(app, r).map(([cls, t]) => el('li', { class: cls }, t))),
     el('div', { class: 'btnrow' }, buttons),
+  );
+}
+
+/* ---------- 過去問復習（正解・不正解を問わず最近解いた10問と、お気に入り5問を見返す。40HzP の依頼） ---------- */
+/**
+ * お気に入りに入れる・外すボタン。押すと字が変わる。いっぱいのときは知らせを出して入れない。
+ * after は押したあとに呼ぶ（過去問復習の一覧を作り直すときなど）
+ */
+function favButton(app, q, after = null) {
+  const b = el('button', { class: 'fav-btn', onclick: () => {
+    const r = toggleFavorite(app.state, q.id, app.ctx);
+    if (!r.ok) { app.notify(r.reason, 'bad'); return; }
+    app.save();
+    paint();
+    if (after) after();
+  } });
+  const paint = () => {
+    const on = isFavorite(app.state, q.id);
+    b.textContent = on ? '★ お気に入り（押すと外す）' : '☆ お気に入りに入れる';
+    b.classList.toggle('on', on);
+  };
+  paint();
+  return b;
+}
+
+function openReview(app) {
+  view.phase = 'reviewList';
+  view.session = null;
+  view.reviewOpen = view.reviewOpen || new Set();
+  renderBody(app);
+  scrollTop();
+}
+
+/** ジャンルの小さな札（テストのジャンルのボタンと同じ、まとまりの色） */
+function genreTag(app, genre) {
+  const g = app.genreGroups.find((x) => x.genres.some((y) => y.name === genre));
+  return el('span', { class: 'genre-tag', style: tint(app, g ? g.color : '3') }, genre);
+}
+
+/**
+ * 1問分の札。閉じているときは問題文を2行まで。開くと問題文を全部と、自分の答え（最近解いた問題だけ）・正解と解説・お気に入りのボタン。
+ * 開いているかは view.reviewOpen に覚えておく（お気に入りを押して作り直しても、開いたまま）
+ */
+function reviewCard(app, key, q, h) {
+  const fav = isFavorite(app.state, q.id);
+  const mark = h ? el('b', { class: h.correct ? 'good' : 'bad' }, h.correct ? '○' : '×') : el('b', { class: 'fav-mark' }, '★');
+  const yours = !h ? null
+    : h.oogiri ? el('div', { class: 'review-yours' }, '大喜利：', h.oogiri, el('span', { class: 'bad' }, '（不正解）'))
+    : h.chosen == null ? el('div', { class: 'review-yours bad' }, '時間切れ・答えていない')
+    : el('div', { class: 'review-yours' }, 'あなたの答え：', h.chosen, el('span', { class: h.correct ? 'good' : 'bad' }, h.correct ? '（正解）' : '（不正解）'));
+  const d = el('details', { class: 'review-item', open: view.reviewOpen.has(key), ontoggle: () => { if (d.open) view.reviewOpen.add(key); else view.reviewOpen.delete(key); } },
+    el('summary', {}, mark, genreTag(app, q.genre), el('span', { class: 'review-q' }, q.question), h && fav ? el('span', { class: 'fav-mark' }, '★') : null),
+    el('div', { class: 'review-body' },
+      yours,
+      el('div', { class: 'explain' }, el('div', { class: 'accent' }, `正解：${q.answer}`), q.explanation, credit(app, q)),
+      favButton(app, q, () => renderBody(app))));
+  return d;
+}
+
+function renderReviewList(app) {
+  const { recent, favorites } = reviewLists(app.state, app.ctx);
+  const max = app.ctx.balance.quiz.favoritesMax;
+  const redo = (ids, label) => (ids.length
+    ? el('button', { class: 'primary', onclick: () => start(app, 'review', null, ids) }, `${label}（${ids.length}問）`) : null);
+  refs.body.replaceChildren(
+    el('div', { class: 'genre-head' },
+      el('button', { onclick: () => { view.phase = 'menu'; renderBody(app); } }, '← もどる'),
+      el('span', {}, '過去問復習')),
+    el('section', { class: 'review-section' },
+      el('div', { class: 'review-head' }, el('h3', { class: 'subhead' }, `最近解いた${recent.length}問`),
+        redo(recent.map((h) => h.question.id), '解き直す')),
+      el('div', { class: 'muted review-note' }, `正解でも不正解でも、新しい順に${app.ctx.balance.quiz.historySize}問まで残る`),
+      recent.length
+        ? recent.map((h) => reviewCard(app, `r:${h.question.id}`, h.question, h))
+        : el('div', { class: 'muted' }, 'まだ解いた問題がない')),
+    el('section', { class: 'review-section' },
+      el('div', { class: 'review-head' }, el('h3', { class: 'subhead' }, `お気に入り ${favorites.length}/${max}問`),
+        redo(favorites.map((q) => q.id), '解き直す')),
+      favorites.length
+        ? favorites.map((q) => reviewCard(app, `f:${q.id}`, q, null))
+        : el('div', { class: 'muted' }, `問題の「☆ お気に入りに入れる」を押すと、ここに入る（${max}問まで）`)),
   );
 }
 
@@ -553,9 +638,10 @@ function renderSummary(app) {
     el('div', { class: 'result-head' }, `${MODES[s.mode]}終了：${s.results.length}問中${ok}問正解`),
     el('ul', { class: 'effects' }, s.results.map((r) => el('li', { class: r.correct ? 'good' : 'bad' }, `${r.correct ? '○' : '×'} ${r.question.question}`))),
     el('div', { class: 'btnrow' },
-      (s.mode !== 'review' || app.state.knowledge.review.length) && (s.mode !== 'remedial' || app.state.knowledge.torn.length)
-        ? el('button', { class: 'primary', onclick: () => start(app, s.mode, s.genre) }, 'もう一度')
+      s.mode !== 'remedial' || app.state.knowledge.torn.length
+        ? el('button', { class: 'primary', onclick: () => start(app, s.mode, s.genre, s.pool) }, 'もう一度')
         : null,
+      s.mode === 'review' ? el('button', { onclick: () => openReview(app) }, '過去問復習へ') : null,
       el('button', { onclick: () => { view.phase = 'menu'; view.session = null; renderBody(app); } }, 'メニューへ')),
   );
 }
@@ -624,6 +710,7 @@ function renderBody(app) {
   renderInfo(app);
   if (view.phase === 'question') renderQuestion(app);
   else if (view.phase === 'testGenre') renderTestGenre(app);
+  else if (view.phase === 'reviewList') renderReviewList(app);
   else if (view.phase === 'sheet') renderSheet(app);
   else if (view.phase === 'testResult') renderTestResult(app);
   else if (view.phase === 'result') renderResult(app);

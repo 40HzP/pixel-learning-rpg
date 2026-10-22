@@ -10,8 +10,8 @@ export { GENRES };
 export const MODES = { quiz: 'クイズ', test: 'テスト', review: '過去問復習', remedial: '補習' };
 
 /**
- * セーブに残っている、もう無い問題（同期で外した問題など）を、過去問復習・補習・直近の出題から外す。
- * 残したままだと「過去問復習」が押せるのに1問も出ない。過去問復習から外した数を返す
+ * セーブに残っている、もう無い問題（同期で外した問題など）を、間違えたままの問題・補習・直近の出題・
+ * 過去問復習（最近解いた問題・お気に入り）から外す。残したままだと、押せるのに1問も出ない。間違えたままの問題から外した数を返す
  */
 export function forgetMissingQuestions(state, ctx) {
   const ids = new Set(ctx.questions.map((q) => q.id));
@@ -20,6 +20,8 @@ export function forgetMissingQuestions(state, ctx) {
   k.review = k.review.filter((id) => ids.has(id));
   k.torn = (k.torn || []).filter((id) => ids.has(id));
   k.recent = k.recent.filter((id) => ids.has(id));
+  k.history = (k.history || []).filter((h) => ids.has(h.id));
+  k.favorites = (k.favorites || []).filter((id) => ids.has(id));
   return before - k.review.length;
 }
 
@@ -80,19 +82,23 @@ export const timeLimitFor = (difficulty, balance) => balance.quiz.timeLimitSec[M
 
 /**
  * mode: 'quiz'（全ジャンルから1問）| 'test'（genre から testQuestions 問を1枚の用紙で。presentTest・gradeTest）|
- * 'review'（過去問復習、最大 testQuestions 問）| 'remedial'（補習：破りすてたテストの問題、最大 testQuestions 問。小学校教師が学校の顧問のとき）
+ * 'review'（過去問復習で解き直す：pool に並べた問題を、その順に全部。最近解いた問題かお気に入り）|
+ * 'remedial'（補習：破りすてたテストの問題、最大 testQuestions 問。小学校教師が学校の顧問のとき）
  */
-export function createSession(state, mode, ctx, genre = null) {
+export function createSession(state, mode, ctx, genre = null, pool = null) {
   let total = 1;
   if (mode === 'test') total = ctx.balance.quiz.testQuestions;
-  if (mode === 'review') total = Math.min(ctx.balance.quiz.testQuestions, state.knowledge.review.length);
+  if (mode === 'review') {
+    pool = (pool || []).filter((id) => ctx.questions.some((q) => q.id === id));
+    total = pool.length;
+  }
   if (mode === 'remedial') total = Math.min(ctx.balance.quiz.testQuestions, state.knowledge.torn.length);
-  return { mode, genre, total, index: 0, asked: [], current: null, results: [] };
+  return { mode, genre, pool, total, index: 0, asked: [], current: null, results: [] };
 }
 
 export function candidatesFor(state, session, ctx) {
   if (session.mode === 'test') return ctx.questions.filter((q) => q.genre === session.genre);
-  if (session.mode === 'review') return ctx.questions.filter((q) => state.knowledge.review.includes(q.id));
+  if (session.mode === 'review') return ctx.questions.filter((q) => (session.pool || []).includes(q.id));
   if (session.mode === 'remedial') return ctx.questions.filter((q) => state.knowledge.torn.includes(q.id));
   return ctx.questions;
 }
@@ -111,6 +117,16 @@ export function recordTorn(state, session) {
 /** 次の問題を出す。出せなければ null（セッション終了） */
 export function nextQuestion(state, session, ctx) {
   if (session.index >= session.total) { session.current = null; return null; }
+  // 過去問復習で解き直す問題は、並べた順に出す（直近に出した問題でも出す）
+  if (session.mode === 'review') {
+    const id = session.pool.find((x) => !session.asked.includes(x));
+    const q = id && ctx.questions.find((x) => x.id === id);
+    if (!q) { session.current = null; return null; }
+    const cur = presentQuestion(session, q, ctx);
+    trimChoices(state, cur, ctx);
+    citeMyth(state, cur, ctx);
+    return cur;
+  }
   const cands = candidatesFor(state, session, ctx);
   const level = session.mode === 'test' ? genreState(state, session.genre).level : averageLevel(state);
   const avoid = [...state.knowledge.recent, ...session.asked];
@@ -151,7 +167,7 @@ export const OOGIRI_MAX_LENGTH = 60;
 /**
  * テストを提出して採点する。picks[i] は i 問目で選んだ選択肢の番号（null は答えていない＝不正解）か、
  * 大喜利の答え { oogiri: '書いた文' }（40HzP の依頼。選択肢のほかに自由に書ける。不正解として数え、騙されたことにはしない。何も書いていなければ答えていない）。
- * 1問ずつ answer と同じに数える（熟練・累計正解数・過去問復習・干渉・敵へのダメージ）。干渉は提出した瞬間の敵の群れで決まる。
+ * 1問ずつ answer と同じに数える（熟練・累計正解数・間違えたままの問題・過去問復習の最近解いた問題・干渉）。干渉は提出した瞬間の敵の群れで決まる。
  * 結果の並びを返す（answer の結果に question・choices・chosen を付け、大喜利なら oogiri に書いた文を入れる）。
  * 中学校教師を学校の顧問に置いていて全問正解すると、定期テストとして熟練の進みが balance.advisor.periodicTestProgress 問分多くなる
  * （session.periodic に { genre, progress, levelUp }）
@@ -163,7 +179,10 @@ export function gradeTest(state, session, picks, ctx) {
     const oogiri = pick && typeof pick === 'object' ? String(pick.oogiri ?? '').trim().slice(0, OOGIRI_MAX_LENGTH) : '';
     const chosen = typeof pick === 'number' ? pick : null;
     const r = answer(state, session, chosen, ctx);
-    if (oogiri) Object.assign(r, { timeout: false, oogiri });
+    if (oogiri) {
+      Object.assign(r, { timeout: false, oogiri });
+      state.knowledge.history[0].oogiri = oogiri; // 過去問復習に、書いた大喜利も残す
+    }
     return Object.assign(r, { question: cur.question, choices: cur.choices, chosen });
   });
   session.periodic = null;
@@ -260,6 +279,44 @@ export function interferingMonster(state, question, ctx) {
   return e ? ctx.monsters.find((m) => m.id === e.monsterId) || null : null;
 }
 
+/**
+ * 過去問復習の「最近解いた問題」：答えた問題を正解・不正解を問わず新しい順に balance.quiz.historySize 問まで残す（40HzP の依頼）。
+ * 同じ問題は新しいほうだけ。chosen は選んだ選択肢の文（時間切れ・答えていないなら null）、大喜利なら oogiri に書いた文
+ */
+function pushHistory(state, entry, ctx) {
+  const h = state.knowledge.history;
+  const i = h.findIndex((x) => x.id === entry.id);
+  if (i >= 0) h.splice(i, 1);
+  h.unshift(entry);
+  h.length = Math.min(h.length, ctx.balance.quiz.historySize);
+}
+
+/** お気に入りか */
+export const isFavorite = (state, id) => state.knowledge.favorites.includes(id);
+
+/**
+ * お気に入りに入れる・外す（過去問復習で見返せる。balance.quiz.favoritesMax 問まで。40HzP の依頼）。
+ * いっぱいのときは入れない（{ ok: false, reason }）。入れたら favorite: true、外したら false
+ */
+export function toggleFavorite(state, id, ctx) {
+  const f = state.knowledge.favorites;
+  const i = f.indexOf(id);
+  if (i >= 0) { f.splice(i, 1); return { ok: true, favorite: false }; }
+  const max = ctx.balance.quiz.favoritesMax;
+  if (f.length >= max) return { ok: false, favorite: false, reason: `お気に入りは${max}問まで。どれかを外すと入れられる（過去問復習で外せる）` };
+  f.unshift(id);
+  return { ok: true, favorite: true };
+}
+
+/** 過去問復習に並べる問題：最近解いた問題（{ question, correct, chosen, oogiri }、新しい順）とお気に入り（問題、入れた新しい順） */
+export function reviewLists(state, ctx) {
+  const byId = (id) => ctx.questions.find((q) => q.id === id);
+  return {
+    recent: state.knowledge.history.map((h) => ({ ...h, question: byId(h.id) })).filter((h) => h.question),
+    favorites: state.knowledge.favorites.map(byId).filter(Boolean),
+  };
+}
+
 function pushRecent(state, id, ctx) {
   const r = state.knowledge.recent;
   const i = r.indexOf(id);
@@ -300,6 +357,7 @@ export function answer(state, session, choiceIndex, ctx) {
 
   g.studied = true;
   pushRecent(state, q.id, ctx);
+  pushHistory(state, { id: q.id, correct, chosen: choice ? choice.text : null }, ctx);
 
   if (correct) {
     g.correct++;
@@ -402,7 +460,7 @@ export function flyerSpan(question, hideRatio = 0.35) {
 
 /**
  * どの俗説に騙されやすいか。図鑑の騙された回数を多い順に並べ、魔物のジャンルごとにも合計する。
- * review は過去問復習に残っている（間違えたままの）問題の数をジャンルごとに数えたもの
+ * review は間違えたままの問題（knowledge.review。正解すると外れる）の数をジャンルごとに数えたもの
  */
 export function fooledAnalysis(state, ctx) {
   const myths = ctx.monsters

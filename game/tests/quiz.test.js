@@ -37,7 +37,7 @@ test('正解10回で熟練Lvが1上がり、最大5で止まる', () => {
   assert.equal(s.knowledge.totalCorrect, 60);
 });
 
-test('不正解・時間切れは過去問復習に入り、正解すると外れる', () => {
+test('不正解・時間切れは「間違えたままの問題」に入り、解き直して正解すると外れる', () => {
   const s = newGame(0);
   const ctx = makeCtx();
   const q = questions[0];
@@ -47,7 +47,7 @@ test('不正解・時間切れは過去問復習に入り、正解すると外�
   assert.equal(r.timeout, true);
   assert.equal(r.correct, false);
   assert.deepEqual(s.knowledge.review, [q.id]);
-  sess = createSession(s, 'review', ctx);
+  sess = createSession(s, 'review', ctx, null, [q.id]);
   assert.equal(sess.total, 1);
   const cur = nextQuestion(s, sess, ctx);
   assert.equal(cur.question.id, q.id);
@@ -235,7 +235,7 @@ test('制限時間は難易度ごとに balance.json の値（☆1が20秒〜☆
   assert.deepEqual([1, 2, 3, 4, 5].map((d) => timeLimitFor(d, balance)), [20, 30, 40, 55, 70]);
 });
 
-test('同期で外した問題は、過去問復習と直近の出題から外す（復習が押せるのに出ない、を防ぐ）', () => {
+test('同期で外した問題は、間違えたままの問題・直近の出題・過去問復習から外す（復習が押せるのに出ない、を防ぐ）', () => {
   const s = newGame(0);
   const ctx = makeCtx(constRng(0.5));
   const keep = questions[0].id;
@@ -244,7 +244,7 @@ test('同期で外した問題は、過去問復習と直近の出題から外�
   assert.equal(forgetMissingQuestions(s, ctx), 1);
   assert.deepEqual(s.knowledge.review, [keep]);
   assert.deepEqual(s.knowledge.recent, [keep]);
-  const sess = createSession(s, 'review', ctx);
+  const sess = createSession(s, 'review', ctx, null, [keep, 'gone-question-id']);
   assert.equal(sess.total, 1);
   assert.ok(nextQuestion(s, sess, ctx), '残った問題は出る');
 });

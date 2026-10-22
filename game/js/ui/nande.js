@@ -85,7 +85,7 @@ export function askNande(app) {
         el('div', { class: 'result-head ' + (res.correct ? 'good' : 'bad') }, res.correct ? '答えられた！' : res.timeout ? '時間切れ…' : '答えられなかった…'),
         el('div', { class: 'qtext' }, q.question),
         el('div', { class: 'explain' }, el('div', { class: 'accent' }, `正解：${q.answer}`), q.explanation),
-        el('ul', { class: 'effects' }, el('li', { class: effect[0] }, effect[1]), res.correct ? null : el('li', {}, '過去問復習に入った')),
+        el('ul', { class: 'effects' }, el('li', { class: effect[0] }, effect[1])),
         el('div', { class: 'btnrow' }, el('button', { class: 'primary', onclick: close }, '閉じる')),
       );
       box.scrollTop = 0;

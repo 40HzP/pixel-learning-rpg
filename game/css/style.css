@@ -198,6 +198,27 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .menu-btn { min-height: 60px; gap: 10px; }
 .menu-btn .tint-text b { font-size: 17px; }
 .menu-btn .tint-text small { font-size: 12px; white-space: normal; }
+/* 過去問復習：最近解いた問題とお気に入りの札（開くと答えと解説）。お気に入りのボタン */
+.review-section { margin: 12px 0 16px; }
+.review-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.review-head .subhead { margin: 0; }
+.review-head button { min-height: 40px; padding: 4px 10px; flex: none; font-size: 14px; }
+.review-item { background: var(--panel2); border: 2px solid var(--line); margin-bottom: 6px; }
+.review-item[open] { border-color: var(--muted); }
+.review-item summary { display: flex; align-items: center; gap: 6px; padding: 8px; cursor: pointer; list-style: none; }
+.review-item summary::-webkit-details-marker { display: none; }
+.review-item summary > b { flex: none; width: 18px; text-align: center; font-size: 18px; font-weight: normal; }
+.review-q { flex: 1; min-width: 0; font-size: 14px; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.review-body { padding: 0 8px 8px; }
+.review-item[open] .review-q { display: block; font-size: 16px; }
+.review-note { font-size: 12px; margin: -2px 0 6px; }
+.review-yours { font-size: 14px; margin: 4px 0; }
+.genre-tag { flex: none; font-size: 11px; padding: 0 4px; border: 1px solid var(--tint); background: var(--tint-bg); white-space: nowrap; }
+.fav-mark { flex: none; color: #f7b23c; }
+.fav-btn { min-height: 40px; padding: 4px 10px; font-size: 14px; margin: 6px 0 2px; }
+.fav-btn.on { color: #fbe57a; border-color: #f7b23c; }
+.paper .fav-btn { background: #fff; color: var(--ink); border: 2px solid #9a9686; }
+.paper .fav-btn.on { background: #fff1b8; border-color: #c27654; }
 .prof-list { margin-top: 14px; font-size: 13px; display: grid; grid-template-columns: 1fr auto auto; gap: 2px 10px; }
 .prof-list .head { color: var(--muted); }
 /* 干渉の枠は、干渉が無いときも同じ高さで空けておく（敵が入れ替わっても解答ボタンの位置がずれないように） */
