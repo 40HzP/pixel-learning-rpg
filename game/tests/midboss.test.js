@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tick, spawnGroup, chooseNextMonster, midbossState, challengeableMidboss, challengeMidboss, retreatMidboss, heroStats, heroTitles, nandeUnanswered, HOURS_PER_YEAR } from '../js/sim.js';
+import { tick, spawnGroup, chooseNextMonster, midbossState, challengeableMidboss, challengeMidboss, retreatMidboss, heroStats, heroTitles, nandeAnswered, nandeUnanswered, HOURS_PER_YEAR } from '../js/sim.js';
 import { createSession, presentQuestion, answer } from '../js/quiz.js';
 import { balance, monsters, makeCtx, newGame, questions, constRng, seededRng } from './helpers.js';
 
@@ -56,7 +56,7 @@ test('中ボスに負けると1階層に戻り、中ボスは出てこない。�
   assert.equal(again.find((x) => x.type === 'spawn').first, false, '2回目からは first にならない');
 });
 
-test('中ボス：累計の正解が5回になるまではダメージ0、その後は自動攻撃も勉強も効く', () => {
+test('中ボス：累計の正解が5回になるまではダメージ0、その後は自動攻撃が効く（正解そのものではダメージは入らない）', () => {
   const s = newGame(7);
   const ctx = makeCtx(constRng(0.5));
   s.hero.hp = 99999;
@@ -72,13 +72,12 @@ test('中ボス：累計の正解が5回になるまではダメージ0、その
 
   for (let i = 1; i <= 4; i++) {
     const r = correctOnce(s, ctx);
-    assert.equal(r.damage, 0, `正解${i}回目はダメージ0`);
-    assert.equal(r.midbossBroken, false);
+    assert.equal(r.midbossBroken, false, `正解${i}回目ではまだ崩れない`);
   }
   const r5 = correctOnce(s, ctx);
   assert.equal(r5.midbossBroken, true);
   assert.equal(midbossState(s, e.monsterId).status, 'broken');
-  assert.ok(r5.damage > 0, '崩れた後は勉強のダメージが入る');
+  assert.equal(e.hp, e.maxHp, '正解では中ボスにダメージは入らない（40HzP の依頼）');
 
   const hp = e.hp;
   const after = tick(s, 2, ctx).filter((x) => x.type === 'attack' && x.by === 'hero');
@@ -132,10 +131,8 @@ test('出る前に3問・出てから2問の正解で防御が崩れる', () => 
   assert.equal(midbossState(s, e.monsterId).status, 'appeared');
   const r4 = correctOnce(s, ctx);
   assert.equal(r4.midbossBroken, false);
-  assert.equal(r4.damage, 0);
   const r5 = correctOnce(s, ctx);
   assert.equal(r5.midbossBroken, true);
-  assert.ok(r5.damage > 0);
 });
 
 test('前の版のセーブ（中ボスが出ていて、累計の正解はもう5回以上）は、次の時間の進みで防御が崩れる', () => {
@@ -202,15 +199,16 @@ test('中ボスから逃げると、中ボスは退いて少ししてザコが�
   assert.equal(retreatMidboss(s, ctx, []), false, '中ボスがいないときは逃げられない');
 });
 
-test('防御が崩れた中ボスへの正解のダメージは最大HPの midbossDamageRatio（勉強だけで一気に倒せない）', () => {
+test('防御が崩れた中ボスにも、勉強の正解ではダメージは入らない（40HzP の依頼）', () => {
   const s = newGame(7);
   const ctx = makeCtx(constRng(0.5));
   s.hero.hp = 1e9;
   s.knowledge.totalCorrect = teacher.unlockCorrect;
   const e = challengeMidboss(s, ctx, []);
   const r = correctOnce(s, ctx);
-  assert.equal(r.damage, Math.ceil(e.maxHp * balance.quiz.midbossDamageRatio));
-  assert.ok(r.damage < e.maxHp / 4);
+  assert.equal(r.correct, true);
+  assert.equal(e.hp, e.maxHp);
+  assert.ok(!r.events.some((x) => x.type === 'attack'));
 });
 
 test('倒したときのミニムービー（defeatMovie）は空でない文の並び。小学校教師には2つある', () => {
@@ -318,7 +316,7 @@ test('孫は戦っている間、firstSec 秒後から intervalSec 秒ごとに�
   assert.deepEqual(count('tax_inspector'), [], '税務調査官は聞かない');
 });
 
-test('孫の「なんで？」に答えられないと、孫のHPが回復する。正解すると勉強と同じにダメージ', () => {
+test('孫の「なんで？」に答えられないと、孫のHPが回復する。正解すると孫にダメージ（勉強の正解では入らない）', () => {
   const s = readyFor('grandchild');
   const ctx = makeCtx(constRng(0.5));
   s.knowledge.totalCorrect = 1000; // 防御は崩れている
@@ -328,7 +326,20 @@ test('孫の「なんで？」に答えられないと、孫のHPが回復する
   const healed = nandeUnanswered(s, ctx, []);
   assert.equal(healed, Math.round(kid.maxHp * balance.nande.wrongHealRatio));
   assert.equal(kid.hp, before + healed);
-  const res = correctOnce(s, ctx);
-  assert.equal(res.damage, Math.ceil(kid.maxHp * balance.quiz.midbossDamageRatio));
+  const hp = kid.hp;
+  correctOnce(s, ctx);
+  assert.equal(kid.hp, hp, 'ふつうの勉強の正解ではダメージは入らない');
+  const ev = [];
+  const dmg = nandeAnswered(s, ctx, ev);
+  assert.equal(dmg, Math.ceil(kid.maxHp * balance.nande.correctDamageRatio));
+  assert.equal(kid.hp, hp - dmg);
+  assert.ok(ev.some((x) => x.type === 'attack' && x.by === 'quiz' && x.dmg === dmg));
   assert.equal(nandeUnanswered(readyFor('grandchild'), ctx, []), 0, '孫がいなければ何もしない');
+  assert.equal(nandeAnswered(readyFor('grandchild'), ctx, []), 0);
+  // 防御が崩れる前は、なんで？に正解してもダメージ0
+  const s2 = readyFor('grandchild');
+  s2.knowledge.totalCorrect = 0;
+  const kid2 = challengeMidboss(s2, ctx, []);
+  assert.equal(nandeAnswered(s2, ctx, []), 0);
+  assert.equal(kid2.hp, kid2.maxHp);
 });

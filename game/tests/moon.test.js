@@ -319,7 +319,7 @@ test('カンペキキュウ：つるつるで攻撃が半減。勉強で正解�
   assert.equal(e.marks, 2, '描き足すのは2回まで');
 });
 
-test('カンペキキュウ：勉強の正解で山と影が描き足される（正解のダメージもそのあとで入る）', () => {
+test('カンペキキュウ：勉強の正解で山と影が描き足される（正解そのものではダメージは入らない）', () => {
   const ctx = makeCtx(constRng(0.5));
   const s = onMoonFloor(10, ctx);
   knowTruth(s, byId('kanpekikyuu').minions);
@@ -330,8 +330,9 @@ test('カンペキキュウ：勉強の正解で山と影が描き足される�
   presentQuestion(session, q, ctx);
   const right = session.current.choices.findIndex((c) => c.kind === 'answer');
   const res = answer(s, session, right, ctx);
+  assert.equal(res.correct, true);
   assert.equal(e.marks, 1);
-  assert.equal(res.damage, Math.round(Math.ceil(e.maxHp * balance.quiz.correctDamageRatio) * balance.moon.smoothDamage[1]));
+  assert.equal(e.hp, e.maxHp);
 });
 
 test('ガリレオチョウセキ：満ち潮の盾で先頭への1体攻撃を弾く。全体攻撃（ひらめき・全体を叩く仲間）と勉強の正解は弾けず、敵が1体でもひらめきを使う', () => {
@@ -477,7 +478,7 @@ test('前の版のセーブの読み込み（前世で倒したボスを戻す�
 
 /**
  * ブンレツセツと戦う主人公：世代・レベル・累計正解数を決め、買える装備をすべて買い、仲間4人（戦士・格闘家・魔法使い・僧侶）と契約する。
- * 月面60階層で、1分に1問くらい正解しながら戦う。勝てば true
+ * 月面60階層で戦う（勉強の正解では敵にダメージは入らないので、戦うのは主人公と仲間だけ）。勝てば true
  */
 function fightBunretsu(gen, level, totalCorrect, seed) {
   const ctx = makeCtx(seededRng(seed));
@@ -490,17 +491,10 @@ function fightBunretsu(gen, level, totalCorrect, seed) {
   for (const r of recruitList(s, ctx).filter((x) => x.role !== 'staff')) hireRecruit(s, r.id, ctx);
   const hs = heroStats(s, ctx);
   s.hero.hp = hs.maxHp; s.hero.mp = hs.maxMp;
-  const quiz = seededRng(seed * 7 + 1);
-  let next = quiz() * 60;
   for (let t = 0; t < 600; t += 0.5) {
     const ev = tick(s, 0.5, ctx);
     if (ev.some((e) => e.type === 'bossDefeated')) return true;
     if (ev.some((e) => e.type === 'heroDefeated')) return false;
-    if (t >= next) {
-      next += 60 * (0.5 + quiz());
-      const f = s.adventure.enemies[0];
-      if (f) damageEnemy(s, Math.ceil(f.maxHp * balance.quiz.correctDamageRatio), ctx, [], 'quiz', f);
-    }
   }
   return false;
 }
@@ -509,7 +503,7 @@ test('ブンレツセツ（月面60階層）は10世代目でやっと倒せる�
   assert.equal(byId('bunretsusetsu').stats, undefined, '強さは月面の階層の倍率で決まる（決まった stats は持たない）');
   // 1分に1問正解しながら遊ぶ人の、9世代目・10世代目の80歳（レベルと累計正解数は計算で再現したもの）
   const gen9 = [1, 2, 3, 4, 5].filter((seed) => fightBunretsu(9, 13600, 1800, seed)).length;
-  const gen10 = [1, 2, 3, 4, 5].filter((seed) => fightBunretsu(10, 20600, 2000, seed)).length;
+  const gen10 = [1, 2, 3, 4, 5].filter((seed) => fightBunretsu(10, 20300, 2000, seed)).length;
   assert.equal(gen9, 0, '9世代目は80歳になっても勝てない');
   assert.ok(gen10 >= 1, '10世代目の80歳なら、勝てたり負けたりする（何度か挑めば勝てる）');
 });

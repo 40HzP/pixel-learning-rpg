@@ -303,7 +303,8 @@ function renderTestResult(app) {
     }, choiceText(c)))),
     r.oogiri ? el('div', { class: 'oogiri-answer' }, el('span', { class: 'label' }, '大喜利の答え'), r.oogiri) : null,
     el('div', { class: 'explain' }, el('div', { class: 'accent' }, `正解：${r.question.answer}`), r.question.explanation, credit(app, r.question)),
-    el('ul', { class: 'effects' }, effectLines(app, r, true).map(([cls, t]) => el('li', { class: cls }, t)))));
+    // share-hide：ツイートの画像には出さない行（経験値の倍率・熟練レベルなど。40HzP の依頼）
+    el('ul', { class: 'effects share-hide' }, effectLines(app, r, true).map(([cls, t]) => el('li', { class: cls }, t)))));
   const buttons = () => el('div', { class: 'btnrow' },
     el('button', { class: 'primary', onclick: () => start(app, 'test', s.genre) }, 'もう一度'),
     el('button', { onclick: () => { view.phase = 'menu'; view.session = null; renderBody(app); } }, 'メニューへ'));
@@ -311,7 +312,7 @@ function renderTestResult(app) {
   const paper = el('div', { class: 'paper graded' },
     paperHead(app, s),
     el('div', { class: 'paper-score' }, `${rs.length}問中${ok}問正解`),
-    el('ul', { class: 'effects' }, summary.map(([cls, t]) => el('li', { class: cls }, t))),
+    el('ul', { class: 'effects share-hide' }, summary.map(([cls, t]) => el('li', { class: cls }, t))),
     ...cards);
   const { pad, bar } = doodleBar(paper);
   // 結果をツイートする（40HzP の依頼）：答案を落書きごと画像にして、共有の画面か X の投稿の画面を開く（ui/share.js）
@@ -448,14 +449,12 @@ function effectLines(app, r, brief = false) {
   const g = app.state.knowledge.genres[r.question.genre];
   const per = app.ctx.balance.quiz.correctPerProficiencyLevel;
   if (r.correct) {
+    // 正解しても敵にダメージは入らない（40HzP の依頼）。戦っている中ボスの防御が崩れるまでの問題数は出す
     if (r.midbossBroken) lines.push(['good', `${r.targetName}の防御が崩れた！`]);
-    if (r.targetName && r.damage > 0) lines.push(['good', r.interfered ? `口を挟んでいた${r.targetName}に大ダメージ（${r.damage}）` : `${r.targetName}に${r.damage}ダメージ`]);
-    if (r.targetName && r.damage === 0 && r.targetMidboss) {
-      const st = midbossState(app.state, r.targetMidboss);
+    else if (r.targetMidboss && midbossState(app.state, r.targetMidboss).status !== 'broken') {
       const mb = app.ctx.monsters.find((m) => m.id === r.targetMidboss);
-      if (st.status !== 'broken') lines.push(['', `${r.targetName}には効かない…（防御が崩れるまで 累計であと${midbossLeft(app.state, mb)}問）`]);
+      lines.push(['', `${r.targetName}の防御が崩れるまで 累計であと${midbossLeft(app.state, mb)}問`]);
     }
-    if (r.defeated) lines.push(['good', `${r.targetName}を倒した！`]);
     if (!brief) lines.push(['good', `経験値の倍率が ×${expMultiplier(app.state, app.ctx.balance).toFixed(2)} になった`]);
     if (r.levelUp) lines.push(['good', `${r.levelUp.genre}の熟練が Lv ${r.levelUp.level} になった！`]);
     else if (!brief && g && g.level < proficiencyCap(app.state, app.ctx.balance)) lines.push(['', `${r.question.genre}：次のLvまで ${g.progress}/${per}回`]);

@@ -85,7 +85,21 @@ function paintText(g, node, root) {
   }
 }
 
-/** 答案（.paper）を画面に見えているとおりに描いた canvas。pad は落書き（doodle.js）、footer は下に書く文 */
+/**
+ * 画像にする答案の写し。画面の答案はそのままにして、画像に要らない行（.share-hide：経験値の倍率・熟練レベルなど。40HzP の依頼）を消し、
+ * 画面の外に同じ幅で置く（描き終わったら消す）
+ */
+function shareCopy(paper) {
+  const copy = paper.cloneNode(true);
+  copy.querySelectorAll('.share-hide, canvas').forEach((e) => e.remove());
+  const w = paper.getBoundingClientRect().width;
+  Object.assign(copy.style, { position: 'fixed', left: `${-w - 100}px`, top: '0', width: `${w}px`, margin: '0', boxSizing: 'border-box' });
+  copy.setAttribute('aria-hidden', 'true');
+  paper.after(copy);
+  return copy;
+}
+
+/** 答案（.paper）を見えているとおりに描いた canvas。pad は落書き（doodle.js）、footer は下に書く文 */
 export function paperCanvas(paper, pad, footer = '') {
   const box = paper.getBoundingClientRect();
   const W = box.width + MARGIN * 2;
@@ -115,7 +129,7 @@ export function paperCanvas(paper, pad, footer = '') {
     if (n.nodeType === Node.TEXT_NODE) paintText(g, n, paper);
     else paintBox(g, n);
   }
-  if (pad) { const r = pad.canvas.getBoundingClientRect(); pad.paint(g, r.left, r.top); }
+  if (pad) pad.paint(g, box.left + paper.clientLeft, box.top + paper.clientTop, paper);
   g.restore();
   if (footer) {
     g.fillStyle = '#9a96ad';
@@ -141,10 +155,12 @@ export async function shareTest({ paper, pad, text, filename, footer }) {
   document.getElementById('app').append(overlay);
   try { await document.fonts.ready; } catch { /* 字が読めなくても、ある字で描く */ }
   let blob = null;
+  const copy = shareCopy(paper);
   try {
-    const cv = paperCanvas(paper, pad, footer);
+    const cv = paperCanvas(copy, pad, footer);
     blob = await new Promise((res) => cv.toBlob(res, 'image/png'));
   } catch { /* 描けない端末では文だけ */ }
+  copy.remove();
   const file = blob && typeof File === 'function' ? new File([blob], filename, { type: 'image/png' }) : null;
   url = blob ? URL.createObjectURL(blob) : null;
   let canFiles = false;

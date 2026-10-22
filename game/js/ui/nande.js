@@ -1,8 +1,9 @@
 // 孫の「なんで？」：孫と戦っている間、ときどき全ジャンルから1問聞いてくる（sim.js の nande の知らせで出す）。
 // 出している間はゲームの時間が止まる（main.js の runOverlay）。答えはふつうの勉強と同じに数える（quiz.js の answer）。
+// 正解すると孫にダメージ（sim.js の nandeAnswered）、答えられないと孫が回復する（nandeUnanswered）。
 // 勉強のクイズと同じく、はじめは問題文だけを出し、「選択肢を表示する」を押すと選択肢が出て制限時間が減り始める（40HzP の依頼）
 import { createSession, nextQuestion, answer } from '../quiz.js';
-import { nandeUnanswered, midbossLeft } from '../sim.js';
+import { nandeAnswered, nandeUnanswered, midbossLeft } from '../sim.js';
 import { spriteCanvas } from '../sprites.js';
 import { el, stars } from './dom.js';
 
@@ -69,12 +70,13 @@ export function askNande(app) {
       done = true;
       cancelAnimationFrame(raf);
       const res = answer(s, session, index, ctx);
+      const damage = res.correct ? nandeAnswered(s, ctx, res.events) : 0;
       if (!res.correct) res.healed = nandeUnanswered(s, ctx, res.events);
       app.handleEvents(res.events);
       app.save();
 
       let effect;
-      if (res.correct && res.damage > 0) effect = ['good', `${kid.name}は納得した！（${res.damage}ダメージ）`];
+      if (res.correct && damage > 0) effect = ['good', `${kid.name}は納得した！（${damage}ダメージ）`];
       else if (res.correct) {
         const m = ctx.monsters.find((x) => x.id === kid.monsterId);
         effect = ['', `${kid.name}は納得した。でも、まだ効かない（防御が崩れるまで 累計であと${midbossLeft(s, m)}問）`];

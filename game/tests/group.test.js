@@ -164,7 +164,7 @@ test('名前：前後の空白を取り、8文字まで。空なら「主人公�
   assert.equal(s.hero.name, 'ハナコ');
 });
 
-test('干渉：関連する魔物が群れの先頭でなくても口を挟み、その魔物だけが倒れる', () => {
+test('干渉：関連する魔物が群れの先頭でなくても口を挟む。正解しても敵にダメージは入らない（40HzP の依頼）', () => {
   const s = newGame(0);
   const ctx = makeCtx();
   spawnGroup(s, ctx, [], ['nidoochizu', 'tsugihakuro', 'ichiwari']);
@@ -174,8 +174,8 @@ test('干渉：関連する魔物が群れの先頭でなくても口を挟み�
   const r = answer(s, sess, cur.choices.findIndex((c) => c.kind === 'answer'), ctx);
   assert.equal(r.interfered, true);
   assert.equal(r.targetName, 'ツギハクロ');
-  assert.equal(r.defeated, true);
-  assert.deepEqual(s.adventure.enemies.map((e) => e.monsterId), ['nidoochizu', 'ichiwari']);
-  assert.equal(front.hp, front.maxHp, '先頭は無傷');
+  assert.deepEqual(s.adventure.enemies.map((e) => e.monsterId), ['nidoochizu', 'tsugihakuro', 'ichiwari']);
+  assert.ok(s.adventure.enemies.every((e) => e.hp === e.maxHp), 'どの敵も無傷');
+  assert.ok(!r.events.some((e) => e.type === 'attack' || e.type === 'defeat'));
   genreState(s, '統計学');
 });

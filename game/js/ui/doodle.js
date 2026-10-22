@@ -24,16 +24,19 @@ export function attachDoodle(paper, doodle, onChange = () => {}) {
   paper.prepend(canvas);
   const ctx = canvas.getContext('2d');
   let dpr = 1;
-  const regions = () => [{ key: 'head', top: 0 },
-    ...[...paper.querySelectorAll('[data-doodle]')].map((e) => ({ key: e.dataset.doodle, top: e.offsetTop })).sort((a, b) => a.top - b.top)];
+  const regions = (root = paper) => [{ key: 'head', top: 0 },
+    ...[...root.querySelectorAll('[data-doodle]')].map((e) => ({ key: e.dataset.doodle, top: e.offsetTop })).sort((a, b) => a.top - b.top)];
 
-  /** 線を描く。g は描く先（この canvas か、答案の画像）。ox・oy は落書きの canvas の左上の位置 */
-  function paint(g, ox = 0, oy = 0) {
-    const w = paper.clientWidth;
-    const tops = Object.fromEntries(regions().map((r) => [r.key, r.top]));
+  /**
+   * 線を描く。g は描く先（この canvas か、答案の画像）。ox・oy は落書きの canvas の左上の位置。
+   * root は位置の基準を探す用紙（答案の画像は、要らない行を消した写しに描く。ui/share.js）
+   */
+  function paint(g, ox = 0, oy = 0, root = paper) {
+    const w = root.clientWidth;
+    const tops = Object.fromEntries(regions(root).map((r) => [r.key, r.top]));
     g.save();
     g.translate(ox, oy);
-    g.beginPath(); g.rect(0, 0, w, paper.clientHeight); g.clip(); // 用紙からはみ出した線は描かない（画面と同じ）
+    g.beginPath(); g.rect(0, 0, w, root.clientHeight); g.clip(); // 用紙からはみ出した線は描かない（画面と同じ）
     g.strokeStyle = g.fillStyle = PEN.color;
     g.lineWidth = PEN.width;
     g.lineCap = g.lineJoin = 'round';

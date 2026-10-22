@@ -184,7 +184,7 @@ test('大喜利を提出すると、先生が3つのセリフのどれかを言�
   assert.ok(blush.frames.slice(1).every((f) => f.join('').includes('d')), '2枚目から頬が赤い');
 });
 
-test('干渉：関連する魔物と戦っているときに正解すると撃破、図鑑の正体が開く', () => {
+test('干渉：関連する魔物と戦っているときに正解すると、図鑑の正体が開く（倒れはしない）', () => {
   const s = newGame(0);
   const ctx = makeCtx();
   spawnEnemy(s, ctx, [], 'tsugihakuro');
@@ -192,8 +192,8 @@ test('干渉：関連する魔物と戦っているときに正解すると撃�
   const cur = presentQuestion(sess, questionFor('ツギハクロ'), ctx);
   const r = answer(s, sess, answerIndex(cur), ctx);
   assert.equal(r.interfered, true);
-  assert.equal(r.defeated, true);
-  assert.deepEqual(s.adventure.enemies, []);
+  assert.equal(s.adventure.enemies.length, 1);
+  assert.equal(s.adventure.enemies[0].hp, s.adventure.enemies[0].maxHp);
   assert.equal(s.knowledge.zukan.tsugihakuro.stage, 2);
 });
 
@@ -212,7 +212,7 @@ test('干渉：俗説を選ぶと魔物が回復し、騙された回数が増�
   assert.ok(s.knowledge.review.includes(q.id));
 });
 
-test('干渉していないとき：正解は最大HPの50%、俗説を選んでも回復しない', () => {
+test('正解しても敵にダメージは入らない。干渉していないときは俗説を選んでも回復しない', () => {
   const s = newGame(0);
   const ctx = makeCtx();
   const e = spawnEnemy(s, ctx, [], 'nidoochizu');
@@ -220,7 +220,9 @@ test('干渉していないとき：正解は最大HPの50%、俗説を選んで
   let cur = presentQuestion(sess, questionFor('ツギハクロ'), ctx);
   let r = answer(s, sess, answerIndex(cur), ctx);
   assert.equal(r.interfered, false);
-  assert.equal(r.damage, Math.ceil(e.maxHp * 0.5));
+  assert.equal(r.correct, true);
+  assert.equal(e.hp, e.maxHp, '正解しても敵は無傷（40HzP の依頼で無くした）');
+  e.hp = 1;
   const hp = e.hp;
   cur = presentQuestion(sess, questionFor('ツギハクロ'), ctx);
   r = answer(s, sess, mythIndex(cur), ctx);

@@ -2,7 +2,7 @@
 // ctx = { balance, monsters, items, questions, rng }（questions は questions.json の questions 配列）
 
 import { GENRES } from './genres.js';
-import { genreState, raiseZukan, zukanEntry, breakMidbosses, damageEnemy, healEnemy, proficiencyCap, markSmooth, advisorActive, citationsLeft } from './sim.js';
+import { genreState, raiseZukan, zukanEntry, breakMidbosses, healEnemy, proficiencyCap, markSmooth, advisorActive, citationsLeft } from './sim.js';
 import { fieldActive, fieldById } from './fields.js';
 
 export { GENRES };
@@ -271,7 +271,7 @@ function pushRecent(state, id, ctx) {
 /**
  * 答える。choiceIndex が null なら時間切れ（不正解）。
  * 干渉の判定は答えた瞬間の敵の群れで行う。
- * 正解：干渉していればその魔物に大ダメージ、そうでなければ群れの先頭にダメージ。
+ * 正解しても敵にダメージは入らない（40HzP の依頼で無くした。孫の「なんで？」だけは sim.js の nandeAnswered でダメージ）。
  * 俗説（誤答1）を選んだ：干渉している魔物が回復する。
  * 返り値の events は sim.tick と同じ形（描画・通知用）
  */
@@ -286,7 +286,7 @@ export function answer(state, session, choiceIndex, ctx) {
   const relatedMonster = q.monster ? ctx.monsters.find((m) => m.name === q.monster) || null : null;
   const interferer = interferingEnemy(state, q, ctx);
   const blocked = blockedInterference(state, q, ctx);
-  const target = interferer || state.adventure.enemies[0] || null;
+  const target = interferer || state.adventure.enemies[0] || null; // 知らせに名前を出す相手
   const events = [];
   const res = {
     correct, timeout: choiceIndex == null, chose: choice ? choice.kind : null,
@@ -294,7 +294,7 @@ export function answer(state, session, choiceIndex, ctx) {
     blocked: blocked ? { name: blocked.monster.name, field: blocked.field.name } : null, // 学際分野で口出しを封じた魔物
     targetName: target ? target.name : null,
     targetMidboss: target && target.kind === 'midboss' ? target.monsterId : null,
-    levelUp: null, fooled: false, damage: 0, healed: 0, defeated: false, midbossBroken: false,
+    levelUp: null, fooled: false, healed: 0, midbossBroken: false,
     zukan: [], events,
   };
 
@@ -316,13 +316,6 @@ export function answer(state, session, choiceIndex, ctx) {
     if (breakMidbosses(state, ctx, events).length) res.midbossBroken = true;
     // 月面のボス（カンペキキュウ）：正解するたびに、つるつるの月に山と影が描き足される
     markSmooth(state, ctx, events);
-    if (target) {
-      // 中ボスには正解のダメージを小さくする（勉強だけで一気に倒せないように）
-      const ratio = interferer ? qb.interferedCorrectDamageRatio
-        : target.kind === 'midboss' ? (qb.midbossDamageRatio ?? qb.correctDamageRatio) : qb.correctDamageRatio;
-      res.damage = damageEnemy(state, Math.ceil(target.maxHp * ratio), ctx, events, 'quiz', target);
-      res.defeated = !state.adventure.enemies.includes(target);
-    }
   } else {
     if (!k.review.includes(q.id)) k.review.push(q.id);
     if (interferer && choice && choice.kind === 'myth') {

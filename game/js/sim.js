@@ -447,7 +447,7 @@ export function markSmooth(state, ctx, events) {
 
 /**
  * ガリレオチョウセキ（tide）：満ち潮の盾で、群れの先頭への1体攻撃（主人公のふつうの攻撃と、先頭を叩く仲間）を弾く。
- * 全体攻撃（ひらめき・敵全体を叩く仲間）と勉強の正解は弾けない（満潮は反対側でも起きる）
+ * 全体攻撃（ひらめき・敵全体を叩く仲間）は弾けない（満潮は反対側でも起きる）
  */
 const deflects = (state, e, by, extra) =>
   (by === 'hero' || (by === 'ally' && !extra.area)) && e === state.adventure.enemies[0] && gimmickIn(state, 'tide');
@@ -814,6 +814,16 @@ function askWhy(state, dt, ctx, events) {
   }
 }
 
+/**
+ * 孫の「なんで？」に正解した：孫は納得して、最大HP×correctDamageRatio のダメージ（防御が崩れる前は0）。
+ * 勉強の正解では敵にダメージは入らない（40HzP の依頼で無くした）が、孫の「なんで？」は戦いの仕掛けなので残す
+ */
+export function nandeAnswered(state, ctx, events) {
+  const e = state.adventure.enemies.find((x) => asksWhy(ctx, x.monsterId));
+  if (!e) return 0;
+  return damageEnemy(state, Math.ceil(e.maxHp * ctx.balance.nande.correctDamageRatio), ctx, events, 'quiz', e);
+}
+
 /** 孫の「なんで？」に答えられなかった（間違えた・時間切れ）：孫は納得せず、HPが最大HP×wrongHealRatio 回復する */
 export function nandeUnanswered(state, ctx, events) {
   const e = state.adventure.enemies.find((x) => asksWhy(ctx, x.monsterId));
@@ -885,7 +895,7 @@ function hitEnemy(state, e, dmg, by, ctx, events, extra = {}) {
   return dmg;
 }
 
-/** 勉強の正解などで敵にダメージを与える（既定は群れの先頭。中ボスの防御が崩れる前は0） */
+/** 敵にダメージを与える（孫の「なんで？」の正解など。既定は群れの先頭。中ボスの防御が崩れる前は0） */
 export function damageEnemy(state, amount, ctx, events, by = 'quiz', target = null) {
   const e = target || frontEnemy(state);
   if (!e || !state.adventure.enemies.includes(e)) return 0;
