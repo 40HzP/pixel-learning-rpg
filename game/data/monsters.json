@@ -370,6 +370,7 @@
       "myth": "郡山市は「ぐんやまし」と読む",
       "truth": "「こおりやまし」。ほかに上郡町（かみごおりちょう）、小郡市（おごおりし）も「郡」を「こおり」と読む",
       "debated": false,
+      "mythLabel": "よくある間違い",
       "sprites": { "idle": "gugun_idle", "attack": null }
     },
     {

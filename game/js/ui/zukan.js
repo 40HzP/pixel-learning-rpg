@@ -71,7 +71,8 @@ function card(app, m) {
       m.advisor ? el('div', { class: 'muted', style: { marginTop: '4px' } },
         `顧問にすると：${ADVISOR_PLACES[m.advisor.place]}で${m.advisor.role}${m.advisor.soon ? `（${m.advisor.soon}）` : ''}`) : null);
   }
-  const mythLabel = m.wordType ? 'よく言われる意味' : '俗説';
+  // mythLabel：「俗説」の代わりの見出し（ググンは「よくある間違い」。40HzP の依頼）
+  const mythLabel = m.mythLabel || (m.wordType ? 'よく言われる意味' : '俗説');
   const truthLabel = m.wordType ? '本来の意味' : '正体';
   let truth;
   if (z.stage < 2) truth = el('div', { class: 'muted' }, '倒すか、関連する問題に正解すると分かる');
@@ -81,7 +82,7 @@ function card(app, m) {
     el('div', { class: 'zname' }, m.name),
     el('span', { class: 'label' }, mythLabel), el('div', {}, m.myth),
     el('span', { class: 'label' }, truthLabel), truth,
-    z.stage >= 2 ? el('div', { class: z.fooled ? 'bad' : 'muted', style: { marginTop: '4px' } }, `この${m.wordType ? '言い方' : '俗説'}に${z.fooled}回騙された`) : null);
+    z.stage >= 2 ? el('div', { class: z.fooled ? 'bad' : 'muted', style: { marginTop: '4px' } }, `この${m.wordType ? '言い方' : mythLabel}に${z.fooled}回騙された`) : null);
 }
 
 export function update(app, force) {
