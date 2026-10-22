@@ -1,0 +1,29 @@
+{
+  "name": "menu_remedial",
+  "category": "icon",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      "................",
+      ".00000000000000.",
+      "0aaaaaaaaaaaaa90",
+      "0ahiiiiiiiiiih90",
+      "0ai44i444iiiih90",
+      "0aiiiiiiiiiiih90",
+      "0ai4444i44i4ih90",
+      "0aiiiiiiiiiiih90",
+      "0ai444i4iiiiih90",
+      "0aiiiiiiiiiiih90",
+      "0ahhhhhhhh00hh90",
+      "0a99999990dd0980",
+      ".00000000033000.",
+      "..........00....",
+      "................",
+      "................"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

@@ -90,6 +90,34 @@ function renderInfo(app) {
 }
 
 /* ---------- メニュー ---------- */
+/**
+ * メニューのボタンの見た目（40HzP の依頼「クイズ・テスト・過去問復習・作問のボタンにもデザインを」）：
+ * アイコン（pixel/sprites の menu_*、16×16 を2倍）と、縁取りの色（パレットのキー）。main.js がアイコンを読む
+ */
+export const MENU_LOOK = {
+  quiz: { icon: 'menu_quiz', color: 'e' },         // 早押しボタン・オレンジ
+  test: { icon: 'menu_test', color: 'n' },         // 「100」の答案・青
+  review: { icon: 'menu_review', color: 'j' },     // 間違いノート（×を○に）・緑
+  remedial: { icon: 'menu_remedial', color: 'f' }, // 黒板・山吹
+  compose: { icon: 'menu_compose', color: 'r' },   // 「？」の電球・紫
+};
+
+/** パレットの色で縁取り、薄く敷く（style に入れる文字列） */
+function tint(app, color) {
+  const [r, g, b] = app.palette.get(color) || [169, 167, 184];
+  return `--tint:rgb(${r},${g},${b});--tint-bg:rgba(${r},${g},${b},.2)`;
+}
+
+/** 色とアイコンの付いたボタン（メニュー・テストのジャンル）。sub は小さい字の説明 */
+function tintButton(app, { cls, color, sprite, title, sub, ...props }) {
+  return el('button', { class: `tint-btn ${cls}`, style: tint(app, color), ...props },
+    spriteCanvas(sprite || null, 2, app.palette),
+    el('span', { class: 'tint-text' }, el('b', {}, title), el('small', {}, sub)));
+}
+
+const menuButton = (app, id, title, sub, props = {}) =>
+  tintButton(app, { cls: 'menu-btn', color: MENU_LOOK[id].color, sprite: app.menuSprites[id], title, sub, ...props });
+
 function renderMenu(app) {
   const k = app.state.knowledge;
   const list = genresWithQuestions(app);
@@ -98,21 +126,21 @@ function renderMenu(app) {
   const cap = proficiencyCap(app.state, app.ctx.balance);
   refs.body.replaceChildren(
     el('div', { class: 'modes' },
-      el('button', { onclick: () => start(app, 'quiz') }, 'クイズ', el('small', {}, '全ジャンルから1問')),
+      menuButton(app, 'quiz', 'クイズ', '全ジャンルから1問', { onclick: () => start(app, 'quiz') }),
       // テスト：押すとジャンルを選ぶ画面（40HzP の依頼「テスト→ジャンル選択の順に」）
-      el('button', { onclick: () => openTestGenre(app) }, 'テスト', el('small', {}, `ジャンルを選んで${app.ctx.balance.quiz.testQuestions}問まで・時間制限なし`)),
-      el('button', { disabled: !k.review.length, onclick: () => start(app, 'review') },
-        '過去問復習', el('small', {}, k.review.length ? `間違えた問題・騙された問題（${k.review.length}問）` : 'まだありません')),
+      menuButton(app, 'test', 'テスト', `ジャンルを選んで${app.ctx.balance.quiz.testQuestions}問まで・時間制限なし`, { onclick: () => openTestGenre(app) }),
+      menuButton(app, 'review', '過去問復習', k.review.length ? `間違えた問題・騙された問題（${k.review.length}問）` : 'まだありません',
+        { disabled: !k.review.length, onclick: () => start(app, 'review') }),
       // 小学校教師が学校の顧問なら、破りすてたテストの問題を集めた補習
       remedialOpen(app.state, app.ctx)
-        ? el('button', { disabled: !k.torn.length, onclick: () => start(app, 'remedial') },
-          '補習', el('small', {}, k.torn.length ? `破りすてたテストの問題（${k.torn.length}問）・小学校教師` : '破りすてたテストの問題はない'))
+        ? menuButton(app, 'remedial', '補習', k.torn.length ? `破りすてたテストの問題（${k.torn.length}問）・小学校教師` : '破りすてたテストの問題はない',
+          { disabled: !k.torn.length, onclick: () => start(app, 'remedial') })
         : null,
       // 作問：問題を作って送る（Notion のフォーム）。採用された自分の問題もここで見る
-      el('button', { onclick: () => { view.phase = 'compose'; renderBody(app); scrollTop(); } },
-        '作問', el('small', {}, authorRightsInfo(app.state, app.ctx).granted
-          ? `問題を作って送る${adoptedQuestions(app.state, app.ctx).length ? `・採用 ${adoptedQuestions(app.state, app.ctx).length}問` : ''}`
-          : `作問権：どれか${app.ctx.balance.authoring.rightsGenres}つのジャンルを Lv${app.ctx.balance.authoring.rightsLevel} に`))),
+      menuButton(app, 'compose', '作問', authorRightsInfo(app.state, app.ctx).granted
+        ? `問題を作って送る${adoptedQuestions(app.state, app.ctx).length ? `・採用 ${adoptedQuestions(app.state, app.ctx).length}問` : ''}`
+        : `作問権：どれか${app.ctx.balance.authoring.rightsGenres}つのジャンルを Lv${app.ctx.balance.authoring.rightsLevel} に`,
+      { onclick: () => { view.phase = 'compose'; renderBody(app); scrollTop(); } })),
     el('div', { class: 'prof-list' },
       el('span', { class: 'head' }, 'ジャンル'), el('span', { class: 'head' }, '熟練'), el('span', { class: 'head' }, '次のLvまで'),
       prof.flatMap((g) => {
@@ -173,14 +201,9 @@ function renderTestGenre(app) {
 }
 
 function genreButton(app, genre, color, count) {
-  const [r, g, b] = app.palette.get(color) || [169, 167, 184];
   const lv = (app.state.knowledge.genres[genre] || {}).level || 0;
   const n = Math.min(app.ctx.balance.quiz.testQuestions, count);
-  return el('button', {
-    class: 'genre-btn', style: `--genre:rgb(${r},${g},${b});--genre-bg:rgba(${r},${g},${b},.2)`,
-    onclick: () => start(app, 'test', genre),
-  }, spriteCanvas(app.genreSprites[genre] || null, 2, app.palette),
-  el('span', { class: 'genre-text' }, el('b', {}, genre), el('small', {}, `${n}問・熟練Lv${lv}`)));
+  return tintButton(app, { cls: 'genre-btn', color, sprite: app.genreSprites[genre], title: genre, sub: `${n}問・熟練Lv${lv}`, onclick: () => start(app, 'test', genre) });
 }
 
 function start(app, mode, genre = null) {
