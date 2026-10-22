@@ -1,11 +1,13 @@
 // 勉強画面（設計ページ「勉強画面の表示」）
-import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH, flyerSpan, recordTorn, remedialOpen, adoptedQuestions } from '../quiz.js';
+import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH, flyerSpan, recordTorn, remedialOpen, adoptedQuestions, testShareText, SHARE_HASHTAG } from '../quiz.js';
 import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap, ageYears, newspaperActive, authorRightsInfo } from '../sim.js';
 import { fieldById, fieldActive } from '../fields.js';
 import { GENRES } from '../genres.js';
 import { spriteCanvas } from '../sprites.js';
 import { el, stars } from './dom.js';
 import { teacherForAge } from './tear.js';
+import { createDoodle, attachDoodle } from './doodle.js';
+import { shareTest } from './share.js';
 
 /** 選択肢の文。学会の査読者（研究室の顧問）が「要出典」の印を付けた俗説には印を出す */
 const choiceText = (c) => (c.cited ? [c.text, el('span', { class: 'cite' }, '要出典')] : c.text);
@@ -34,8 +36,8 @@ function questionText(app, q) {
 
 // phase：menu・question（クイズ・過去問復習の1問）・result・summary・sheet（テストの用紙に答えている）・testResult（テストの採点）
 // revealed：「選択肢を表示する」を押したか（押すまで選択肢を出さず、制限時間も減らない。40HzP の依頼）。revealedAt：押した時刻
-// picks：テストの問題ごとに選んだ選択肢の番号（'oogiri' は大喜利）。oogiri：大喜利に書いた文
-const fresh = () => ({ phase: 'menu', session: null, remaining: 0, revealed: false, revealedAt: 0, result: null, chosen: null, genre: null, interferingId: null, picks: [], oogiri: [], testResults: null, sheetMeta: [] });
+// picks：テストの問題ごとに選んだ選択肢の番号（'oogiri' は大喜利）。oogiri：大喜利に書いた文。doodle：テストの用紙の落書き（ui/doodle.js）
+const fresh = () => ({ phase: 'menu', session: null, remaining: 0, revealed: false, revealedAt: 0, result: null, chosen: null, genre: null, interferingId: null, picks: [], oogiri: [], testResults: null, sheetMeta: [], doodle: createDoodle() });
 let view = fresh();
 let refs = null;
 
@@ -164,6 +166,7 @@ function startTest(app) {
   view.picks = sheet.map(() => null);
   view.oogiri = sheet.map(() => '');
   view.testResults = null;
+  view.doodle = createDoodle();
   renderBody(app);
   scrollTop();
 }
@@ -221,14 +224,19 @@ function renderSheet(app) {
         showLeft();
       },
     }, key === 'oogiri' ? '大喜利をする（フリースペース）' : choiceText(cur.choices[key])));
-    return el('div', { class: 'test-q' }, meta, questionText(app, cur.question), el('div', { class: 'choices' }, buttons, free));
+    // data-doodle：落書きの位置の基準（問題ごと・問題の文・選択肢。採点した答案でも同じ所に残す）
+    const text = questionText(app, cur.question);
+    text.dataset.doodle = `${i}t`;
+    return el('div', { class: 'test-q', 'data-doodle': i }, meta, text, el('div', { class: 'choices', 'data-doodle': `${i}c` }, buttons, free));
   });
   showLeft();
+  const paper = el('div', { class: 'paper' },
+    paperHead(app, s),
+    el('div', { class: 'paper-note' }, `全${s.total}問・時間制限なし。答えは提出するまで選び直せる`),
+    ...cards);
   refs.body.replaceChildren(
-    el('div', { class: 'paper' },
-      paperHead(app, s),
-      el('div', { class: 'paper-note' }, `全${s.total}問・時間制限なし。答えは提出するまで選び直せる`),
-      ...cards),
+    doodleBar(paper).bar,
+    paper,
     // 「提出する」の下に、同じ大きさで赤い「破りすてる」
     el('div', { class: 'test-submit' }, left, el('button', { class: 'primary', onclick: () => submitTest(app) }, '提出する'),
       el('button', { class: 'danger', onclick: () => tearTest(app) }, '破りすてる')),
@@ -262,6 +270,7 @@ function submitTest(app) {
   const picks = view.picks.map((p, i) => (p === 'oogiri' ? { oogiri: view.oogiri[i] } : p));
   const results = gradeTest(app.state, view.session, picks, app.ctx);
   view.testResults = results;
+  view.doodle.pen = false; // 落書きは採点した答案にも残す（ペンはしまう）
   view.phase = 'testResult'; // 先に変える（問題を解いている最中ではなくなるので、取っておいたミニムービーが出る）
   // 大喜利を書いていたら、先生がひとこと言って主人公が赤面するミニムービー（ほかのミニムービーより先に出す）
   if (results.some((r) => r.oogiri)) app.oogiriTest(teacherForAge(ageYears(app.state)));
@@ -285,10 +294,10 @@ function renderTestResult(app) {
     ok ? ['good', `経験値の倍率が ×${expMultiplier(app.state, app.ctx.balance).toFixed(2)} になった`] : null,
     ['', g.level < cap ? `${s.genre}：熟練 Lv ${g.level}　次のLvまで ${g.progress}/${per}回` : `${s.genre}：熟練 Lv ${g.level}（最大）`],
   ].filter(Boolean);
-  const cards = rs.map((r, i) => el('div', { class: 'test-q' },
+  const cards = rs.map((r, i) => el('div', { class: 'test-q', 'data-doodle': i },
     el('div', { class: 'result-mark' }, el('b', {}, r.correct ? '○' : '×'), `${i + 1}問目　${r.correct ? '正解' : r.oogiri ? '大喜利（不正解）' : r.timeout ? '答えていない' : '不正解'}`),
-    el('div', { class: 'qtext' }, r.question.question),
-    el('div', { class: 'choices' }, r.choices.map((c, j) => el('button', {
+    el('div', { class: 'qtext', 'data-doodle': `${i}t` }, r.question.question),
+    el('div', { class: 'choices', 'data-doodle': `${i}c` }, r.choices.map((c, j) => el('button', {
       disabled: true,
       class: c.kind === 'answer' ? 'correct' : j === r.chosen ? 'wrong' : '',
     }, choiceText(c)))),
@@ -298,15 +307,52 @@ function renderTestResult(app) {
   const buttons = () => el('div', { class: 'btnrow' },
     el('button', { class: 'primary', onclick: () => start(app, 'test', s.genre) }, 'もう一度'),
     el('button', { onclick: () => { view.phase = 'menu'; view.session = null; renderBody(app); } }, 'メニューへ'));
-  // 採点した答案も同じ紙のまま。先生の赤ペンで○×と点数を付ける
+  // 採点した答案も同じ紙のまま。先生の赤ペンで○×と点数を付ける。答えているときの落書きも残り、続けて描ける
+  const paper = el('div', { class: 'paper graded' },
+    paperHead(app, s),
+    el('div', { class: 'paper-score' }, `${rs.length}問中${ok}問正解`),
+    el('ul', { class: 'effects' }, summary.map(([cls, t]) => el('li', { class: cls }, t))),
+    ...cards);
+  const { pad, bar } = doodleBar(paper);
+  // 結果をツイートする（40HzP の依頼）：答案を落書きごと画像にして、共有の画面か X の投稿の画面を開く（ui/share.js）
+  const tweet = () => shareTest({
+    paper, pad,
+    text: testShareText({ name: app.state.hero.name, genre: s.genre, results: rs, url: gameUrl() }),
+    filename: `テスト_${s.genre.replace(/[\\/:*?"<>|]/g, '')}.png`,
+    footer: `#${SHARE_HASHTAG}`,
+  });
   refs.body.replaceChildren(
-    el('div', { class: 'paper graded' },
-      paperHead(app, s),
-      el('div', { class: 'paper-score' }, `${rs.length}問中${ok}問正解`),
-      el('ul', { class: 'effects' }, summary.map(([cls, t]) => el('li', { class: cls }, t))),
-      ...cards),
+    bar,
+    paper,
+    el('button', { class: 'share-btn', onclick: tweet }, '結果をツイートする'),
     buttons(),
   );
+}
+
+/** 公開した版のゲームの場所（ツイートに付ける）。手元で動かしているときは付けない */
+const gameUrl = () => (location.protocol === 'https:' ? location.origin + location.pathname : null);
+
+/**
+ * 用紙に落書きの canvas を重ね、道具（落書きする・1つ戻す・全部消す）の帯を作る。
+ * 帯はスクロールしても画面の上に残る。ペンを出している間は用紙に描けて、答えを選ぶ・スクロールするにはペンをしまう
+ */
+function doodleBar(paper) {
+  const d = view.doodle;
+  let sync = () => {};
+  const pad = attachDoodle(paper, d, () => sync());
+  const pen = el('button', { class: 'pen', onclick: () => { pad.setPen(!d.pen); sync(); } });
+  const undo = el('button', { onclick: () => pad.undo() }, '1つ戻す');
+  const clear = el('button', { onclick: () => { if (confirm('落書きを全部消しますか？')) pad.clear(); } }, '全部消す');
+  const hint = el('div', { class: 'doodle-hint' }, 'ペンをしまうと答えを選べる・スクロールできる');
+  sync = () => {
+    pen.textContent = d.pen ? 'ペンをしまう' : '落書きする';
+    pen.classList.toggle('on', d.pen);
+    pen.setAttribute('aria-pressed', d.pen ? 'true' : 'false');
+    undo.disabled = clear.disabled = !d.strokes.length;
+    hint.hidden = !d.pen;
+  };
+  sync();
+  return { pad, bar: el('div', { class: 'doodle-bar' }, el('div', { class: 'doodle-tools' }, pen, undo, clear), hint) };
 }
 
 /* ---------- 出題中 ---------- */

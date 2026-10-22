@@ -374,6 +374,23 @@ export function takeNewAdoptions(state, ctx) {
   return fresh;
 }
 
+/* ================= テストの結果をツイートする（40HzP の依頼） ================= */
+
+/** ツイートに付けるハッシュタグ（ゲームの名前） */
+export const SHARE_HASHTAG = 'ドット絵勉強RPG';
+
+/**
+ * テストの結果のツイートの文。results は gradeTest の戻り値。url はゲームの場所（公開した版だけ。無ければ付けない）。
+ * 満点・0点・大喜利で答えた問題があれば、ひとこと足す
+ */
+export function testShareText({ name, genre, results, url = null }) {
+  const total = results.length;
+  const ok = results.filter((r) => r.correct).length;
+  const oogiri = results.filter((r) => r.oogiri).length;
+  const comment = (ok === total ? '満点！' : ok === 0 ? '0点…' : '') + (oogiri ? `（大喜利で答えた問題：${oogiri}問）` : '');
+  return [`${name}は「${genre}」のテストで${total}問中${ok}問正解した！${comment}`, `#${SHARE_HASHTAG}`, url].filter(Boolean).join('\n');
+}
+
 /* ================= 新聞のビラ（月面のボス・ツキジンセツ） ================= */
 
 /**
