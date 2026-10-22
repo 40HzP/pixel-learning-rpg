@@ -1,0 +1,29 @@
+{
+  "name": "genre_bakegaku",
+  "category": "icon",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      ".....000000.....",
+      "....03333330....",
+      ".....04oon0.....",
+      ".....04oon0.....",
+      ".....04oon0.....",
+      "....04ooonn0....",
+      "...04oooooon0...",
+      "...04ooooooon0..",
+      "..0tsssssssssr0.",
+      "..0tssstsssssr0.",
+      ".0tss4sssssstr0.",
+      ".0tsssssss4sssr0",
+      "0tsssss4ssssssr0",
+      "0tssssssssssssr0",
+      "0rrrrrrrrrrrrrr0",
+      ".00000000000000."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

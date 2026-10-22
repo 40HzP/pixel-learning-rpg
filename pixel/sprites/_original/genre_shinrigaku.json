@@ -1,0 +1,29 @@
+{
+  "name": "genre_shinrigaku",
+  "category": "icon",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      "................",
+      "....0000..000...",
+      "..00ttss00sss0..",
+      ".0ttssssssssss0.",
+      "0tssrrsssrssssr0",
+      "0tssssrsrssrrsr0",
+      "0tsrsssrsssssrr0",
+      "0tssrrsssrrsssr0",
+      "0ssrsssrsssrssr0",
+      ".0sssssrssssrr0.",
+      "..0rrrrssssrr0..",
+      "...00000ss000...",
+      ".......0sr0.....",
+      "........00......",
+      "................",
+      "................"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

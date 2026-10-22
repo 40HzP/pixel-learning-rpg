@@ -1,0 +1,29 @@
+{
+  "name": "genre_kenchiku",
+  "category": "icon",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      "................",
+      ".00000000000000.",
+      "0mmmmmmmmmmmmon0",
+      "0mmmmmm4mmmmmon0",
+      "0mmmmm4m4mmmmon0",
+      "0mmmm4mmm4mmmon0",
+      "0mmm4mmmmm4mmon0",
+      "0mm4444444444on0",
+      "0mmm4mmmmm4mmon0",
+      "0mmm4m44mm4mmon0",
+      "0mmm4m44mm4mmon0",
+      "0mmm4444444mmon0",
+      "0mmmmmmmmmmmmol0",
+      "0llllllllllllll0",
+      ".00000000000000.",
+      "................"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

@@ -3,7 +3,7 @@ import { createSession, nextQuestion, answer, presentTest, gradeTest, interferin
 import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap, ageYears, newspaperActive, authorRightsInfo } from '../sim.js';
 import { fieldById, fieldActive } from '../fields.js';
 import { GENRES } from '../genres.js';
-import { spriteCanvas } from '../sprites.js';
+import { spriteCanvas, cssColor } from '../sprites.js';
 import { el, stars } from './dom.js';
 import { teacherForAge } from './tear.js';
 import { createDoodle, attachDoodle } from './doodle.js';
@@ -34,7 +34,7 @@ function questionText(app, q) {
     el('div', { class: 'qtext' }, t.slice(0, start), el('span', { class: 'flyer', role: 'img', 'aria-label': '新聞のビラ' }, '　'.repeat(length)), t.slice(start + length)));
 }
 
-// phase：menu・question（クイズ・過去問復習の1問）・result・summary・sheet（テストの用紙に答えている）・testResult（テストの採点）
+// phase：menu・question（クイズ・過去問復習の1問）・result・summary・testGenre（テストのジャンルを選ぶ）・sheet（テストの用紙に答えている）・testResult（テストの採点）
 // revealed：「選択肢を表示する」を押したか（押すまで選択肢を出さず、制限時間も減らない。40HzP の依頼）。revealedAt：押した時刻
 // picks：テストの問題ごとに選んだ選択肢の番号（'oogiri' は大喜利）。oogiri：大喜利に書いた文。doodle：テストの用紙の落書き（ui/doodle.js）
 const fresh = () => ({ phase: 'menu', session: null, remaining: 0, revealed: false, revealedAt: 0, result: null, chosen: null, genre: null, interferingId: null, picks: [], oogiri: [], testResults: null, sheetMeta: [], doodle: createDoodle() });
@@ -93,17 +93,14 @@ function renderInfo(app) {
 function renderMenu(app) {
   const k = app.state.knowledge;
   const list = genresWithQuestions(app);
-  // ジャンルを変えたらメニューを作り直す（テストの問題数の表示もジャンルで変わる）
-  const sel = el('select', { onchange: (e) => { view.genre = e.target.value; renderBody(app); } },
-    list.map((x) => el('option', { value: x.genre, selected: x.genre === view.genre }, `${x.genre}（${x.count}問）`)));
   const prof = GENRES.filter((g) => list.some((x) => x.genre === g) || (k.genres[g] && k.genres[g].level > 0));
   const per = app.ctx.balance.quiz.correctPerProficiencyLevel;
   const cap = proficiencyCap(app.state, app.ctx.balance);
   refs.body.replaceChildren(
     el('div', { class: 'modes' },
       el('button', { onclick: () => start(app, 'quiz') }, 'クイズ', el('small', {}, '全ジャンルから1問')),
-      el('div', { class: 'row' }, sel,
-        el('button', { onclick: () => start(app, 'test', view.genre) }, 'テスト', el('small', {}, `このジャンルから${testCount(app)}問・時間制限なし`))),
+      // テスト：押すとジャンルを選ぶ画面（40HzP の依頼「テスト→ジャンル選択の順に」）
+      el('button', { onclick: () => openTestGenre(app) }, 'テスト', el('small', {}, `ジャンルを選んで${app.ctx.balance.quiz.testQuestions}問まで・時間制限なし`)),
       el('button', { disabled: !k.review.length, onclick: () => start(app, 'review') },
         '過去問復習', el('small', {}, k.review.length ? `間違えた問題・騙された問題（${k.review.length}問）` : 'まだありません')),
       // 小学校教師が学校の顧問なら、破りすてたテストの問題を集めた補習
@@ -145,10 +142,45 @@ function analysisBox(app) {
     a.review.length ? el('div', {}, `間違えたままの問題：${join(a.review, '問')}（過去問復習で解き直せる）`) : null);
 }
 
-/** テストの問題数：testQuestions 問（選んだジャンルの問題が足りなければ、ある分だけ） */
-function testCount(app) {
-  const n = app.ctx.questions.filter((q) => q.genre === view.genre).length;
-  return Math.min(app.ctx.balance.quiz.testQuestions, n);
+/* ---------- テストのジャンルを選ぶ（ジャンルごとに色とアイコンの付いたボタン。40HzP の依頼） ---------- */
+function openTestGenre(app) {
+  view.phase = 'testGenre';
+  view.session = null;
+  renderBody(app);
+  scrollTop();
+}
+
+/**
+ * 問題のあるジャンルを、data/genre-groups.json のまとまり（ことば・数学…）ごとに並べる。
+ * まとまりの色でボタンを縁取り、ジャンルのアイコン（genre_*、16×16 を2倍）と、テストの問題数・熟練Lvを出す。
+ * genre-groups.json に無いジャンル（genres.js に足したばかり）は「そのほか」に入れる
+ */
+function renderTestGenre(app) {
+  const counts = Object.fromEntries(genresWithQuestions(app).map((x) => [x.genre, x.count]));
+  const grouped = new Set(app.genreGroups.flatMap((g) => g.genres.map((x) => x.name)));
+  const others = Object.keys(counts).filter((g) => !grouped.has(g)).map((name) => ({ name }));
+  const groups = [...app.genreGroups, { name: 'そのほか', color: '3', genres: others }]
+    .map((g) => ({ ...g, genres: g.genres.filter((x) => counts[x.name]) }))
+    .filter((g) => g.genres.length);
+  refs.body.replaceChildren(
+    el('div', { class: 'genre-head' },
+      el('button', { onclick: () => { view.phase = 'menu'; renderBody(app); } }, '← もどる'),
+      el('span', {}, 'テストのジャンルを選ぶ')),
+    ...groups.map((g) => el('section', { class: 'genre-group' },
+      el('h3', { class: 'genre-group-name', style: `color:${cssColor(app.palette, g.color, '#a9a7b8')}` }, g.name),
+      el('div', { class: 'genre-grid' }, g.genres.map((x) => genreButton(app, x.name, g.color, counts[x.name]))))),
+  );
+}
+
+function genreButton(app, genre, color, count) {
+  const [r, g, b] = app.palette.get(color) || [169, 167, 184];
+  const lv = (app.state.knowledge.genres[genre] || {}).level || 0;
+  const n = Math.min(app.ctx.balance.quiz.testQuestions, count);
+  return el('button', {
+    class: 'genre-btn', style: `--genre:rgb(${r},${g},${b});--genre-bg:rgba(${r},${g},${b},.2)`,
+    onclick: () => start(app, 'test', genre),
+  }, spriteCanvas(app.genreSprites[genre] || null, 2, app.palette),
+  el('span', { class: 'genre-text' }, el('b', {}, genre), el('small', {}, `${n}問・熟練Lv${lv}`)));
 }
 
 function start(app, mode, genre = null) {
@@ -307,6 +339,7 @@ function renderTestResult(app) {
     el('ul', { class: 'effects share-hide' }, effectLines(app, r, true).map(([cls, t]) => el('li', { class: cls }, t)))));
   const buttons = () => el('div', { class: 'btnrow' },
     el('button', { class: 'primary', onclick: () => start(app, 'test', s.genre) }, 'もう一度'),
+    el('button', { onclick: () => openTestGenre(app) }, 'ほかのジャンル'),
     el('button', { onclick: () => { view.phase = 'menu'; view.session = null; renderBody(app); } }, 'メニューへ'));
   // 採点した答案も同じ紙のまま。先生の赤ペンで○×と点数を付ける。答えているときの落書きも残り、続けて描ける
   const paper = el('div', { class: 'paper graded' },
@@ -567,6 +600,7 @@ function renderCompose(app) {
 function renderBody(app) {
   renderInfo(app);
   if (view.phase === 'question') renderQuestion(app);
+  else if (view.phase === 'testGenre') renderTestGenre(app);
   else if (view.phase === 'sheet') renderSheet(app);
   else if (view.phase === 'testResult') renderTestResult(app);
   else if (view.phase === 'result') renderResult(app);

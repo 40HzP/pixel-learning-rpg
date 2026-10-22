@@ -58,14 +58,15 @@ const cryptoRng = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
 
 async function boot() {
   const params = new URLSearchParams(location.search);
-  let balance, monsters, items, questions, recruits, town, stages, business, fields, submit;
+  let balance, monsters, items, questions, recruits, town, stages, business, fields, submit, genreGroups;
   try {
-    [balance, { monsters }, { items }, { questions }, { recruits }, town, { stages }, business, fields, submit] = await Promise.all([
+    [balance, { monsters }, { items }, { questions }, { recruits }, town, { stages }, business, fields, submit, { groups: genreGroups }] = await Promise.all([
       fetchJSON('data/balance.json'), fetchJSON('data/monsters.json'),
       fetchJSON('data/items.json'), fetchJSON('data/questions.json'),
       fetchJSON('data/recruits.json'), fetchJSON('data/town.json'),
       fetchJSON('data/stages.json'), fetchJSON('data/business.json'),
       fetchJSON('data/fields.json'), fetchJSON('data/submit.json'),
+      fetchJSON('data/genre-groups.json'),
     ]);
   } catch (e) {
     document.querySelector('#loading .dialog').textContent = 'ゲームのデータを読めませんでした。\n' + e.message;
@@ -119,6 +120,9 @@ async function boot() {
     load(town.moon.background),
     ...town.moon.facilities.map(async (f) => { moonSprites[f.id] = await load(f.sprite); }),
   ]);
+  // テストのジャンルを選ぶボタンのアイコン（genre-groups.json に書いた名前だけ読む。無ければ仮の図形）
+  const genreSprites = {};
+  await Promise.all(genreGroups.flatMap((g) => g.genres).map(async (x) => { genreSprites[x.name] = await load(x.icon); }));
   // 下の切り替えバーのアイコン（index.html のボタンの data-icon に書いた名前だけ読む。無ければ字だけ）
   await Promise.all([...document.querySelectorAll('#tabs button[data-icon]')].map(async (b) => {
     const sp = await load(b.dataset.icon);
@@ -129,6 +133,8 @@ async function boot() {
   const app = {
     ctx, palette, monsterSprites, recruitSprites,
     submit,           // 作問フォーム（data/submit.json）
+    genreGroups,      // テストのジャンルを選ぶボタンのまとまり・色・アイコン（data/genre-groups.json）
+    genreSprites,
     heroSprites: { idle: heroIdle, attack: heroAttack, old: heroOld, bow: heroBow, blush: heroBlush },
     sceneSprites: { classroom, lectern, launchpad, rocket },
     stages: stageList,

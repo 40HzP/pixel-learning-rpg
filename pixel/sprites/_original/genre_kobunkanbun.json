@@ -1,0 +1,29 @@
+{
+  "name": "genre_kobunkanbun",
+  "category": "icon",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      ".00..........00.",
+      "0880........0880",
+      "0a90000000000a90",
+      "0a9bbbbbbbbbba90",
+      "0a9gbbbbbbbbba90",
+      "0a9gb8b8b8b8ba90",
+      "0a9gb8b8b8b8ba90",
+      "0a9gb8bbb8b8ba90",
+      "0a9gb8b8b8b8ba90",
+      "0a9gbbb8b8bbba90",
+      "0a9gddbbbbb8ba90",
+      "0a9gddbbbbbbba90",
+      "0a9aaaaaaaaaaa90",
+      "0a90000000000a90",
+      "0880........0880",
+      ".00..........00."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

@@ -1,0 +1,29 @@
+{
+  "name": "genre_ryutairikigaku",
+  "category": "icon",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      ".........0......",
+      "........0o0.....",
+      ".......0oon0....",
+      ".......0oon0....",
+      "......0ooonn0...",
+      ".ooo.04oonnn0...",
+      "....04ooonnnm0..",
+      "..oo04oonnnnm0..",
+      "...04oonnnnnnm0.",
+      "...04onnnnnnnm0.",
+      ".ooo4onnnnnnnm0.",
+      "....0nnnnnnmm0..",
+      "..oo0mnnnnmm0...",
+      ".....00mmmm0....",
+      ".......0000.....",
+      "................"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

@@ -1,0 +1,29 @@
+{
+  "name": "genre_chiseigaku",
+  "category": "icon",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      ".........00000..",
+      "........03dddd0.",
+      "........03dddc0.",
+      "........03ddc0..",
+      ".0000000030000..",
+      "0nnnnnnn030nnm0.",
+      "0nkjjnnn030nnm0.",
+      "0kjjjinn030nnm0.",
+      "0njjiinn030nnm0.",
+      "0nnjinnnk0jjnm0.",
+      "0nnnnnnnjjjiim0.",
+      "0nnnnnnnnjiinm0.",
+      "0nnnnnnnnnnnnm0.",
+      "0mmmmmmmmmmmmm0.",
+      ".0000000000000..",
+      "................"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

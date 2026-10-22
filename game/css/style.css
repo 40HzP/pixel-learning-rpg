@@ -177,10 +177,22 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 #mini { width: 90px; height: 160px; border: 2px solid var(--line); flex-shrink: 0; }
 #study-body { padding: 10px 12px 24px; }
 .modes { display: flex; flex-direction: column; gap: 8px; }
-.modes .row { display: flex; gap: 8px; }
-.modes .row > * { flex: 1; }
 .modes button { text-align: left; }
 .modes small { display: block; color: var(--muted); font-size: 12px; }
+/* テストのジャンルを選ぶ：まとまり（ことば・数学…）の色で縁取ったボタンに、ジャンルのアイコン（16×16 を2倍） */
+.genre-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.genre-head button { min-height: 40px; padding: 4px 10px; flex: none; }
+.genre-group { margin: 12px 0 4px; }
+.genre-group-name { font-size: 14px; font-weight: normal; margin: 0 0 6px; }
+.genre-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.genre-btn {
+  display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 6px 8px; text-align: left;
+  background: linear-gradient(var(--genre-bg), var(--genre-bg)), var(--panel2); border: 2px solid var(--genre); border-left-width: 6px;
+}
+.genre-btn canvas { flex: none; }
+.genre-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.genre-text b { font-weight: normal; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.genre-text small { font-size: 11px; color: var(--muted); white-space: nowrap; }
 .prof-list { margin-top: 14px; font-size: 13px; display: grid; grid-template-columns: 1fr auto auto; gap: 2px 10px; }
 .prof-list .head { color: var(--muted); }
 /* 干渉の枠は、干渉が無いときも同じ高さで空けておく（敵が入れ替わっても解答ボタンの位置がずれないように） */

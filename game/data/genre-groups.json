@@ -1,0 +1,90 @@
+{
+  "groups": [
+    {
+      "name": "ことば",
+      "color": "d",
+      "genres": [
+        { "name": "現代文", "icon": "genre_gendaibun" },
+        { "name": "古文漢文", "icon": "genre_kobunkanbun" },
+        { "name": "難読漢字", "icon": "genre_nandokukanji" },
+        { "name": "言語学", "icon": "genre_gengogaku" },
+        { "name": "外国語", "icon": "genre_gaikokugo" }
+      ]
+    },
+    {
+      "name": "数学",
+      "color": "n",
+      "genres": [
+        { "name": "数学", "icon": "genre_sugaku" },
+        { "name": "統計学", "icon": "genre_tokeigaku" }
+      ]
+    },
+    {
+      "name": "歴史と社会",
+      "color": "f",
+      "genres": [
+        { "name": "日本史", "icon": "genre_nihonshi" },
+        { "name": "世界史", "icon": "genre_sekaishi" },
+        { "name": "考古学", "icon": "genre_kokogaku" },
+        { "name": "地理", "icon": "genre_chiri" },
+        { "name": "地政学", "icon": "genre_chiseigaku" },
+        { "name": "現代社会", "icon": "genre_gendaishakai" },
+        { "name": "政治経済", "icon": "genre_seijikeizai" }
+      ]
+    },
+    {
+      "name": "理科",
+      "color": "j",
+      "genres": [
+        { "name": "化学", "icon": "genre_bakegaku" },
+        { "name": "科学", "icon": "genre_kagaku" },
+        { "name": "生物", "icon": "genre_seibutsu" },
+        { "name": "微生物", "icon": "genre_biseibutsu" },
+        { "name": "地学", "icon": "genre_chigaku" },
+        { "name": "気象学", "icon": "genre_kishogaku" }
+      ]
+    },
+    {
+      "name": "物理と宇宙",
+      "color": "o",
+      "genres": [
+        { "name": "物理", "icon": "genre_butsuri" },
+        { "name": "熱力学", "icon": "genre_netsurikigaku" },
+        { "name": "流体力学", "icon": "genre_ryutairikigaku" },
+        { "name": "天体力学", "icon": "genre_tentairikigaku" },
+        { "name": "宇宙物理学", "icon": "genre_uchubutsurigaku" }
+      ]
+    },
+    {
+      "name": "人と社会のしくみ",
+      "color": "r",
+      "genres": [
+        { "name": "経済学", "icon": "genre_keizaigaku" },
+        { "name": "経営学", "icon": "genre_keieigaku" },
+        { "name": "法学", "icon": "genre_hogaku" },
+        { "name": "心理学", "icon": "genre_shinrigaku" },
+        { "name": "哲学", "icon": "genre_tetsugaku" }
+      ]
+    },
+    {
+      "name": "芸術と文化",
+      "color": "s",
+      "genres": [
+        { "name": "音楽学", "icon": "genre_ongakugaku" },
+        { "name": "美術", "icon": "genre_bijutsu" },
+        { "name": "文化", "icon": "genre_bunka" }
+      ]
+    },
+    {
+      "name": "技術とくらし",
+      "color": "v",
+      "genres": [
+        { "name": "音響工学", "icon": "genre_onkyokogaku" },
+        { "name": "建築", "icon": "genre_kenchiku" },
+        { "name": "都市計画", "icon": "genre_toshikeikaku" },
+        { "name": "IT・情報", "icon": "genre_it" },
+        { "name": "勉強法", "icon": "genre_benkyoho" }
+      ]
+    }
+  ]
+}

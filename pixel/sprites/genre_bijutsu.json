@@ -1,0 +1,29 @@
+{
+  "name": "genre_bijutsu",
+  "category": "icon",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      ".............00.",
+      "............0990",
+      "....000000.0990.",
+      "..00bbbbbb0990..",
+      ".0bbbbonb0990...",
+      "0bbedbnm0330b0..",
+      "0bbdcbb0dd0bba0.",
+      "0bbbbb0d00gfba0.",
+      "0bbbbbb0bbfeba0.",
+      "0bb00bbkjbbba0..",
+      "0bb00bbjibbba0..",
+      "0bbbbbbbbbbaa0..",
+      ".0bbbbbbbaaa0...",
+      "..00aaaaa000....",
+      "....00000.......",
+      "................"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}
