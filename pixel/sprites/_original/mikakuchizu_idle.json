@@ -1,0 +1,47 @@
+{
+  "name": "mikakuchizu_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      "....000..000....",
+      "...0dd.00ddd0...",
+      "..0dddddddddd0..",
+      ".0dccccccccccd0.",
+      ".0ddssiiiissdd0.",
+      "..0dssiiiissd0..",
+      "...0nssssssn0...",
+      "...0n0srs0sn0...",
+      "...0nssrsssn0...",
+      "...0sttsssss0...",
+      "...0sssggsss0...",
+      "....0ssggss0....",
+      ".....0ssss0.....",
+      "......0000......",
+      "................",
+      "................"
+    ],
+    [
+      "....000..000....",
+      "...0dd000ddd0...",
+      "..0dddddddddd0..",
+      ".0dccccccccccd0.",
+      ".0ddssiiiissdd0.",
+      "..0dssiiiissd0..",
+      "...0nssssssn0...",
+      "...0n0srs0sn0...",
+      "...0nssrsssn0...",
+      "..0sttsssss0....",
+      "..0sssggsss0....",
+      "...0ssggss0.....",
+      "....0ssss0......",
+      ".....00000......",
+      "................",
+      "................"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

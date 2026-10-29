@@ -1,0 +1,47 @@
+{
+  "name": "magumanoumi_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      "................",
+      "......0000......",
+      ".....0eeee0.....",
+      "....0egeeee0....",
+      "...0eeeeeeee0...",
+      "...0e0ee0eee0...",
+      "..00eeddeeee0...",
+      ".04dd44dd44dd0..",
+      "04dd44dd44dd440.",
+      ".0dd44dd44dd40..",
+      "0.000000000000..",
+      "e00ee00eee00ee0.",
+      "eeeeeeeeeeeeeee0",
+      "dddedddeddddedd0",
+      "ccccccccccccccc0",
+      "000000000000000."
+    ],
+    [
+      "................",
+      "................",
+      "......0000......",
+      ".....0eeee0.....",
+      "....0egeeee0....",
+      "...0eeeeeeee0...",
+      "...0e0ee0eee0...",
+      "..00eeddeeee0...",
+      ".04dd44dd44dd0..",
+      "04dd44dd44dd440.",
+      ".0dd44dd44dd400.",
+      "0e00ee00eee00ee0",
+      "eeeeeeeeeeeeeee0",
+      "dddedddeddddedd0",
+      "ccccccccccccccc0",
+      "000000000000000."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

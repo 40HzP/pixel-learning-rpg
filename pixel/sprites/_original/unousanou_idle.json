@@ -1,0 +1,47 @@
+{
+  "name": "unousanou_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      "................",
+      "................",
+      "....0000.0000...",
+      "..00nnnn0dddd00.",
+      ".0nnmmnnn0dcddd0",
+      "0nnnnnmmn0dddccd",
+      "0nmnnnnnn0dccddd",
+      "0nn0nm0nn0ddddcd",
+      "0nnmmnnnn0dcdddd",
+      ".0nnnnmmn0ddccd0",
+      "..00nnnn0dddd00.",
+      "....000990000...",
+      "......0990......",
+      ".......00.......",
+      "................",
+      "................"
+    ],
+    [
+      "................",
+      "................",
+      "................",
+      "....0000.0000...",
+      "..00nnnn0dddd00.",
+      ".0nnmmnnn0dcddd0",
+      "0nnnnnmmn0dddccd",
+      "0nmnnnnnn0dccddd",
+      "0nn0nm0nn0ddddcd",
+      "0nnmmnnnn0dcdddd",
+      ".0nnnnmmn0ddccd0",
+      "..00nnnn0dddd00.",
+      "......0990......",
+      ".......00.......",
+      "................",
+      "................"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}
