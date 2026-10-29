@@ -5,7 +5,7 @@ import {
 } from '../js/quiz.js';
 import { genreState, reincarnate } from '../js/sim.js';
 import { serialize, deserialize } from '../js/save.js';
-import { balance, questions, makeCtx, newGame } from './helpers.js';
+import { balance, questions, makeCtx, newGame, seededRng } from './helpers.js';
 
 // 出題日の付いた問題を混ぜた問題の並び（10月29日に2問、2月29日に1問。ほかは出題日なし）
 const dated = questions.map((q, i) => (i === 3 ? { ...q, date: '10-29', anniversary: 'てすとの日' } : i === 4 ? { ...q, date: '10-29' } : i === 5 ? { ...q, date: '02-29' } : q));
@@ -135,4 +135,35 @@ test('同期で今日の1問が無くなっていたら選び直す（答えた�
   assert.equal(refreshDaily(s, fewer, '2026-10-29'), false);
   assert.notEqual(s.legacy.daily.id, id);
   assert.equal(dailyInfo(s, fewer).question.date, '10-29');
+});
+
+test('出題日のある問題も、メインジャンルのふつうの問題として出る（クイズ・テスト）。その日の今日の1問は、答えるまでほかでは出さない', () => {
+  // 問題の多いジャンルの2問に出題日を付ける（10月29日と5月5日）
+  const counts = {};
+  for (const q of questions) counts[q.genre] = (counts[q.genre] || 0) + 1;
+  const g = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+  const inG = questions.filter((q) => q.genre === g);
+  const [today, other] = inG;
+  const qs = questions.map((q) => (q.id === today.id ? { ...q, date: '10-29' } : q.id === other.id ? { ...q, date: '05-05' } : q));
+  const ctx = ctxWith(qs);
+  const sheetOf = (s) => { const t = createSession(s, 'test', ctx, g); t.total = inG.length - 1; return presentTest(s, t, ctx).map((c) => c.question.id); };
+
+  // その日の今日の1問は、答えるまでテストに出さない（ほかの日の出題日の問題は出る）
+  const s = newGame(7);
+  refreshDaily(s, ctx, '2026-10-29');
+  assert.equal(s.legacy.daily.id, today.id);
+  const before = sheetOf(s);
+  assert.ok(!before.includes(today.id), '今日の1問はまだテストに出さない');
+  assert.ok(before.includes(other.id), 'ほかの日の出題日の問題は、メインジャンルのテストに出る');
+  // 答えたあとは、ふつうの問題としてテストにも出る
+  const sess = createSession(s, 'daily', ctx);
+  answer(s, sess, correctIndex(nextQuestion(s, sess, ctx)), ctx);
+  s.knowledge.recent = [];
+  const t = createSession(s, 'test', ctx, g); t.total = inG.length;
+  assert.ok(presentTest(s, t, ctx).some((c) => c.question.id === today.id), '答えたあとはテストにも出る');
+  // クイズにも出題日のある問題が出る
+  const only = { ...ctx, questions: qs.filter((q) => q.date) };
+  const seen = new Set();
+  for (let i = 1; i <= 12; i++) { s.knowledge.recent = []; const c = { ...only, rng: seededRng(i) }; seen.add(nextQuestion(s, createSession(s, 'quiz', c), c).question.id); }
+  assert.ok(seen.has(other.id), 'クイズにも出題日のある問題が出る');
 });

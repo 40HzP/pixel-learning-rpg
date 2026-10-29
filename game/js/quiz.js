@@ -133,7 +133,7 @@ export function nextQuestion(state, session, ctx) {
   }
   const cands = candidatesFor(state, session, ctx);
   const level = session.mode === 'test' ? genreState(state, session.genre).level : averageLevel(state);
-  const avoid = [...state.knowledge.recent, ...session.asked];
+  const avoid = [...state.knowledge.recent, ...session.asked, ...dailyAvoid(state, ctx)];
   const q = pickQuestion(cands, level, avoid, ctx);
   if (!q) { session.current = null; return null; }
   const cur = presentQuestion(session, q, ctx);
@@ -152,7 +152,7 @@ export function presentTest(state, session, ctx) {
   const sheet = [];
   while (sheet.length < session.total) {
     const cands = candidatesFor(state, session, ctx).filter((q) => !session.asked.includes(q.id));
-    const q = pickQuestion(cands, level, state.knowledge.recent, ctx);
+    const q = pickQuestion(cands, level, [...state.knowledge.recent, ...dailyAvoid(state, ctx)], ctx);
     if (!q) break;
     const cur = presentQuestion(session, q, ctx);
     trimChoices(state, cur, ctx);
@@ -442,6 +442,12 @@ export function refreshDaily(state, ctx, day) {
   Object.assign(d, { day, id: q ? q.id : null }, fresh ? { opened: false, result: null } : {});
   return fresh && !!q;
 }
+
+/**
+ * 出題日のある問題も、メインジャンルのふつうの問題として出る（クイズ・テスト・孫の「なんで？」など。40HzP の依頼）。
+ * ただし、その日の今日の1問にまだ答えていないうちは、ほかの出し方ではなるべく出さない（先に答えてしまわないように）
+ */
+const dailyAvoid = (state, ctx) => (dailyPending(state, ctx) ? [state.legacy.daily.id] : []);
 
 /** 今日の1問にまだ答えていない */
 export const dailyPending = (state, ctx) => {
