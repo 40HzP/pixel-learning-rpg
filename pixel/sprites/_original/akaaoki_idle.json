@@ -1,0 +1,47 @@
+{
+  "name": "akaaoki_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      "..............0.",
+      ".............090",
+      "....0000000.090.",
+      "..00bbbbbbb090..",
+      ".0bbbbbbedbdb0..",
+      "0bbbbbbbddbnmb0.",
+      "0bb0bb0bbbbmmbb0",
+      "0bb0bb0bbbbbgfa0",
+      "0bbb00bbbbbbffa0",
+      "0bbbbbbbb00baa0.",
+      ".0bbbbbbb00aa0..",
+      "..0aaaaaa99a0...",
+      "...0aaaaaaa0....",
+      "....0000000.....",
+      "................",
+      "................"
+    ],
+    [
+      "................",
+      "..............0.",
+      "....0000000..090",
+      "..00bbbbbbb0090.",
+      ".0bbbbbbedbb90..",
+      "0bbbbbbbddbdmb0.",
+      "0bb0bb0bbbbmmbb0",
+      "0bb0bb0bbbbbgfa0",
+      "0bbb00bbbbbbffa0",
+      "0bbbbbbbb00baa0.",
+      ".0bbbbbbb00aa0..",
+      "..0aaaaaa99a0...",
+      "...0aaaaaaa0....",
+      "....0000000.....",
+      "................",
+      "................"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

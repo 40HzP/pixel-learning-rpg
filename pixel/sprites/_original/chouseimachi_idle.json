@@ -1,0 +1,47 @@
+{
+  "name": "chouseimachi_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      "................",
+      ".......0000.....",
+      "......0g4gge....",
+      ".....0ggggee0...",
+      "....0fffffffe0..",
+      ".....0jjjjjjjj0.",
+      "..000jj0jj0jjjj0",
+      ".0nmjjj0jj0jjjj0",
+      "0nmmliii0iiiiii0",
+      "04o43hhhhhhhhhh0",
+      "04493iiiiiiiiii0",
+      "04493hhhhhhhhhh0",
+      ".00iiiiiiiiiiii0",
+      "..0hhhhhhhhhhhh0",
+      "..0iiiiiiiiiiii0",
+      "...000000000000."
+    ],
+    [
+      "................",
+      "................",
+      ".......0000.....",
+      ".....00g4gge....",
+      "....0fggggee0...",
+      ".....0ffffffe0..",
+      "....0jjjjjjjjj0.",
+      "..00jjj0jj0jjjj0",
+      ".0nmiij0jj0jjjj0",
+      "0nmmlhhhhhhhhhh0",
+      "04o43iiiiiiiiii0",
+      "04493hhhhhhhhhh0",
+      "04493iiiiiiiiii0",
+      ".00hhhhhhhhhhhh0",
+      "..0iiiiiiiiiiii0",
+      "...000000000000."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

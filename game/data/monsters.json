@@ -414,6 +414,206 @@
       "sprites": { "idle": "dejika_idle", "attack": null }
     },
     {
+      "id": "nashishingou",
+      "name": "ナシシンゴウ",
+      "kind": "monster",
+      "genres": ["都市計画"],
+      "myth": "信号の無いラウンドアバウトは危ない",
+      "truth": "速度が落ちて重大な事故が起きにくい",
+      "debated": false,
+      "sprites": { "idle": "nashishingou_idle", "attack": null }
+    },
+    {
+      "id": "zuttowakai",
+      "name": "ズットワカイ",
+      "kind": "monster",
+      "genres": ["都市計画"],
+      "myth": "ニュータウンはいつまでも若い町",
+      "truth": "同じ世代が一度に入居したので一斉に高齢化する",
+      "debated": false,
+      "sprites": { "idle": "zuttowakai_idle", "attack": null }
+    },
+    {
+      "id": "michihiroge",
+      "name": "ミチヒロゲ",
+      "kind": "monster",
+      "genres": ["都市計画"],
+      "myth": "道路を広げれば渋滞はなくなる",
+      "truth": "車が増えてまた混みやすい（誘発交通）",
+      "debated": false,
+      "sprites": { "idle": "michihiroge_idle", "attack": null }
+    },
+    {
+      "id": "chouseimachi",
+      "name": "チョウセイマチ",
+      "kind": "monster",
+      "genres": ["都市計画"],
+      "myth": "市街化調整区域は、これから市街地にする区域",
+      "truth": "市街化を抑える区域。原則として家を建てられない",
+      "debated": false,
+      "sprites": { "idle": "chouseimachi_idle", "attack": null }
+    },
+    {
+      "id": "mierusuijouki",
+      "name": "ミエルスイジョウキ",
+      "kind": "monster",
+      "genres": ["気象学"],
+      "myth": "雲は水蒸気",
+      "truth": "小さな水や氷の粒。水蒸気は目に見えない",
+      "debated": false,
+      "sprites": { "idle": "mierusuijouki_idle", "attack": null }
+    },
+    {
+      "id": "namidatsubu",
+      "name": "ナミダツブ",
+      "kind": "monster",
+      "genres": ["気象学"],
+      "myth": "雨粒は涙の形",
+      "truth": "丸か、下がつぶれたまんじゅう形",
+      "debated": false,
+      "sprites": { "idle": "namidatsubu_idle", "attack": null }
+    },
+    {
+      "id": "menonakaarashi",
+      "name": "メノナカアラシ",
+      "kind": "monster",
+      "genres": ["気象学"],
+      "myth": "台風の目がいちばん荒れている",
+      "truth": "目の中は風が弱い。いちばん強いのは目を囲む壁雲",
+      "debated": false,
+      "sprites": { "idle": "menonakaarashi_idle", "attack": null }
+    },
+    {
+      "id": "tsuyoamekakuritsu",
+      "name": "ツヨアメカクリツ",
+      "kind": "monster",
+      "genres": ["気象学"],
+      "myth": "降水確率が高いほど強い雨",
+      "truth": "1mm以上降る確率で、強さとは関係ない",
+      "debated": false,
+      "sprites": { "idle": "tsuyoamekakuritsu_idle", "attack": null }
+    },
+    {
+      "id": "seikaiari",
+      "name": "セイカイアリ",
+      "kind": "monster",
+      "genres": ["哲学"],
+      "myth": "トロッコ問題には正解がある",
+      "truth": "自分が何を大事にして判断しているかに気づくための問い",
+      "debated": false,
+      "sprites": { "idle": "seikaiari_idle", "attack": null }
+    },
+    {
+      "id": "zenbusokuratesu",
+      "name": "ゼンブソクラテス",
+      "kind": "monster",
+      "genres": ["哲学"],
+      "myth": "有名な哲学の名言はだいたいソクラテス",
+      "truth": "「我思う、ゆえに我あり」はデカルト",
+      "debated": false,
+      "sprites": { "idle": "zenbusokuratesu_idle", "attack": null }
+    },
+    {
+      "id": "tousousuki",
+      "name": "トウソウスキ",
+      "kind": "monster",
+      "genres": ["哲学"],
+      "myth": "ホッブズは人間は争うものだから争えと言った",
+      "truth": "争いを避けるために国家が要ると説いた",
+      "debated": false,
+      "sprites": { "idle": "tousousuki_idle", "attack": null }
+    },
+    {
+      "id": "kamigoroshi",
+      "name": "カミゴロシ",
+      "kind": "monster",
+      "genres": ["哲学"],
+      "myth": "ニーチェの「神は死んだ」は神を倒せという呼びかけ",
+      "truth": "信仰を土台にした価値が崩れたという時代の診断",
+      "debated": false,
+      "sprites": { "idle": "kamigoroshi_idle", "attack": null }
+    },
+    {
+      "id": "akaaoki",
+      "name": "アカアオキ",
+      "kind": "monster",
+      "genres": ["美術"],
+      "myth": "画面の三原色は赤・青・黄",
+      "truth": "光の三原色は赤・緑・青",
+      "debated": false,
+      "sprites": { "idle": "akaaoki_idle", "attack": null }
+    },
+    {
+      "id": "hajimekaranai",
+      "name": "ハジメカラナイ",
+      "kind": "monster",
+      "genres": ["美術"],
+      "myth": "ミロのヴィーナスは初めから腕が無い",
+      "truth": "見つかったときには失われていた",
+      "debated": false,
+      "sprites": { "idle": "hajimekaranai_idle", "attack": null }
+    },
+    {
+      "id": "masshirochoukoku",
+      "name": "マッシロチョウコク",
+      "kind": "monster",
+      "genres": ["美術"],
+      "myth": "古代ギリシャの彫刻は白いのが本来の姿",
+      "truth": "色が塗られていた",
+      "debated": false,
+      "sprites": { "idle": "masshirochoukoku_idle", "attack": null }
+    },
+    {
+      "id": "tsunamiura",
+      "name": "ツナミウラ",
+      "kind": "monster",
+      "genres": ["美術"],
+      "myth": "北斎の「神奈川沖浪裏」は津波の絵",
+      "truth": "沖の大波とする見方が一般的",
+      "debated": false,
+      "sprites": { "idle": "tsunamiura_idle", "attack": null }
+    },
+    {
+      "id": "kyouryuuhori",
+      "name": "キョウリュウホリ",
+      "kind": "monster",
+      "genres": ["考古学"],
+      "myth": "考古学者は恐竜を掘る",
+      "truth": "恐竜は古生物学。考古学は人が残したものを調べる",
+      "debated": false,
+      "sprites": { "idle": "kyouryuuhori_idle", "attack": null }
+    },
+    {
+      "id": "nawashibari",
+      "name": "ナワシバリ",
+      "kind": "monster",
+      "genres": ["考古学"],
+      "myth": "縄文土器は縄でしばって運んだから",
+      "truth": "縄を転がして付けた模様から",
+      "debated": false,
+      "sprites": { "idle": "nawashibari_idle", "attack": null }
+    },
+    {
+      "id": "kakuteiryou",
+      "name": "カクテイリョウ",
+      "kind": "monster",
+      "genres": ["考古学"],
+      "myth": "仁徳天皇陵は仁徳天皇の墓と確かめられている",
+      "truth": "誰の墓かは学術的に確定していない",
+      "debated": false,
+      "sprites": { "idle": "kakuteiryou_idle", "attack": null }
+    },
+    {
+      "id": "nanokunen",
+      "name": "ナンオクネン",
+      "kind": "monster",
+      "genres": ["考古学"],
+      "myth": "炭素14で恐竜の年代も測れる",
+      "truth": "測れるのは約5万年前まで",
+      "debated": false,
+      "sprites": { "idle": "nanokunen_idle", "attack": null }
+    },
+    {
       "id": "jibundehikaru",
       "name": "ジブンデヒカル",
       "kind": "monster",

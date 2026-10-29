@@ -1,0 +1,47 @@
+{
+  "name": "kakuteiryou_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      "......0000......",
+      "....00kjjj00....",
+      "...0jkjjjjjj0...",
+      "..0jkjjjjhjjj0..",
+      "..0jj0jj0jjjj0..",
+      "..0ii0ii0iihi0..",
+      "..0iii00iiiii0..",
+      "...0iiiiiiii0...",
+      "....0iiiiidd....",
+      "....0iiihdd4d...",
+      "...0iiiiid4dd...",
+      "..0ihiiiiiddi0..",
+      ".0iiiihiiiiihi0.",
+      "0hhhhhhhhhhhhhh0",
+      ".00000000000000.",
+      "................"
+    ],
+    [
+      "......0000......",
+      "....00kjjj00....",
+      "...0jkjjjjjj0...",
+      "..0jkjjjjhjjj0..",
+      "..0jj0jj0jjjj0..",
+      "..0ii0ii0iihi0..",
+      "..0iii00iiiii0..",
+      "...0iiiiiiii0...",
+      "....0iiiiiidd...",
+      "....0iiihidd4d..",
+      "...0iiiiiid4dd..",
+      "..0ihiiiiihdd0..",
+      ".0iiiihiiiiihi0.",
+      "0hhhhhhhhhhhhhh0",
+      ".00000000000000.",
+      "................"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

@@ -1,0 +1,47 @@
+{
+  "name": "tousousuki_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 4,
+  "frames": [
+    [
+      ".....000000.....",
+      "....0eedddd0....",
+      "...0eedddddd00..",
+      "..0eeddddddddc0.",
+      "..0dd00dd00ddc0.",
+      ".00ddd0dd0dddc0.",
+      "0eecdd0dd0ddcc0.",
+      "0ddcdddddddddc0.",
+      "0ddcddd00ddddc0.",
+      "0cddcddddddddc0.",
+      ".0cdcddddddccc0.",
+      "..0dddddddccc0..",
+      "..044242424430..",
+      "..044424242430..",
+      "..033333333320..",
+      "...0000000000..."
+    ],
+    [
+      "................",
+      ".....000000.....",
+      "....0eedddd0....",
+      "...0eedddddd00..",
+      "..0eeddddddddc0.",
+      "..0dd00dd00ddc0.",
+      ".00ddd0dd0dddc0.",
+      "0eecdd0dd0ddcc0.",
+      "0ddcdddddddddc0.",
+      "0ddcddd00ddddc0.",
+      "0cddcddddddddc0.",
+      ".0cdcddddddccc0.",
+      "..044242424430..",
+      "..044424242430..",
+      "..033333333320..",
+      "...0000000000..."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

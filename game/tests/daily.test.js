@@ -7,8 +7,9 @@ import { genreState, reincarnate } from '../js/sim.js';
 import { serialize, deserialize } from '../js/save.js';
 import { balance, questions, makeCtx, newGame, seededRng } from './helpers.js';
 
-// 出題日の付いた問題を混ぜた問題の並び（10月29日に2問、2月29日に1問。ほかは出題日なし）
-const dated = questions.map((q, i) => (i === 3 ? { ...q, date: '10-29', anniversary: 'てすとの日' } : i === 4 ? { ...q, date: '10-29' } : i === 5 ? { ...q, date: '02-29' } : q));
+// 本物の問題から出題日を外し、テスト用の出題日を付け直す（10月29日に2問、2月29日に1問。ほかは出題日なし）
+const plain = questions.map(({ date, anniversary, ...q }) => q);
+const dated = plain.map((q, i) => (i === 3 ? { ...q, date: '10-29', anniversary: 'てすとの日' } : i === 4 ? { ...q, date: '10-29' } : i === 5 ? { ...q, date: '02-29' } : q));
 const ctxWith = (qs = dated) => ({ ...makeCtx(), questions: qs });
 const correctIndex = (cur) => cur.choices.findIndex((c) => c.kind === 'answer');
 const wrongIndex = (cur) => cur.choices.findIndex((c) => c.kind !== 'answer');
@@ -140,11 +141,13 @@ test('同期で今日の1問が無くなっていたら選び直す（答えた�
 test('出題日のある問題も、メインジャンルのふつうの問題として出る（クイズ・テスト）。その日の今日の1問は、答えるまでほかでは出さない', () => {
   // 問題の多いジャンルの2問に出題日を付ける（10月29日と5月5日）
   const counts = {};
-  for (const q of questions) counts[q.genre] = (counts[q.genre] || 0) + 1;
+  for (const q of plain) counts[q.genre] = (counts[q.genre] || 0) + 1;
   const g = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
-  const inG = questions.filter((q) => q.genre === g);
-  const [today, other] = inG;
-  const qs = questions.map((q) => (q.id === today.id ? { ...q, date: '10-29' } : q.id === other.id ? { ...q, date: '05-05' } : q));
+  const inG = plain.filter((q) => q.genre === g);
+  // 同じ難易度の2問（クイズは熟練に合う難易度を選ぶので、難易度がちがうと片方しか出ない）
+  const pair = inG.filter((q) => inG.filter((r) => r.difficulty === q.difficulty).length >= 2);
+  const [today, other] = pair.filter((q) => q.difficulty === pair[0].difficulty);
+  const qs = plain.map((q) => (q.id === today.id ? { ...q, date: '10-29' } : q.id === other.id ? { ...q, date: '05-05' } : q));
   const ctx = ctxWith(qs);
   const sheetOf = (s) => { const t = createSession(s, 'test', ctx, g); t.total = inG.length - 1; return presentTest(s, t, ctx).map((c) => c.question.id); };
 
