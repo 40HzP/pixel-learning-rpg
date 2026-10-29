@@ -1,6 +1,6 @@
 // 起動・画面切り替え・ループ・セーブ
 import {
-  createState, startGame, tick, clockFrame, createClock, HOURS_PER_YEAR,
+  createState, startGame, canStartAt, tick, clockFrame, createClock, HOURS_PER_YEAR,
   createRateTracker, trackTime, trackGain, sleepAtBed, stageFor, fitParty, lifespanFor, generationMultiplier, heroStats, forgetPastLifeBosses,
   launchRocket, returnToEarth, ADVISOR_PLACES,
 } from './sim.js';
@@ -468,6 +468,9 @@ async function boot() {
         + `ステータスの伸び・経験値・ゴールドが ${generationMultiplier(s, balance)}倍`;
     }
     document.getElementById('hero-name').value = s.hero.name === '主人公' ? '' : s.hero.name;
+    // 初めて始めるとき（1世代目）は7歳からを選べない。生まれ変わったあとは選べる
+    for (const b of intro.querySelectorAll('[data-age]')) b.disabled = !canStartAt(s, Number(b.dataset.age));
+    document.getElementById('intro-age7-note').textContent = canStartAt(s, 7) ? 'すぐ戦えるが弱い' : '生まれ変わると選べる';
     intro.hidden = false;
   }
   if (app.state.meta.startAge == null) showIntro();
@@ -477,6 +480,7 @@ async function boot() {
   document.getElementById('intro-age0-note').textContent = `準備期間が長い（7歳まで、遊んでいる時間で${span}）`;
   for (const b of intro.querySelectorAll('[data-age]')) {
     b.addEventListener('click', () => {
+      if (!canStartAt(app.state, Number(b.dataset.age))) return;
       startGame(app.state, Number(b.dataset.age), document.getElementById('hero-name').value, lifespanFor(balance, Math.random));
       intro.hidden = true;
       saveNow();

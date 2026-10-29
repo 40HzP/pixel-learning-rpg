@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   tick, heroStats, lifespanFor, generationMultiplier, reincarnate, heroTitles, payRocketBuildCost, startGame,
   genreState, midbossState, foundCompany, companiesProfit, spawnGroup, damageEnemy, ageYears, HOURS_PER_YEAR,
-  buyItem, shopList, hireRecruit, recruitList, industryList, hireStaff, bestStaffGrade, staffCost, proficiencyCap, sleep, receiveTreatment,
+  buyItem, shopList, hireRecruit, recruitList, industryList, hireStaff, bestStaffGrade, staffCost, proficiencyCap, sleep, receiveTreatment, canStartAt,
 } from '../js/sim.js';
 import { createSession, presentQuestion, answer } from '../js/quiz.js';
 import { balance, questions, makeCtx, newGame, constRng, seededRng } from './helpers.js';
@@ -18,6 +18,17 @@ test('寿命は生まれるたびに 80歳 ± 3歳 で決まる', () => {
   const s = newGame(0);
   startGame(s, 7, '勇者', 82);
   assert.equal(s.life.lifespan, 82);
+});
+
+test('最初の案内の年齢：ゲームを初めて始めるとき（1世代目）は0歳からだけ。7歳からは生まれ変わったあとに選べる', () => {
+  const s = newGame();
+  assert.equal(canStartAt(s, 0), true);
+  assert.equal(canStartAt(s, 7), false, '1世代目は7歳から始められない');
+  s.life.gameHours = s.life.lifespan * HOURS_PER_YEAR;
+  reincarnate(s, makeCtx());
+  assert.equal(s.life.generation, 2);
+  assert.equal(canStartAt(s, 0), true);
+  assert.equal(canStartAt(s, 7), true, '生まれ変わったあとは7歳からも選べる');
 });
 
 test('寿命になると生まれ変わる。Lv・ゴールド・装備・仲間・会社・中ボス・ボスは最初から、知識・図鑑・称号・名前は残る', () => {

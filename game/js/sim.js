@@ -96,6 +96,9 @@ export function startGame(state, startAge, name, lifespan) {
   if (lifespan !== undefined) state.life.lifespan = lifespan;
 }
 
+/** 最初の案内で選べる年齢か。ゲームを初めて始めるとき（1世代目）は0歳からだけで、7歳からは生まれ変わったあとに選べる（40HzP の依頼） */
+export const canStartAt = (state, startAge) => startAge === 0 || state.life.generation > 1;
+
 /* ================= 寿命と転生 ================= */
 
 /** 生まれるたびに決める寿命（lifespanYears ± lifespanSpread 歳） */
