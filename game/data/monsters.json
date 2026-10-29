@@ -31,6 +31,216 @@
       "sprites": { "idle": "mienaikoumori_idle", "attack": null }
     },
     {
+      "id": "sunakakuredachou",
+      "name": "スナカクレダチョウ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "危険を感じると砂に頭を埋める",
+      "truth": "埋めない。卵の世話で頭を下げる姿が誤解された",
+      "debated": false,
+      "sprites": { "idle": "sunakakuredachou_idle", "attack": null }
+    },
+    {
+      "id": "nihikimimizu",
+      "name": "ニヒキミミズ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "切ると2匹になる",
+      "truth": "通常は頭側しか再生しない",
+      "debated": false,
+      "sprites": { "idle": "nihikimimizu_idle", "attack": null }
+    },
+    {
+      "id": "iromanekamereon",
+      "name": "イロマネカメレオン",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "周囲に合わせて色を変える",
+      "truth": "主に体温調節と感情表現のため",
+      "debated": false,
+      "sprites": { "idle": "iromanekamereon_idle", "attack": null }
+    },
+    {
+      "id": "akagirai",
+      "name": "アカギライ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "牛は赤に興奮する",
+      "truth": "反応しているのは布の動き",
+      "debated": false,
+      "sprites": { "idle": "akagirai_idle", "attack": null }
+    },
+    {
+      "id": "daiburemingu",
+      "name": "ダイブレミング",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "レミングは集団自殺する",
+      "truth": "記録映画の演出が広めた",
+      "debated": false,
+      "sprites": { "idle": "daiburemingu_idle", "attack": null }
+    },
+    {
+      "id": "inuhamonokuro",
+      "name": "イヌハモノクロ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "犬は白黒の世界しか見えていない",
+      "truth": "色を感じる細胞が2種類で、青と黄色の系統は見分けられる。赤と緑の区別が苦手",
+      "debated": false,
+      "sprites": { "idle": "inuhamonokuro_idle", "attack": null }
+    },
+    {
+      "id": "kinokoshokubutsu",
+      "name": "キノコショクブツ",
+      "kind": "monster",
+      "genres": ["微生物"],
+      "myth": "きのこは植物の仲間",
+      "truth": "カビや酵母と同じ菌類。光合成をしない",
+      "debated": false,
+      "sprites": { "idle": "kinokoshokubutsu_idle", "attack": null }
+    },
+    {
+      "id": "ichigonotane",
+      "name": "イチゴノタネ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "イチゴの表面のつぶつぶは種",
+      "truth": "1つ1つが果実で、その中に種がある。赤い部分は花の土台（花托）",
+      "debated": false,
+      "sprites": { "idle": "ichigonotane_idle", "attack": null }
+    },
+    {
+      "id": "akamisaamon",
+      "name": "アカミサーモン",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "鮭は赤身の魚",
+      "truth": "分類上は白身魚。身の色はエサに含まれる色素（アスタキサンチン）",
+      "debated": false,
+      "sprites": { "idle": "akamisaamon_idle", "attack": null }
+    },
+    {
+      "id": "kumokonchuu",
+      "name": "クモコンチュウ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "クモは昆虫",
+      "truth": "脚が8本で、昆虫とは別の仲間（ダニやサソリと同じ）",
+      "debated": false,
+      "sprites": { "idle": "kumokonchuu_idle", "attack": null }
+    },
+    {
+      "id": "sangoshokubutsu",
+      "name": "サンゴショクブツ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "サンゴは植物",
+      "truth": "クラゲやイソギンチャクと同じ刺胞動物",
+      "debated": false,
+      "sprites": { "idle": "sangoshokubutsu_idle", "attack": null }
+    },
+    {
+      "id": "kyouryuutokage",
+      "name": "キョウリュウトカゲ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "恐竜はトカゲの仲間で、トカゲが恐竜の子孫",
+      "truth": "恐竜の子孫と考えられているのは鳥",
+      "debated": false,
+      "sprites": { "idle": "kyouryuutokage_idle", "attack": null }
+    },
+    {
+      "id": "tarabakani",
+      "name": "タラバカニ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "タラバガニはカニの仲間",
+      "truth": "ヤドカリの仲間",
+      "debated": false,
+      "sprites": { "idle": "tarabakani_idle", "attack": null }
+    },
+    {
+      "id": "rakudamizubukuro",
+      "name": "ラクダミズブクロ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "ラクダのこぶには水が入っている",
+      "truth": "中身は主に脂肪",
+      "debated": false,
+      "sprites": { "idle": "rakudamizubukuro_idle", "attack": null }
+    },
+    {
+      "id": "hachiichigeki",
+      "name": "ハチイチゲキ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "ハチは一度刺すと死ぬ",
+      "truth": "死ぬのはミツバチの働きバチなど、針にかえしがあるハチだけ。スズメバチは何度も刺せる",
+      "debated": false,
+      "sprites": { "idle": "hachiichigeki_idle", "attack": null }
+    },
+    {
+      "id": "kouranugi",
+      "name": "コウラヌギ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "カメは甲羅を脱げる",
+      "truth": "甲羅は背骨やろっ骨とつながっていて、脱げない",
+      "debated": false,
+      "sprites": { "idle": "kouranugi_idle", "attack": null }
+    },
+    {
+      "id": "oyogitsuzuke",
+      "name": "オヨギツヅケ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "サメは泳ぎ続けないと死ぬ",
+      "truth": "泳ぎ続けないと息ができないのは一部の種。コモリザメなどは口で水を送り込み、海底で休める",
+      "debated": false,
+      "sprites": { "idle": "oyogitsuzuke_idle", "attack": null }
+    },
+    {
+      "id": "himawarimawari",
+      "name": "ヒマワリマワリ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "ヒマワリは咲いた後も太陽を追って回る",
+      "truth": "太陽を追うのは若いつぼみのころ。咲くとほぼ東を向いたまま",
+      "debated": false,
+      "sprites": { "idle": "himawarimawari_idle", "attack": null }
+    },
+    {
+      "id": "nioidemisuteru",
+      "name": "ニオイデミステル",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "人が触ったヒナは、においで親鳥に見捨てられる",
+      "truth": "多くの鳥は嗅覚があまり発達しておらず、においで見捨てることはない（ただしヒナは拾わずそっとしておく）",
+      "debated": false,
+      "sprites": { "idle": "nioidemisuteru_idle", "attack": null }
+    },
+    {
+      "id": "sarukaraningen",
+      "name": "サルカラニンゲン",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "人間はサルから進化した",
+      "truth": "人間とチンパンジーは共通の祖先から分かれた",
+      "debated": false,
+      "sprites": { "idle": "sarukaraningen_idle", "attack": null }
+    },
+    {
+      "id": "nenrinhoui",
+      "name": "ネンリンホウイ",
+      "kind": "monster",
+      "genres": ["生物"],
+      "myth": "年輪の幅が広い側が南",
+      "truth": "幅は風や斜面で力がかかる向きで変わり、方角の目印にはならない",
+      "debated": false,
+      "sprites": { "idle": "nenrinhoui_idle", "attack": null }
+    },
+    {
       "id": "tsugihakuro",
       "name": "ツギハクロ",
       "kind": "monster",
@@ -251,6 +461,16 @@
       "truth": "倒壊しないための構造。揺れを抑えるのは免震・制震",
       "debated": false,
       "sprites": { "idle": "yurenai_idle", "attack": null }
+    },
+    {
+      "id": "kawaitekatamaru",
+      "name": "カワイテカタマル",
+      "kind": "monster",
+      "genres": ["建築", "化学"],
+      "myth": "コンクリートは乾いて固まる",
+      "truth": "セメントが水と化学反応（水和反応）して固まる。乾きすぎると反応が進まず弱くなるので、湿らせて養生する",
+      "debated": false,
+      "sprites": { "idle": "kawaitekatamaru_idle", "attack": null }
     },
     {
       "id": "kanzensakoku",
@@ -612,6 +832,86 @@
       "truth": "測れるのは約5万年前まで",
       "debated": false,
       "sprites": { "idle": "nanokunen_idle", "attack": null }
+    },
+    {
+      "id": "ichiyaduke",
+      "name": "イチヤヅケ",
+      "kind": "monster",
+      "genres": ["勉強法"],
+      "myth": "一夜漬けがいちばん効率がいい",
+      "truth": "直後のテストには効くが、すぐ忘れる。同じ時間なら、間隔を空けて分けたほうが長く残る（分散学習）",
+      "debated": false,
+      "sprites": { "idle": "ichiyaduke_idle", "attack": null }
+    },
+    {
+      "id": "yomikaeshi",
+      "name": "ヨミカエシ",
+      "kind": "monster",
+      "genres": ["勉強法"],
+      "myth": "何度も読み返せば覚えられる",
+      "truth": "すらすら読めることを、覚えたことと勘違いしやすい（流暢性の錯覚）。本を閉じて思い出すほうが残る",
+      "debated": false,
+      "sprites": { "idle": "yomikaeshi_idle", "attack": null }
+    },
+    {
+      "id": "nuritsubushi",
+      "name": "ヌリツブシ",
+      "kind": "monster",
+      "genres": ["勉強法"],
+      "myth": "蛍光ペンで線を引くほど覚えられる",
+      "truth": "線を引くだけでは効果が低い（2013年の学習法の研究のまとめ）",
+      "debated": false,
+      "sprites": { "idle": "nuritsubushi_idle", "attack": null }
+    },
+    {
+      "id": "dekitakigasuru",
+      "name": "デキタキガスル",
+      "kind": "monster",
+      "genres": ["勉強法"],
+      "myth": "練習中にすらすら解ければ身についている",
+      "truth": "同じ種類をまとめて解くと練習中はできた気がするが、種類を混ぜて解いたほうが後のテストで上回る（インターリーブ学習）",
+      "debated": false,
+      "sprites": { "idle": "dekitakigasuru_idle", "attack": null }
+    },
+    {
+      "id": "oshietekyuuwari",
+      "name": "オシエテキュウワリ",
+      "kind": "monster",
+      "genres": ["勉強法"],
+      "myth": "講義を聞くだけでは5%、人に教えると90%覚えている（ラーニングピラミッド）",
+      "truth": "数字の元になった研究が見つかっていない",
+      "debated": false,
+      "sprites": { "idle": "oshietekyuuwari_idle", "attack": null }
+    },
+    {
+      "id": "kikudakeaikyuu",
+      "name": "キクダケアイキュー",
+      "kind": "monster",
+      "genres": ["勉強法"],
+      "myth": "モーツァルトを聞くと頭が良くなる",
+      "truth": "約40の研究をまとめた分析（2010年）で、効果を支持する証拠は見られなかった",
+      "debated": false,
+      "sprites": { "idle": "kikudakeaikyuu_idle", "attack": null }
+    },
+    {
+      "id": "nenagaraoboe",
+      "name": "ネナガラオボエ",
+      "kind": "monster",
+      "genres": ["勉強法"],
+      "myth": "寝ている間に音声を流せば覚えられる（睡眠学習）",
+      "truth": "新しい知識を身につけられる確かな証拠はない。覚えてから眠ると定着しやすいのは本当",
+      "debated": false,
+      "sprites": { "idle": "nenagaraoboe_idle", "attack": null }
+    },
+    {
+      "id": "sanbunnoni",
+      "name": "サンブンノニ",
+      "kind": "monster",
+      "genres": ["勉強法"],
+      "myth": "人は1日で覚えたことの3分の2を忘れる",
+      "truth": "エビングハウスが測ったのは、覚え直す手間がどれだけ減ったか（節約率）。思い出せる量ではない",
+      "debated": false,
+      "sprites": { "idle": "sanbunnoni_idle", "attack": null }
     },
     {
       "id": "jibundehikaru",
