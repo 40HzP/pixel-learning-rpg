@@ -417,8 +417,35 @@ export function floorStats(state, ctx) {
   return Object.fromEntries(Object.entries(s).map(([key, v]) => [key, key === 'def' ? Math.round(v * k) : Math.max(1, Math.round(v * k))]));
 }
 
-/** 今いる世界に出るザコ（月面には月面のザコだけ、地球には地球のザコだけが出る） */
-export const zakoPool = (state, ctx) => ctx.monsters.filter((m) => m.kind === 'monster' && worldOf(m) === (state.adventure.world || 'earth'));
+/**
+ * 今いる世界に出るザコ（月面には月面のザコだけ、地球には地球のザコだけが出る）。
+ * 地球のザコは出現エリア（monsters.json の areas。10階層ごとの世界の名前）が今いる世界のものだけ。
+ * 今いる世界に出られるザコが1体もいなければ、地球のザコ全体から選ぶ（設計ページ「出現エリア」）
+ */
+export function zakoPool(state, ctx) {
+  const world = state.adventure.world || 'earth';
+  const all = ctx.monsters.filter((m) => m.kind === 'monster' && worldOf(m) === world);
+  if (world !== 'earth' || !ctx.stages) return all;
+  const stage = currentStage(state, ctx.stages);
+  const here = stage ? all.filter((m) => (m.areas || []).includes(stage.name)) : [];
+  return here.length ? here : all;
+}
+
+/** 世界（stages.json の1件）の階層の範囲 [始まり, 終わり]。最後の世界は終わりが null（その先もずっと続く） */
+export function stageRange(stage, stages) {
+  const next = (stages || []).filter((s) => worldOf(s) === worldOf(stage) && s.from > stage.from).map((s) => s.from);
+  return [stage.from, next.length ? Math.min(...next) - 1 : null];
+}
+
+/** ザコの出現エリアの説明（図鑑の未遭遇の札に出す）。例：「はじまりの草原（1〜10階層）」 */
+export function areaLabels(m, stages) {
+  return (m.areas || []).map((name) => {
+    const st = (stages || []).find((s) => s.name === name && worldOf(s) === worldOf(m));
+    if (!st) return name;
+    const [a, b] = stageRange(st, stages);
+    return `${name}（${a}〜${b === null ? '' : b}階層）`;
+  });
+}
 
 /* ---------- 月面のボスの手下と仕掛け（設計ページ「小ボス：月面（月の研究史をたどる）」） ---------- */
 

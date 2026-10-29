@@ -1,8 +1,8 @@
-// 図鑑：未遭遇はシルエット、遭遇で名前と俗説、撃破か関連する問題に正解で正体
+// 図鑑：未遭遇はシルエット（地球のザコは出現エリアも）、遭遇で名前と俗説、撃破か関連する問題に正解で正体
 // ボス（かつての学説）は、正体に加えて「なぜ信じられたか」「誰がどう覆したか」を載せる
 // 中ボスには顧問にしたときの役目、大学教授が研究室の顧問なら次に戦うボスの「当時の根拠」（予習）も載せる
 import { spriteCanvas } from '../sprites.js';
-import { ADVISOR_PLACES, advisorActive, nextBoss } from '../sim.js';
+import { ADVISOR_PLACES, advisorActive, nextBoss, areaLabels } from '../sim.js';
 import { el } from './dom.js';
 
 let root = null;
@@ -44,6 +44,8 @@ function card(app, m) {
   if (z.stage === 0) {
     return el('div', { class: 'zcard unknown' + (m.kind === 'boss' ? ' wide' : '') }, pic, el('div', { class: 'zname' }, '？？？'),
       el('div', { class: 'muted' }, m.kind === 'boss' ? `${where(m)}で待っているボス` : m.world === 'moon' ? '月面で待っている' : 'まだ出会っていない'),
+      // 地球のザコは出現エリア（設計ページ「出現エリア」。先の世界を見たくなるように）
+      m.kind === 'monster' && (m.areas || []).length ? el('div', { class: 'area' }, `出現：${areaLabels(m, app.stages).join('・')}`) : null,
       m.kind === 'boss' ? prepFor(app, m) : null);
   }
   if (m.kind === 'boss') {

@@ -523,6 +523,7 @@ button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 .zcard .zname { font-size: 15px; }
 .zcard .label { color: var(--muted); font-size: 11px; display: block; margin-top: 4px; }
 .zcard.unknown .zname { color: var(--muted); }
+.zcard .area { color: var(--accent); font-size: 12px; line-height: 1.5; margin-top: 2px; }
 .zcard.wide { grid-column: 1 / -1; }
 
 /* ---------- デバッグ ---------- */

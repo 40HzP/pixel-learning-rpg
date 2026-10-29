@@ -138,7 +138,7 @@ async function boot() {
     if (sp) b.prepend(spriteCanvas(sp, 2, palette));
   }));
 
-  const ctx = { balance, monsters, items, questions, recruits, business, fields, rng: Math.random };
+  const ctx = { balance, monsters, items, questions, recruits, business, fields, stages, rng: Math.random };
   const app = {
     ctx, palette, monsterSprites, recruitSprites,
     submit,           // 作問フォーム（data/submit.json）

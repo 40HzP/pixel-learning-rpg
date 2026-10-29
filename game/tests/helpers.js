@@ -13,6 +13,7 @@ export const recruits = read('recruits.json').recruits;
 export const questions = read('questions.json').questions;
 export const business = read('business.json');
 export const fields = read('fields.json');
+export const stages = read('stages.json').stages;
 
 /** いつも同じ値を返す乱数 */
 export const constRng = (v) => () => v;
@@ -36,7 +37,7 @@ export function seededRng(seed) {
 }
 
 export function makeCtx(rng = constRng(0.5)) {
-  return { balance, monsters, items, recruits, questions, business, fields, rng };
+  return { balance, monsters, items, recruits, questions, business, fields, stages, rng };
 }
 
 export function newGame(startAge = 0) {
