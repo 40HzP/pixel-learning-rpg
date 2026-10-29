@@ -430,6 +430,10 @@ button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 .analysis { margin-top: 14px; font-size: 13px; line-height: 1.6; }
 .analysis ol { margin: 4px 0; padding-left: 20px; }
 .subhead { font-size: 15px; font-weight: normal; color: var(--accent); margin: 14px 0 4px; }
+/* 店：武器・防具・装飾品の見出し（右に今の装備）。品物のアイコンは2倍 */
+.shop-slot { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.shop-slot small { color: var(--muted); font-size: 13px; }
+.item > canvas.pixel { flex: none; }
 .industry { background: var(--panel); border: 2px solid var(--line); padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
 .industry small { color: var(--muted); font-size: 12px; }
 .industry button { align-self: flex-start; margin-top: 4px; }

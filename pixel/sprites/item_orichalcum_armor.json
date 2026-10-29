@@ -1,0 +1,29 @@
+{
+  "name": "item_orichalcum_armor",
+  "category": "icon",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      "................",
+      "..000......000..",
+      ".0ggg0....0eee0.",
+      "0gggg00..00eeee0",
+      "0ggg0gf00fe0eee0",
+      ".000ggffffee000.",
+      "..0ggg4fffeee0..",
+      "..0gggfvufeee0..",
+      "..0gggfuhfeee0..",
+      "..0gggffffeee0g.",
+      ".g.0ggffffee0...",
+      "...0000000000.4.",
+      ".4.0uuuuuuhh0...",
+      "...0000000000...",
+      "...0ggg00fee0...",
+      "....000..000...."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

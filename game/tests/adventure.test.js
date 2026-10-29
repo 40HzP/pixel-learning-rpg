@@ -103,7 +103,7 @@ test('店：正解数で品揃えが増え、ゴールドで買うと強けれ�
   const unlocked = () => shopList(s, ctx).filter((i) => i.unlocked).map((i) => i.id);
   assert.deepEqual(unlocked(), ['wood_sword', 'cloth']);
   s.knowledge.totalCorrect = 5;
-  assert.deepEqual(unlocked(), ['wood_sword', 'cloth', 'copper_sword', 'leather']);
+  assert.deepEqual(unlocked(), ['wood_sword', 'copper_sword', 'cloth', 'leather']);
   assert.equal(buyItem(s, 'wood_sword', ctx).reason, 'ゴールドが足りません');
   s.gold = 1000;
   const atk0 = heroStats(s, ctx).atk;

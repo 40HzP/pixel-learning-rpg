@@ -1,0 +1,29 @@
+{
+  "name": "item_cape",
+  "category": "icon",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      "....0000........",
+      "...0igfh0...oo..",
+      "..0iiihhh0....o.",
+      "..0iiiihhh0..o4.",
+      "..0iiiiihhh0...o",
+      "..0jiiiiihhh0...",
+      "..0jjiiiiihhh0..",
+      ".0jjjjiiiiihhh0.",
+      ".0jjjjjiiiiihhh0",
+      ".0kjjjjjiiiiihh0",
+      "0kkkjjjjjiiiii0.",
+      "0kkkkjjjjjiii0..",
+      "0kkk0kjjj0jii0.o",
+      ".0k0.0kj0.0j0.o.",
+      "..0...00...0....",
+      "................"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

@@ -4,7 +4,7 @@
 // 月面にいる間は、地球の街の代わりに月面の街（town.json の moon：帰還ロケット・月面基地）が出る。
 // 小さな広場に立っている主人公をタップすると、主人公のステータスと名前の変更
 import {
-  shopList, buyItem, bedFloor, heroTitles, inParty, setInParty, partyAllies, partyMax, partyFull, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, evadeChance, expMultiplier,
+  shopList, buyItem, equipItem, EQUIP_SLOTS, bedFloor, heroTitles, inParty, setInParty, partyAllies, partyMax, partyFull, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, evadeChance, expMultiplier,
   recruitList, hireRecruit, dismissRecruit, monthlyContractCost, HOURS_PER_MONTH, HOURS_PER_YEAR,
   canFound, foundCompany, closeCompany, companiesProfit, industryList, industryOutlook, generationMultiplier, ageYears, payRocketBuildCost, rocketSteps,
   hireStaff, dismissStaff, bestStaffGrade, staffCost, staffBonus, buildBase, baseActive,
@@ -138,46 +138,79 @@ function drawTown(app, now) {
 
 /* ================= 施設の中 ================= */
 
+const STAT_LABEL = { atk: '攻撃', def: '防御', hp: 'HP', mp: 'MP', wis: '賢さ', agi: 'すばやさ', luck: '運の良さ' };
+const SLOT_LABEL = { weapon: '武器', armor: '防具', accessory: '装飾品' };
+const SLOT_NOTE = {
+  weapon: '攻撃が上がる',
+  armor: '防御が上がる',
+  accessory: '1つだけ付けられる。すばやさ（回避）・運の良さ（会心とゴールド）・賢さ（ひらめき）が上がる',
+};
+
 function itemStat(it) {
-  const parts = [];
-  if (it.atk) parts.push(`攻撃+${it.atk}`);
-  if (it.def) parts.push(`防御+${it.def}`);
-  return parts.join(' ');
+  return Object.keys(STAT_LABEL).filter((k) => it[k]).map((k) => `${STAT_LABEL[k]}+${it[k]}`).join(' ');
 }
 
 const note = (text) => el('div', { class: 'muted', style: { fontSize: '14px', marginBottom: '8px' } }, text);
 
-/** 店：装備を買う */
+/**
+ * 店：装備を買う。武器・防具・装飾品の枠ごとに並べる。
+ * まだ入荷していない品は、枠ごとに次の1品だけ影絵で見せる。持っている品は「装備する」で付け替えられる
+ */
 function shopPanel(app) {
   const s = app.state;
   const ctx = app.ctx;
   const byId = Object.fromEntries(ctx.items.map((i) => [i.id, i]));
-  const eq = (slot) => (s.equipment[slot] ? `${byId[s.equipment[slot]].name}（${itemStat(byId[s.equipment[slot]])}）` : 'なし');
-  const rows = shopList(s, ctx).map((it) => {
+  const icon = (it, silhouette = false) => spriteCanvas(app.itemSprites[it.id] || null, 2, app.palette, { silhouette });
+  const row = (it) => {
     if (!it.unlocked) {
-      return el('div', { class: 'item locked' },
+      return el('div', { class: 'item locked' }, icon(it, true),
         el('div', { class: 'name' }, '？？？', el('small', {}, `勉強で正解 あと${it.unlockCorrect - s.knowledge.totalCorrect}回で入荷`)));
     }
-    const btn = el('button', {
-      disabled: it.owned,
-      onclick: () => {
-        const r = buyItem(app.state, it.id, ctx);
-        if (!r.ok) { app.notify(r.reason, 'bad'); return; }
-        app.notify(`${it.name}を買った${r.equipped ? '。装備した' : ''}`, 'good');
-        app.save();
-        update(app, true);
-      },
-    }, it.owned ? (it.equipped ? '装備中' : '持っている') : `${fmt(it.price)}G`);
-    if (!it.owned) live.buttons.push({ btn, price: it.price });
+    let btn;
+    if (it.equipped) btn = el('button', { disabled: true }, '装備中');
+    else if (it.owned) {
+      btn = el('button', {
+        onclick: () => {
+          const r = equipItem(app.state, it.id, ctx);
+          if (!r.ok) { app.notify(r.reason, 'bad'); return; }
+          app.notify(`${it.name}を装備した`, 'good');
+          app.save();
+          update(app, true);
+        },
+      }, '装備する');
+    } else {
+      btn = el('button', {
+        onclick: () => {
+          const r = buyItem(app.state, it.id, ctx);
+          if (!r.ok) { app.notify(r.reason, 'bad'); return; }
+          app.notify(`${it.name}を買った${r.equipped ? '。装備した' : '（「装備する」で付け替えられる）'}`, 'good');
+          app.save();
+          update(app, true);
+        },
+      }, `${fmt(it.price)}G`);
+      live.buttons.push({ btn, price: it.price });
+    }
     const off = !it.owned && it.price < it.listPrice ? el('small', { style: { color: 'var(--good)' } }, `値引き（定価 ${fmt(it.listPrice)}G）`) : null;
-    return el('div', { class: 'item' }, el('div', { class: 'name' }, it.name, el('small', {}, itemStat(it)), off), btn);
+    return el('div', { class: 'item' + (it.equipped ? ' on' : '') }, icon(it), el('div', { class: 'name' }, it.name, el('small', {}, itemStat(it)), off), btn);
+  };
+  const list = shopList(s, ctx);
+  const sections = EQUIP_SLOTS.map((slot) => {
+    const inSlot = list.filter((it) => it.slot === slot);
+    const shown = inSlot.filter((it) => it.unlocked);
+    const next = inSlot.find((it) => !it.unlocked);
+    const cur = byId[s.equipment[slot]];
+    return [
+      el('h3', { class: 'subhead shop-slot' }, SLOT_LABEL[slot], el('small', {}, cur ? `装備中：${cur.name}` : '装備中：なし')),
+      note(SLOT_NOTE[slot]),
+      el('div', { class: 'list' }, [...shown, ...(next ? [next] : [])].map(row)),
+    ];
   });
   const be = fieldById(ctx, 'behavioral_economics');
   return [
     el('div', { style: { marginBottom: '6px' } }, '所持金 ', live.gold, 'G'),
-    note(`武器：${eq('weapon')}　防具：${eq('armor')}`),
+    note('買うと、今の装備より強ければ自動で付ける。持っている品は「装備する」で付け替えられる'),
     be && fieldActive(s, ctx, be.id) ? note(`${be.name}で値引き交渉ができる（${pct(ctx.balance.fields.shopDiscount)}引き）`) : null,
-    el('div', { class: 'list' }, rows),
+    ...sections.flat(),
   ];
 }
 
@@ -754,6 +787,9 @@ function heroPanel(app) {
       stat('すばやさ', hs.agi, `回避率 ${(evadeChance(hs, b) * 100).toFixed(1)}%（敵の攻撃をかわす。上限${Math.round(b.stats.evadeMax * 100)}%）`),
       stat('運の良さ', hs.luck, `会心の一撃 ${(critChance(hs, b) * 100).toFixed(1)}%・ゴールドが増える`),
       stat('経験値倍率', `×${expMultiplier(s, b).toFixed(2)}`, `勉強で正解するたびに +${Math.round((b.hero.expBonusPerCorrect || 0) * 100)}%`),
+      el('div', { class: 'stat wide' }, el('span', {}, '装備'),
+        el('b', {}, EQUIP_SLOTS.map((slot) => app.ctx.items.find((i) => i.id === s.equipment[slot])).filter(Boolean).map((i) => i.name).join('・') || 'なし'),
+        el('small', {}, '街の店で買う。武器・防具・装飾品を1つずつ付けられる')),
       // 称号は学際分野でたくさん増えるので、幅いっぱいに並べる
       titles.length ? el('div', { class: 'stat wide' }, el('span', {}, '称号'), el('b', {}, titles.join('・')), el('small', {}, '中ボスを倒したり、学際分野を解放したりするともらえる')) : null,
       stat('世代', `${s.life.generation}世代目`, `ステータスの伸び・経験値・ゴールド ×${generationMultiplier(s, b)}（生まれ変わるたびに ×${b.reincarnation.multiplier}）`),

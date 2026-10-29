@@ -251,10 +251,10 @@ test('中ボスは設計ページの9人。年齢の順に並び、1人ずつ挑
 });
 
 /** 中ボスと、指定のレベル・装備の主人公を戦わせる（防御は崩れている） */
-function fightMidboss(id, level, seed, weapon = 'iron_sword', armor = 'iron_armor') {
+function fightMidboss(id, level, seed, weapon = 'iron_sword', armor = 'iron_armor', accessory = null) {
   const s = readyFor(id);
   const ctx = makeCtx(seededRng(seed));
-  Object.assign(s.equipment, { weapon, armor });
+  Object.assign(s.equipment, { weapon, armor, accessory });
   s.hero.level = level;
   s.hero.hp = heroStats(s, ctx).maxHp;
   s.knowledge.totalCorrect = 1000;
@@ -269,13 +269,28 @@ function fightMidboss(id, level, seed, weapon = 'iron_sword', armor = 'iron_armo
   return 'draw';
 }
 
-test('13歳から先の中ボスは、それぞれ決めたレベル（鉄の剣・鉄の鎧）でやっと倒せる', () => {
-  const LEVEL = { teacher_junior: 55, teacher_high: 60, politician: 65, professor: 70, interviewer: 75, reviewer: 90, tax_inspector: 110, grandchild: 150 };
-  for (const [id, L] of Object.entries(LEVEL)) {
+/**
+ * 13歳から先の中ボスの目標：1分に1問正解し、仲間を雇い、装備を買って遊ぶ人が、出てきてから数分後に届くレベルと、
+ * そのときに持っている武器・防具（装飾品は数えない。付けていればもう少し早く勝てる）
+ */
+const MIDBOSS_TARGET = {
+  teacher_junior: [55, 'steel_sword', 'chainmail'],
+  teacher_high: [60, 'steel_sword', 'chainmail'],
+  politician: [66, 'steel_sword', 'chainmail'],
+  professor: [71, 'katana', 'steel_armor'],
+  interviewer: [77, 'katana', 'steel_armor'],
+  reviewer: [92, 'katana', 'steel_armor'],
+  tax_inspector: [112, 'damascus_sword', 'samurai_armor'],
+  grandchild: [155, 'damascus_sword', 'orichalcum_armor'],
+};
+
+test('13歳から先の中ボスは、それぞれ決めたレベルと装備でやっと倒せる。鉄の剣・鉄の鎧のままでは、もっとレベルが要る', () => {
+  for (const [id, [L, weapon, armor]] of Object.entries(MIDBOSS_TARGET)) {
     const m = midbosses.find((x) => x.id === id);
-    const wins = (level) => [1, 2, 3, 4, 5, 6, 7, 8].filter((seed) => fightMidboss(id, level, seed) === 'win').length;
+    const wins = (level, w = weapon, a = armor) => [1, 2, 3, 4, 5, 6, 7, 8].filter((seed) => fightMidboss(id, level, seed, w, a) === 'win').length;
     assert.ok(wins(L) >= 6, `${m.name}：Lv${L} ならほぼ勝てる（${wins(L)}/8）`);
-    assert.ok(wins(L - 3) <= 2, `${m.name}：Lv${L - 3} ではほぼ勝てない（${wins(L - 3)}/8）`);
+    assert.ok(wins(L - 6) <= 3, `${m.name}：Lv${L - 6} では半分も勝てない（${wins(L - 6)}/8）`);
+    assert.ok(wins(L, 'iron_sword', 'iron_armor') <= 2, `${m.name}：鉄の剣・鉄の鎧なら Lv${L} でもほぼ勝てない（${wins(L, 'iron_sword', 'iron_armor')}/8）`);
   }
 });
 

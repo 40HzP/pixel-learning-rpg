@@ -123,6 +123,9 @@ async function boot() {
   // テストのジャンルを選ぶボタンのアイコン（genre-groups.json に書いた名前だけ読む。無ければ仮の図形）
   const genreSprites = {};
   await Promise.all(genreGroups.flatMap((g) => g.genres).map(async (x) => { genreSprites[x.name] = await load(x.icon); }));
+  // 店の品物のアイコン（items.json の icon に書いた名前だけ読む。無ければ仮の図形）
+  const itemSprites = {};
+  await Promise.all(items.map(async (it) => { itemSprites[it.id] = await load(it.icon); }));
   // 勉強のメニューのボタンのアイコン（study.js の MENU_LOOK に書いた名前だけ読む）
   const menuSprites = {};
   await Promise.all(Object.entries(study.MENU_LOOK).map(async ([id, m]) => { menuSprites[id] = await load(m.icon); }));
@@ -139,6 +142,7 @@ async function boot() {
     genreGroups,      // テストのジャンルを選ぶボタンのまとまり・色・アイコン（data/genre-groups.json）
     genreSprites,
     menuSprites,      // 勉強のメニューのボタンのアイコン
+    itemSprites,      // 店の品物のアイコン（品物のid → スプライト）
     heroSprites: { idle: heroIdle, attack: heroAttack, old: heroOld, bow: heroBow, blush: heroBlush },
     sceneSprites: { classroom, lectern, launchpad, rocket },
     stages: stageList,

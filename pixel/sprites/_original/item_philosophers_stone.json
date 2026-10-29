@@ -1,0 +1,29 @@
+{
+  "name": "item_philosophers_stone",
+  "category": "icon",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      "................",
+      "..g.............",
+      ".gfg..0000......",
+      "..g..0ttss0..g..",
+      "....0t4tsss0....",
+      "...0dtttsssc0...",
+      "..0dddsdccccc0..",
+      "..0ddsddccccc0..",
+      "..0dddddccccc0..",
+      "...0dccccccc0...",
+      "....0cccccc0....",
+      ".....0cccc0.....",
+      "......0000...g..",
+      "............gfg.",
+      ".............g..",
+      "................"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

@@ -28,7 +28,7 @@ export function createState(balance) {
     life: { generation: 1, gameHours: 0, lifespan: balance.life.lifespanYears, maxFloor: 1, moonMaxFloor: 0, ailing: false, treatments: 0 },
     hero: { name: DEFAULT_HERO_NAME, level: 1, exp: 0, totalExp: 0, hp: balance.hero.base.hp, mp: balance.hero.base.mp },
     gold: 0,
-    equipment: { weapon: null, armor: null },
+    equipment: { weapon: null, armor: null, accessory: null }, // 武器・防具・装飾品（品物のid）
     owned: [],                                      // 買った品物のid
     allies: [],                                     // 中ボス：{ id, name, atk, maxHp, hp, cd, benched?（控え）, advisor?（顧問） }／契約：{ id, name, hired: true, cd, paidUntil }
     citationsUsed: 0,                               // 学会の査読者（顧問）の「要出典」を、前に眠ってから使った回数
@@ -298,16 +298,20 @@ export function monthlyRates(tr, balance) {
 
 const itemById = (items, id) => (id ? items.find((i) => i.id === id) || null : null);
 
+/** 装備の枠（items.json の slot）。武器・防具・装飾品に1つずつ */
+export const EQUIP_SLOTS = ['weapon', 'armor', 'accessory'];
+/** 品物が足すステータス */
+export const ITEM_STATS = ['hp', 'mp', 'atk', 'def', 'wis', 'agi', 'luck'];
+
 /**
- * 主人公のステータス。レベルで伸び、装備で足される。
+ * 主人公のステータス。レベルで伸び、装備（武器・防具・装飾品）で足される。
  * 賢さは勉強の正解数でも伸びる（balance.hero.wisPerCorrect）
  */
 export function heroStats(state, ctx) {
   const { hero } = ctx.balance;
   const L = state.hero.level;
-  const w = itemById(ctx.items, state.equipment.weapon);
-  const a = itemById(ctx.items, state.equipment.armor);
-  const gear = (k) => (w ? w[k] || 0 : 0) + (a ? a[k] || 0 : 0);
+  const worn = EQUIP_SLOTS.map((slot) => itemById(ctx.items, state.equipment[slot])).filter(Boolean);
+  const gear = (k) => worn.reduce((n, it) => n + (it[k] || 0), 0);
   const gm = generationMultiplier(state, ctx.balance); // 世代が進むと伸び方が大きくなる
   const grow = (k) => Math.floor((hero.base[k] || 0) + (hero.perLevel[k] || 0) * gm * (L - 1));
   return {
@@ -1613,9 +1617,10 @@ export function shopList(state, ctx) {
   }));
 }
 
-const slotPower = (item) => (item ? (item.slot === 'weapon' ? item.atk : item.def) : -Infinity);
+/** 品物の強さ：足すステータスの合計（武器は攻撃、防具は防御だけなので、そのまま） */
+const itemPower = (item) => (item ? ITEM_STATS.reduce((n, k) => n + (item[k] || 0), 0) : -Infinity);
 
-/** 買う。前より強ければ自動で装備する */
+/** 買う。同じ枠の今の装備より強ければ（足すステータスの合計が大きければ）自動で装備する */
 export function buyItem(state, itemId, ctx) {
   const it = itemById(ctx.items, itemId);
   if (!it) return { ok: false, reason: 'ない品物です' };
@@ -1626,7 +1631,16 @@ export function buyItem(state, itemId, ctx) {
   state.gold -= price;
   state.owned.push(it.id);
   const current = itemById(ctx.items, state.equipment[it.slot]);
-  const equipped = slotPower(it) > slotPower(current);
+  const equipped = itemPower(it) > itemPower(current);
   if (equipped) state.equipment[it.slot] = it.id;
   return { ok: true, equipped };
+}
+
+/** 持っている品物に付け替える（装飾品の選び直しや、弱い装備に戻すとき） */
+export function equipItem(state, itemId, ctx) {
+  const it = itemById(ctx.items, itemId);
+  if (!it || !state.owned.includes(it.id)) return { ok: false, reason: '持っていない品物です' };
+  if (state.equipment[it.slot] === it.id) return { ok: false, reason: 'もう装備しています' };
+  state.equipment[it.slot] = it.id;
+  return { ok: true };
 }

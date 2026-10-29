@@ -1,10 +1,23 @@
 {
   "items": [
-    { "id": "wood_sword",   "name": "木の剣",   "slot": "weapon", "atk": 6,  "def": 0, "price": 30,  "unlockCorrect": 0 },
-    { "id": "cloth",        "name": "布の服",   "slot": "armor",  "atk": 0,  "def": 3, "price": 25,  "unlockCorrect": 0 },
-    { "id": "copper_sword", "name": "銅の剣",   "slot": "weapon", "atk": 15, "def": 0, "price": 150, "unlockCorrect": 5 },
-    { "id": "leather",      "name": "革の鎧",   "slot": "armor",  "atk": 0,  "def": 9, "price": 120, "unlockCorrect": 5 },
-    { "id": "iron_sword",   "name": "鉄の剣",   "slot": "weapon", "atk": 30, "def": 0, "price": 800, "unlockCorrect": 15 },
-    { "id": "iron_armor",   "name": "鉄の鎧",   "slot": "armor",  "atk": 0,  "def": 18, "price": 650, "unlockCorrect": 15 }
+    { "id": "wood_sword",          "name": "木の剣",              "slot": "weapon",     "icon": "item_wood_sword",         "atk": 6, "price": 30, "unlockCorrect": 0 },
+    { "id": "copper_sword",        "name": "銅の剣",              "slot": "weapon",     "icon": "item_copper_sword",       "atk": 15, "price": 150, "unlockCorrect": 5 },
+    { "id": "iron_sword",          "name": "鉄の剣",              "slot": "weapon",     "icon": "item_iron_sword",         "atk": 30, "price": 800, "unlockCorrect": 15 },
+    { "id": "steel_sword",         "name": "鋼の剣",              "slot": "weapon",     "icon": "item_steel_sword",        "atk": 50, "price": 5000, "unlockCorrect": 30 },
+    { "id": "katana",              "name": "玉鋼の刀",            "slot": "weapon",     "icon": "item_katana",             "atk": 75, "price": 20000, "unlockCorrect": 50 },
+    { "id": "damascus_sword",      "name": "ダマスカス鋼の剣",    "slot": "weapon",     "icon": "item_damascus_sword",     "atk": 105, "price": 60000, "unlockCorrect": 80 },
+    { "id": "orichalcum_sword",    "name": "オリハルコンの剣",    "slot": "weapon",     "icon": "item_orichalcum_sword",   "atk": 150, "price": 180000, "unlockCorrect": 120 },
+    { "id": "cloth",               "name": "布の服",              "slot": "armor",      "icon": "item_cloth",              "def": 3, "price": 25, "unlockCorrect": 0 },
+    { "id": "leather",             "name": "革の鎧",              "slot": "armor",      "icon": "item_leather",            "def": 9, "price": 120, "unlockCorrect": 5 },
+    { "id": "iron_armor",          "name": "鉄の鎧",              "slot": "armor",      "icon": "item_iron_armor",         "def": 18, "price": 650, "unlockCorrect": 15 },
+    { "id": "chainmail",           "name": "鎖かたびら",          "slot": "armor",      "icon": "item_chainmail",          "def": 28, "price": 4000, "unlockCorrect": 30 },
+    { "id": "steel_armor",         "name": "鋼の鎧",              "slot": "armor",      "icon": "item_steel_armor",        "def": 40, "price": 16000, "unlockCorrect": 50 },
+    { "id": "samurai_armor",       "name": "武者の大鎧",          "slot": "armor",      "icon": "item_samurai_armor",      "def": 55, "price": 48000, "unlockCorrect": 80 },
+    { "id": "orichalcum_armor",    "name": "オリハルコンの鎧",    "slot": "armor",      "icon": "item_orichalcum_armor",   "def": 75, "price": 150000, "unlockCorrect": 120 },
+    { "id": "leather_boots",       "name": "革の靴",              "slot": "accessory",  "icon": "item_leather_boots",      "agi": 10, "price": 600, "unlockCorrect": 10 },
+    { "id": "clover",              "name": "四つ葉のクローバー",  "slot": "accessory",  "icon": "item_clover",             "luck": 15, "price": 2500, "unlockCorrect": 20 },
+    { "id": "glasses",             "name": "学者のメガネ",        "slot": "accessory",  "icon": "item_glasses",            "wis": 40, "price": 12000, "unlockCorrect": 40 },
+    { "id": "cape",                "name": "疾風のマント",        "slot": "accessory",  "icon": "item_cape",               "agi": 45, "price": 40000, "unlockCorrect": 70 },
+    { "id": "philosophers_stone",  "name": "賢者の石",            "slot": "accessory",  "icon": "item_philosophers_stone", "wis": 80, "agi": 30, "luck": 40, "price": 250000, "unlockCorrect": 150 }
   ]
 }
