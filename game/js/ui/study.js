@@ -1,5 +1,5 @@
 // 勉強画面（設計ページ「勉強画面の表示」）
-import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH, flyerSpan, recordTorn, remedialOpen, adoptedQuestions, testShareText, SHARE_HASHTAG, toggleFavorite, isFavorite, reviewLists } from '../quiz.js';
+import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH, flyerSpan, recordTorn, remedialOpen, adoptedQuestions, testShareText, SHARE_HASHTAG, toggleFavorite, isFavorite, reviewLists, dailyPending, dailyInfo } from '../quiz.js';
 import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap, ageYears, newspaperActive, authorRightsInfo } from '../sim.js';
 import { fieldById, fieldActive } from '../fields.js';
 import { GENRES } from '../genres.js';
@@ -10,12 +10,12 @@ import { createDoodle, attachDoodle } from './doodle.js';
 import { shareTest } from './share.js';
 
 /** 選択肢の文。学会の査読者（研究室の顧問）が「要出典」の印を付けた俗説には印を出す */
-const choiceText = (c) => (c.cited ? [c.text, el('span', { class: 'cite' }, '要出典')] : c.text);
+export const choiceText = (c) => (c.cited ? [c.text, el('span', { class: 'cite' }, '要出典')] : c.text);
 /** 要出典の印を付けたことの一言（問題の上の行） */
 const citedNote = (cur) => (cur.citedBy ? el('span', { class: 'good' }, `　${cur.citedBy}が俗説に「要出典」を付けた`) : null);
 
 /** ユーザーの作問から採用した問題なら、解説の下に作問者（ペンネーム）を出す。自分の問題なら、そうと分かるように */
-function credit(app, q) {
+export function credit(app, q) {
   if (!q.author) return null;
   const mine = adoptedQuestions(app.state, app.ctx).includes(q);
   return el('div', { class: 'credit' }, q.author.name ? `作問：${q.author.name}` : 'みんなの作問から採用', mine ? el('b', {}, '（あなたが作った問題）') : null);
@@ -25,7 +25,7 @@ function credit(app, q) {
  * 解いている問題の文。月面のボス・ツキジンセツが新聞のビラをまいている間は、一部がビラで隠れる
  * （隠す場所は問題ごとに決まっている。quiz.js の flyerSpan）
  */
-function questionText(app, q) {
+export function questionText(app, q) {
   if (!newspaperActive(app.state)) return el('div', { class: 'qtext' }, q.question);
   const { start, length } = flyerSpan(q);
   const t = q.question;
@@ -126,7 +126,8 @@ function renderMenu(app) {
   const cap = proficiencyCap(app.state, app.ctx.balance);
   refs.body.replaceChildren(
     el('div', { class: 'modes' },
-      menuButton(app, 'quiz', 'クイズ', '全ジャンルから1問', { onclick: () => start(app, 'quiz') }),
+      // その日の今日の1問にまだ答えていなければ、クイズは今日の1問から（40HzP の依頼）
+      menuButton(app, 'quiz', 'クイズ', dailyPending(app.state, app.ctx) ? `今日の1問から（正解で熟練が${app.ctx.balance.quiz.dailyProgress}進む）` : '全ジャンルから1問', { onclick: () => start(app, 'quiz') }),
       // テスト：押すとジャンルを選ぶ画面（40HzP の依頼「テスト→ジャンル選択の順に」）
       menuButton(app, 'test', 'テスト', `ジャンルを選んで${app.ctx.balance.quiz.testQuestions}問まで・時間制限なし`, { onclick: () => openTestGenre(app) }),
       // 過去問復習：正解・不正解を問わず最近解いた問題と、お気に入りを見返す（40HzP の依頼）
@@ -459,7 +460,9 @@ function renderQuestion(app) {
   const s = view.session;
   const cur = s.current;
   const q = cur.question;
-  const progress = s.total > 1 ? `${MODES[s.mode]} ${s.index + 1}/${s.total}問目` : MODES[s.mode];
+  const daily = s.daily && q.id === s.daily && dailyInfo(app.state, app.ctx);
+  const progress = daily ? `今日の1問（${daily.label}${daily.anniversary ? `・${daily.anniversary}` : ''}）`
+    : s.total > 1 ? `${MODES[s.mode]} ${s.index + 1}/${s.total}問目` : MODES[s.mode];
   const ratio = Math.max(0, view.remaining / cur.timeLimit);
   refs.body.replaceChildren(
     interferenceBanner(app, q),
@@ -503,11 +506,13 @@ function submit(app, index) {
 
 /* ---------- 解答後 ---------- */
 /** 答えたあとに起きたこと。brief なら、経験値の倍率と熟練の進み具合は出さない（テストはまとめて上に出す） */
-function effectLines(app, r, brief = false) {
+export function effectLines(app, r, brief = false) {
   const lines = [];
   const name = (id) => (app.ctx.monsters.find((m) => m.id === id) || {}).name || '';
   const g = app.state.knowledge.genres[r.question.genre];
   const per = app.ctx.balance.quiz.correctPerProficiencyLevel;
+  // 今日の1問：正解すると熟練が dailyProgress 問分進む（40HzP の依頼）
+  if (r.daily) lines.push(r.correct ? ['good', `今日の1問に正解！　${r.question.genre}の熟練が ${r.daily.progress}/${per} 進んだ`] : ['', '今日の1問は、また明日']);
   if (r.correct) {
     // 正解しても敵にダメージは入らない（40HzP の依頼）。戦っている中ボスの防御が崩れるまでの問題数は出す
     if (r.midbossBroken) lines.push(['good', `${r.targetName}の防御が崩れた！`]);
@@ -555,7 +560,7 @@ function renderResult(app) {
  * お気に入りに入れる・外すボタン。押すと字が変わる。いっぱいのときは知らせを出して入れない。
  * after は押したあとに呼ぶ（過去問復習の一覧を作り直すときなど）
  */
-function favButton(app, q, after = null) {
+export function favButton(app, q, after = null) {
   const b = el('button', { class: 'fav-btn', onclick: () => {
     const r = toggleFavorite(app.state, q.id, app.ctx);
     if (!r.ok) { app.notify(r.reason, 'bad'); return; }

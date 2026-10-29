@@ -5,7 +5,7 @@ import {
   launchRocket, returnToEarth, ADVISOR_PLACES,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
-import { forgetMissingQuestions, ensureAuthorCode, takeNewAdoptions } from './quiz.js';
+import { forgetMissingQuestions, ensureAuthorCode, takeNewAdoptions, refreshDaily, dayKey } from './quiz.js';
 import { MAJOR_SLOTS } from './fields.js';
 import { loadPalette, loadSprite, spriteCanvas } from './sprites.js';
 import { createRenderer, SCENE_W, SCENE_H } from './render.js';
@@ -17,6 +17,7 @@ import * as debug from './ui/debug.js';
 import { el, fmt } from './ui/dom.js';
 import { playMovie } from './ui/movie.js';
 import { askNande } from './ui/nande.js';
+import { openDaily } from './ui/daily.js';
 import { playTear } from './ui/tear.js';
 import { playOogiri } from './ui/oogiri.js';
 import { playLaunch } from './ui/launch.js';
@@ -26,6 +27,7 @@ const SPRITES = PIXEL + 'sprites/';
 const AUTOSAVE_MS = 10_000;
 const UI_MS = 200;
 const UPDATE_CHECK_MS = 3 * 60_000;
+const DAY_CHECK_MS = 30_000; // 日付が変わったか（今日の1問）を見る間隔
 const FONT_WAIT_MS = 3000;
 
 const screens = { adventure, study, facility, zukan, debug };
@@ -113,6 +115,7 @@ async function boot() {
   const [townBg] = await Promise.all([
     load(town.background),
     ...town.facilities.map(async (f) => { townSprites[f.id] = await load(f.sprite); }),
+    town.board ? load(town.board.sprite).then((sp) => { townSprites.board = sp; }) : null, // 今日の1問の掲示板
   ]);
   // 月面の街（town.json の moon。月面にいる間は地球の街の代わりに出る）
   const moonSprites = {};
@@ -159,7 +162,7 @@ async function boot() {
     notify,
     handleEvents,
     save: saveNow,
-    replaceState(next) { app.state = next; ensureAuthorCode(next, cryptoRng); forgetMissingQuestions(next, ctx); forgetPastLifeBosses(next, ctx); fitParty(next, ctx); app.rate = createRateTracker(); for (const s of Object.values(screens)) s.reset && s.reset(app); refreshActive(true); },
+    replaceState(next) { app.state = next; ensureAuthorCode(next, cryptoRng); refreshDaily(next, ctx, app.today()); forgetMissingQuestions(next, ctx); forgetPastLifeBosses(next, ctx); fitParty(next, ctx); app.rate = createRateTracker(); for (const s of Object.values(screens)) s.reset && s.reset(app); refreshActive(true); },
     sleepNow() {
       const from = app.state.adventure.floor;
       const r = sleepAtBed(app.state, ctx);
@@ -173,6 +176,9 @@ async function boot() {
     playMovie: (monsterId) => startMovie(monsters.find((m) => m.id === monsterId)),
     playAilmentMovie: (age) => startAilmentMovie(age),
     askNande: () => runOverlay(() => askNande(app)),
+    openDaily: () => runOverlay(() => openDaily(app).then(() => refreshActive(true))), // 今日の1問（冒険画面の札・街の掲示板）
+    debugDay: null,   // デバッグ画面で選んだ日付（今日の1問をその日の問題で試す）
+    today: () => app.debugDay || dayKey(new Date()), // 今日の1問の日付（端末の時計の日付）
     tearTest: (teacherId) => runOverlay(() => playTear(app, teacherId)), // テスト用紙を破りすてた（先生が怒る）
     oogiriTest: (teacherId) => runOverlay(() => playOogiri(app, teacherId)), // テストに大喜利を書いて提出した（主人公が赤面する）
     launch: () => launch(),          // ロケットを打ち上げる（地球 → 月面。失敗することもある）
@@ -182,6 +188,7 @@ async function boot() {
   ensureAuthorCode(app.state, cryptoRng); // 作問者コード（作った問題が採用されたら知らせるため）
   const adoptedOnLoad = takeNewAdoptions(app.state, ctx); // 採用された問題があれば、起動したときに一度だけ知らせる
   forgetMissingQuestions(app.state, ctx); // 同期で外した問題が過去問復習に残らないように
+  refreshDaily(app.state, ctx, app.today()); // その日に初めて起動したら、今日の1問の札を冒険画面に出す
   forgetPastLifeBosses(app.state, ctx); // 前の版のセーブで、前世で倒したボスにもまた会えるように
   const benchedOnLoad = fitParty(app.state, ctx); // パーティーは5人まで（前のセーブで超えていたら控えに回す）
   // 伸び率を変えた版では、前のセーブのHP・MPが今の最大を超えていることがある
@@ -497,6 +504,15 @@ async function boot() {
   setInterval(checkUpdate, UPDATE_CHECK_MS);
   checkUpdate();
 
+  /* ---------- 今日の1問：遊んでいる途中で日付が変わったら、次の日の札を出す ---------- */
+  function checkDay() {
+    if (!refreshDaily(app.state, ctx, app.today())) return;
+    notify('日付が変わった。今日の1問が届いた（冒険画面の札）', 'good');
+    saveNow();
+    refreshActive(true);
+  }
+  setInterval(checkDay, DAY_CHECK_MS);
+
   /* ---------- ループ ---------- */
   const clock = createClock();
   let lastUi = 0, lastSave = performance.now();
@@ -506,6 +522,7 @@ async function boot() {
       saveNow();
     } else {
       checkUpdate();
+      checkDay();
     }
   });
   window.addEventListener('pagehide', saveNow);

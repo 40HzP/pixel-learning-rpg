@@ -15,7 +15,7 @@ export function askNande(app) {
     const s = app.state;
     const ctx = app.ctx;
     const kid = s.adventure.enemies.find((e) => (ctx.monsters.find((m) => m.id === e.monsterId) || {}).nande);
-    const session = createSession(s, 'quiz', ctx);
+    const session = createSession(s, 'nande', ctx); // クイズと同じ選び方（今日の1問は出さない）
     const cur = kid && nextQuestion(s, session, ctx);
     if (!cur) { resolve(); return; } // もう戦っていない・出せる問題がない
 

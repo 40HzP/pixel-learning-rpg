@@ -88,6 +88,14 @@ function buildTown(app) {
     const sp = t.sprites[f.id];
     return { btn, x: f.x, y: f.y, w: sp ? sp.w : 32, h: sp ? sp.h : 32 };
   });
+  // 今日の1問の掲示板（地球の街だけ）。札を開いて閉じると、今日の1問がここに残る（40HzP の依頼）
+  if (t.board) {
+    const sp = t.sprites.board;
+    spots.push({
+      btn: el('button', { class: 'spot board', 'aria-label': `${t.board.name}（今日の1問）`, onclick: () => app.openDaily() }, el('span', { class: 'label' }, t.board.name)),
+      x: t.board.x, y: t.board.y, w: sp ? sp.w : 16, h: sp ? sp.h : 16,
+    });
+  }
   const heroLabel = el('span', { class: 'label' });
   const heroSprite = app.heroSprites.idle;
   spots.push({
@@ -130,6 +138,13 @@ function drawTown(app, now) {
     const sp = t.sprites[f.id];
     if (sp) drawSprite(g, sp, frameAt(sp, now), f.x, f.y);
     else drawPlaceholder(g, f.x, f.y, 32, 32, app.palette);
+  }
+  // 掲示板の絵は今日の1問の様子で変える（1枚目：何も貼っていない・2枚目：今日の1問が貼ってある・3枚目：答えた印）
+  const board = t.board && t.sprites.board;
+  if (board) {
+    const d = app.state.legacy.daily;
+    const frame = d.result ? 2 : d.opened ? 1 : 0;
+    drawSprite(g, board, Math.min(frame, board.frames.length - 1), t.board.x, t.board.y);
   }
   const hero = app.heroSprites.idle;
   if (hero) drawSprite(g, hero, frameAt(hero, now), t.hero.x, t.hero.y);

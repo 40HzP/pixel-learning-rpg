@@ -61,6 +61,8 @@ export function createState(balance) {
       lives: [],                                    // 前世のまとめ：{ generation, name, age, level, maxFloor, gold }
       rocket: { buildCostPaid: false, steps: {} },  // ロケット計画の工程（建造費を払ったか・工程ごとに進んだゲーム内の時間）
       author: { code: null, seen: [] },            // 作問：作問者コード（はじめて起動したときに決まる）・もう知らせた採用の問題id
+      // 今日の1問（現実の日付ごとに1問）：その日（'YYYY-MM-DD'）・問題id・札を開いて閉じたか・答え（{ correct, chosen, timeout }。まだなら null）
+      daily: { day: null, id: null, opened: false, result: null },
     },
   };
 }

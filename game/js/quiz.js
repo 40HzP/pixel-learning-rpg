@@ -7,7 +7,7 @@ import { fieldActive, fieldById } from './fields.js';
 
 export { GENRES };
 
-export const MODES = { quiz: 'クイズ', test: 'テスト', review: '過去問復習', remedial: '補習' };
+export const MODES = { quiz: 'クイズ', test: 'テスト', review: '過去問復習', remedial: '補習', daily: '今日の1問' };
 
 /**
  * セーブに残っている、もう無い問題（同期で外した問題など）を、間違えたままの問題・補習・直近の出題・
@@ -83,17 +83,21 @@ export const timeLimitFor = (difficulty, balance) => balance.quiz.timeLimitSec[M
 /**
  * mode: 'quiz'（全ジャンルから1問）| 'test'（genre から testQuestions 問を1枚の用紙で。presentTest・gradeTest）|
  * 'review'（過去問復習で解き直す：pool に並べた問題を、その順に全部。最近解いた問題かお気に入り）|
- * 'remedial'（補習：破りすてたテストの問題、最大 testQuestions 問。小学校教師が学校の顧問のとき）
+ * 'remedial'（補習：破りすてたテストの問題、最大 testQuestions 問。小学校教師が学校の顧問のとき）|
+ * 'daily'（今日の1問だけ。冒険画面の札・街の掲示板から）| 'nande'（孫の「なんで？」。全ジャンルから1問）。
+ * クイズは、その日の今日の1問にまだ答えていなければ、今日の1問を出す（40HzP の依頼「毎日初回は今日の1問」。session.daily に問題id）
  */
 export function createSession(state, mode, ctx, genre = null, pool = null) {
   let total = 1;
+  const daily = (mode === 'daily' || mode === 'quiz') && dailyPending(state, ctx) ? state.legacy.daily.id : null;
+  if (mode === 'daily' && !daily) total = 0;
   if (mode === 'test') total = ctx.balance.quiz.testQuestions;
   if (mode === 'review') {
     pool = (pool || []).filter((id) => ctx.questions.some((q) => q.id === id));
     total = pool.length;
   }
   if (mode === 'remedial') total = Math.min(ctx.balance.quiz.testQuestions, state.knowledge.torn.length);
-  return { mode, genre, pool, total, index: 0, asked: [], current: null, results: [] };
+  return { mode, genre, pool, total, index: 0, asked: [], current: null, results: [], daily };
 }
 
 export function candidatesFor(state, session, ctx) {
@@ -117,9 +121,9 @@ export function recordTorn(state, session) {
 /** 次の問題を出す。出せなければ null（セッション終了） */
 export function nextQuestion(state, session, ctx) {
   if (session.index >= session.total) { session.current = null; return null; }
-  // 過去問復習で解き直す問題は、並べた順に出す（直近に出した問題でも出す）
-  if (session.mode === 'review') {
-    const id = session.pool.find((x) => !session.asked.includes(x));
+  // 今日の1問（クイズでも、その日にまだ答えていなければ最初に出す）。過去問復習で解き直す問題は、並べた順に出す（直近に出した問題でも出す）
+  if (session.mode === 'review' || (session.daily && !session.asked.includes(session.daily))) {
+    const id = session.daily && !session.asked.includes(session.daily) ? session.daily : session.pool.find((x) => !session.asked.includes(x));
     const q = id && ctx.questions.find((x) => x.id === id);
     if (!q) { session.current = null; return null; }
     const cur = presentQuestion(session, q, ctx);
@@ -359,10 +363,18 @@ export function answer(state, session, choiceIndex, ctx) {
   pushRecent(state, q.id, ctx);
   pushHistory(state, { id: q.id, correct, chosen: choice ? choice.text : null }, ctx);
 
+  // 今日の1問：その日に1回だけ数え、正解すると熟練が balance.quiz.dailyProgress 問分進む（40HzP の依頼「5/10進む」）
+  const daily = session.daily === q.id && dailyPending(state, ctx);
+  if (daily) {
+    Object.assign(state.legacy.daily, { opened: true, result: { correct, chosen: choice ? choice.text : null, timeout: choiceIndex == null } });
+    res.daily = { progress: correct ? qb.dailyProgress : 0 };
+  }
+
   if (correct) {
     g.correct++;
     k.totalCorrect++;
     res.levelUp = addProgress(state, q.genre, ctx);
+    for (let i = 1; daily && i < qb.dailyProgress; i++) res.levelUp = addProgress(state, q.genre, ctx) || res.levelUp;
     const ri = k.review.indexOf(q.id);
     if (ri >= 0) k.review.splice(ri, 1);
     // 破りすてた問題も、正解すると補習から外れる
@@ -387,6 +399,68 @@ export function answer(state, session, choiceIndex, ctx) {
   session.index++;
   session.current = null;
   return res;
+}
+
+/* ================= 今日の1問（40HzP の依頼） ================= */
+// 現実の日付ごとに1問。その日に初めて起動すると冒険画面に札が出て、開いて閉じると街の掲示板に残る（ui/daily.js）。
+// クイズも、その日にまだ答えていなければ今日の1問から出す（createSession）。答えはその日に1回だけ数え、正解すると熟練が dailyProgress 問分進む（answer）
+
+const pad2 = (n) => String(n).padStart(2, '0');
+/** 現実の日付（端末の時計）を 'YYYY-MM-DD' にする */
+export const dayKey = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+/** 'YYYY-MM-DD' → 「10月29日」 */
+export const dayLabel = (day) => `${Number(day.slice(5, 7))}月${Number(day.slice(8, 10))}日`;
+
+/** 文字列から決まる数（同じ日には同じ問題を選ぶため） */
+function hashString(text) {
+  let h = 0;
+  for (const c of text) h = (h * 31 + c.codePointAt(0)) >>> 0;
+  return h;
+}
+
+/**
+ * その日（'YYYY-MM-DD'）の今日の1問。問題リストの「出題日」（questions.json の date。'MM-DD' で毎年くり返す）がその日の問題を出す。
+ * 同じ日の問題が2問以上あれば、その中から日付で決まる1問。その日の問題が無ければ、出題日の無い問題から日付で決まる1問
+ */
+export function dailyQuestionFor(ctx, day) {
+  const md = day.slice(5);
+  const dated = ctx.questions.filter((q) => q.date === md);
+  let pool = dated.length ? dated : ctx.questions.filter((q) => !q.date);
+  if (!pool.length) pool = ctx.questions;
+  return pool.length ? pool[hashString(day) % pool.length] : null;
+}
+
+/**
+ * 日付が変わっていたら、その日の今日の1問に入れ替える（起動したときと、遊んでいる途中で日付が変わったとき）。
+ * 入れ替えたら true（冒険画面に札を出す）。問題が同期で無くなっていたら選び直す
+ */
+export function refreshDaily(state, ctx, day) {
+  const d = state.legacy.daily;
+  if (d.day === day && ctx.questions.some((q) => q.id === d.id)) return false;
+  const q = dailyQuestionFor(ctx, day);
+  const fresh = d.day !== day;
+  Object.assign(d, { day, id: q ? q.id : null }, fresh ? { opened: false, result: null } : {});
+  return fresh && !!q;
+}
+
+/** 今日の1問にまだ答えていない */
+export const dailyPending = (state, ctx) => {
+  const d = state.legacy.daily;
+  return !!d.id && !d.result && ctx.questions.some((q) => q.id === d.id);
+};
+
+/** 冒険画面の札を出すか：まだ札を開いておらず、答えてもいない */
+export const dailyCardVisible = (state, ctx) => dailyPending(state, ctx) && !state.legacy.daily.opened;
+
+/** 札を開いて閉じた（冒険画面の札は消え、街の掲示板に残る） */
+export function markDailyOpened(state) { state.legacy.daily.opened = true; }
+
+/** 今日の1問の中身：{ day, label（10月29日）, question, anniversary（記念日。無ければ null）, opened, result } */
+export function dailyInfo(state, ctx) {
+  const d = state.legacy.daily;
+  const question = d.id ? ctx.questions.find((q) => q.id === d.id) || null : null;
+  if (!d.day || !question) return null;
+  return { day: d.day, label: dayLabel(d.day), question, anniversary: question.date === d.day.slice(5) ? question.anniversary || null : null, opened: d.opened, result: d.result };
 }
 
 /* ================= 作問（ユーザーの問題の受付。40HzP の依頼） ================= */

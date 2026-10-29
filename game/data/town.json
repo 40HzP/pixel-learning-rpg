@@ -1,6 +1,7 @@
 {
   "background": "bg_town",
-  "hero": { "x": 37, "y": 138 },
+  "hero": { "x": 37, "y": 116 },
+  "board": { "name": "掲示板", "x": 37, "y": 139, "sprite": "town_board" },
   "facilities": [
     {
       "id": "company",

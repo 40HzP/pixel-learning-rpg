@@ -3,6 +3,8 @@ import {
   heroStats, partyAllies, companiesProfit, expToNext, formatDate, monthlyRates, monthlyContractCost, monthlyNetGold, isInvulnerable, midbossLeft, pendingBoss, expMultiplier,
   challengeableMidboss, challengeMidboss, retreatMidboss, onMoon,
 } from '../sim.js';
+import { dailyCardVisible, dailyInfo } from '../quiz.js';
+import { dailyTitle } from './daily.js';
 import { el, fmt } from './dom.js';
 
 let refs = null;
@@ -37,6 +39,9 @@ export function init(app) {
     },
   }, '逃げる');
   refs.bossBar = el('div', { class: 'bossbar', hidden: true }, refs.boss, refs.retreat);
+  // 今日の1問の札：その日に初めて起動すると出る。押すと出題し、閉じると街の掲示板に残る（40HzP の依頼）
+  refs.daily = el('button', { class: 'daily-card', hidden: true, onclick: () => app.openDaily() });
+  refs.dailyKey = '';
   const r = refs;
   hud.append(
     el('div', { class: 'row' }, r.date, r.floor),
@@ -54,6 +59,7 @@ export function init(app) {
     el('div', { class: 'row enemy' }, r.enemy),
     r.bossBar,
     r.challenge,
+    r.daily,
   );
 }
 
@@ -124,6 +130,15 @@ export function update(app) {
     r.boss.hidden = false;
   } else {
     r.boss.hidden = true;
+  }
+
+  const showDaily = dailyCardVisible(s, ctx);
+  r.daily.hidden = !showDaily;
+  const info = showDaily && dailyInfo(s, ctx);
+  const dk = info ? info.day + info.question.id : '';
+  if (dk !== r.dailyKey) {
+    r.dailyKey = dk;
+    if (info) r.daily.replaceChildren(el('span', { class: 'daily-pin', 'aria-hidden': 'true' }), dailyTitle(info), el('small', { class: 'daily-tap' }, 'タップで出題'));
   }
 
   const cm = challengeableMidboss(s, ctx);

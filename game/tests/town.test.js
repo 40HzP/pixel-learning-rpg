@@ -33,6 +33,7 @@ for (const [label, t] of TOWNS) test(`${label}：建物と主人公は街の中�
     return { id: f.id, x: f.x, y: f.y, w: sp.w, h: sp.h };
   });
   boxes.push({ id: 'hero', x: town.hero.x, y: town.hero.y, w: 16, h: 16 });
+  if (town.board) boxes.push({ id: 'board', x: town.board.x, y: town.board.y, w: 16, h: 16 });
   for (const b of boxes) {
     assert.ok(b.x >= 0 && b.y >= 0 && b.x + b.w <= TOWN_W && b.y + b.h <= TOWN_H, `${b.id} が街の中`);
   }
@@ -43,4 +44,11 @@ for (const [label, t] of TOWNS) test(`${label}：建物と主人公は街の中�
       assert.ok(!overlap, `${a.id} と ${b.id} が重なっている`);
     }
   }
+});
+
+test('地球の街の掲示板（今日の1問）：16×16・3枚（何も貼っていない・貼ってある・答えた）のスプライトがある。月面の街には無い', () => {
+  assert.ok(town.board && town.board.name, '地球の街に掲示板');
+  const sp = read(`../../pixel/sprites/${town.board.sprite}.json`);
+  assert.deepEqual([sp.category, sp.w, sp.h, sp.frames.length], ['building', 16, 16, 3]);
+  assert.equal(town.moon.board, undefined);
 });
