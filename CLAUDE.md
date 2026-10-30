@@ -144,7 +144,7 @@ EOF
   - `pixel/editor.html` とスプライトJSONの形式（`serializeSprite`）を変更しない
   - ゲームは `pixel/sprites/*.json` と `pixel/palette.json` を **読むだけ**。`_original/` と `export/` は読まない
   - スプライトをゲーム用にコピー・変換して置かない（手直しした瞬間にゲームへ反映されるようにする）
-  - ゲームが読むスプライトは `monsters.json`（`idle`・`attack`、学校の先生は用紙を破りすてたときの `scold`（怒り顔）と `puzzled`（困惑顔）、大喜利を提出したときの `oogiri`（顔ごと）、月面のボスの `marked`・`parts` と `remains` の `sprite` も）・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`（月面の街の `moon` も）と掲示板の `board.sprite`、`stages.json` の `background`、`hero_idle` / `hero_attack` / `hero_old_idle`（年を取った主人公。ミニムービー用）、`hero_bow`（先生にあやまる主人公）、`hero_blush`（大喜利を書いて赤面する主人公）、`scene_classroom` / `scene_lectern`（用紙を破りすてたときの教室と教卓）、`scene_launchpad` / `rocket_flight`（ロケットのミニムービーの打ち上げ場と飛ぶロケット）、下の切り替えバーのアイコン（`index.html` のボタンの `data-icon`：`icon_adventure`・`icon_study`・`icon_town`・`icon_zukan`）、テストのジャンルのボタンのアイコン（`genre-groups.json` の `icon`。`genre_*`）、勉強のメニューのボタンのアイコン（`study.js` の `MENU_LOOK`。`menu_*`）、店の品物のアイコン（`items.json` の `icon`。`item_*`）だけ（ブラウザはフォルダの中身を一覧できないため）
+  - ゲームが読むスプライトは `monsters.json`（`idle`・`attack`、学校の先生は用紙を破りすてたときの `scold`（怒り顔）と `puzzled`（困惑顔）、大喜利を提出したときの `oogiri`（顔ごと）、月面のボスの `marked`・`parts` と `remains` の `sprite` も）・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`（月面の街の `moon` も）と掲示板の `board.sprite`、`stages.json` の `background`、`hero_idle` / `hero_attack` / `hero_old_idle` / `hero_old_attack`（年を取った主人公。体の不調を感じ始めてからの冒険画面とミニムービー）、`hero_bow`（先生にあやまる主人公）、`hero_blush`（大喜利を書いて赤面する主人公）、`scene_classroom` / `scene_lectern`（用紙を破りすてたときの教室と教卓）、`scene_launchpad` / `rocket_flight`（ロケットのミニムービーの打ち上げ場と飛ぶロケット）、下の切り替えバーのアイコン（`index.html` のボタンの `data-icon`：`icon_adventure`・`icon_study`・`icon_town`・`icon_zukan`）、テストのジャンルのボタンのアイコン（`genre-groups.json` の `icon`。`genre_*`）、勉強のメニューのボタンのアイコン（`study.js` の `MENU_LOOK`。`menu_*`）、店の品物のアイコン（`items.json` の `icon`。`item_*`）だけ（ブラウザはフォルダの中身を一覧できないため）
 - 計算（`sim.js`・`quiz.js`・`fields.js`・`save.js`・`genres.js`）はブラウザの機能（DOM・localStorage）に触らない。乱数は `ctx.rng` で渡す（テストで固定するため）
 - 対象はスマホのブラウザ（縦画面）とデスクトップ版 Chrome。将来ストアアプリ化するので、ブラウザ固有の機能に頼りすぎない
 
@@ -387,6 +387,7 @@ tools/check-questions.mjs … questions.json の検査
 - 体の不調と病院（40HzP の依頼「街に病院を追加して、70歳前後で身体の不調を感じ始めるミニムービー」。設計ページ「寿命は医者や生化学で延びる」）
   - 寿命の `life.ailmentYearsBefore`（10）年前に、体の不調を感じ始める（寿命は80±3歳なので67〜73歳。`sim.js` の `ailmentAge`）。一度だけミニムービーが流れる：年を取った主人公（`hero_old_idle`。白髪・ひげ・杖）が1人で今の世界に立ち、文を出す。文は `town.json` の病院の `ailmentMovie`。今は 40HzP の依頼の1文「歳を取り、体の不調を感じ始めた。街の病院で一度診てもらおう。」だけ（文を足すと順に出る。`{name}` に名前、`{age}` に年齢が入る）。終わったら「街に病院がある…」と知らせる（`main.js` の `startAilmentMovie`）。デバッグ画面から流し直せる
   - 不調はムービーと表示だけで、ステータスは変わらない（Claude Code の判断。進み方を変えないため）。主人公のステータスの「寿命」に「体の不調を感じている」と出る
+  - 不調を感じ始めてからは、冒険画面（と勉強画面の小さな冒険の様子）の主人公が年を取った姿になる（40HzP の依頼）。待機は杖をつき（`hero_old_idle`）、攻撃は杖を振り上げて前に突く（`hero_old_attack`、若い主人公の攻撃と同じ 24×16）。`sim.js` の `heroLooksOld`。生まれ変わると若い姿に戻る。街と主人公のステータスの絵はいつもの姿のまま
   - 病院（街の右下）：不調を感じ始めてから治療を受けられる。1回ごとに寿命が `hospital.extendYears`（2）年延びる。治療費は `hospital.treatmentCosts` の順（10万・100万・1000万G）で、1つの人生で3回まで（最大+6年）。不調のあとは診察で「あと◯年ほど（◯歳ごろまで）」が分かる（`treatmentInfo`・`receiveTreatment`・`lifespanOf`）。治療の中身・回数・値段は Claude Code の判断（設計ページは「数値は試遊してから調整する」）
   - 治療で延びるのは `life.lifespan`（生まれたときの寿命）ではなく、治療の回数 `life.treatments` から出す（不調の年齢は動かない）。セーブの `life.ailing`（不調を感じ始めたか）と `life.treatments`。前のセーブは足りない項目を既定値で埋めるので、版は上げていない。生まれ変わると両方最初から
   - ロケットの目安への影響：毎回すべての治療を受けても、2世代目の最高所持金は約2,740億で届かず、3世代目の47歳で届く（受けないときは55歳）。`life.test.js` が「治療を受けても2世代目では届かない」を確かめる
@@ -499,7 +500,7 @@ tools/check-questions.mjs … questions.json の検査
 - 施設画面は「街」（下の切り替えバーの名前も「街」。40HzP の依頼。中の名前は `facility` のまま）。`bg_town`（90×160）の上に施設の外観（`town_<施設>`、32×32、category `building`）を並べ、真ん中の道の下の小さな広場に今日の1問の掲示板（`town.json` の `board`）、その上の道に主人公が立つ（右下にあった噴水の広場は病院にした。広場に主人公が立っていたのを、掲示板を置くために道へ動かした）。設計ページ「施設画面の表示」の「施設を並べる」を、40HzP の依頼で街の見た目にした
 - 並べる位置は `town.json` の `x`・`y`（街の左上からのドット数）。建物の前の道と広場は `bg_town` に描いてあるので、位置を変えるときは背景も合わせる。2列×4段で埋まっているので、施設をもっと足すときは街の並べ方から考え直す。`town.test.js` が「街の中に収まる・重ならない・スプライトがある」を確かめる
 - 建物をタップするとその施設に入る（上に「← 街へ」）。中身があるのは店（`shop`）・仲間が集まる場所（`guild`）・寝床（`home`）・会社（`company`）・ロケット発射場（`rocket`）・学校・研究室（`major`。専攻の付け替えと、学校・研究室の顧問）・拠点（`base`）・病院（`hospital`）。中身は `facility.js` の `PANELS`（月面の街の帰還ロケット `moon_rocket`・月面基地 `moon_base` も）。条件を満たすまで「準備中」と `desc` を出す施設（会社・拠点）は `LOCKS`
-- 広場の掲示板をタップすると、今日の1問（下の「今日の1問」）。道の主人公をタップすると、主人公のステータスと名前の変更（いつもの姿の `hero_idle`。年を取った姿はムービーだけ）。街の上の帯に所持金と版を出す
+- 広場の掲示板をタップすると、今日の1問（下の「今日の1問」）。道の主人公をタップすると、主人公のステータスと名前の変更（いつもの姿の `hero_idle`。年を取った姿は冒険画面とムービーだけ）。街の上の帯に所持金と版を出す
 - 寝床（`home`）の見た目はテント（`town_home`）。眠ると冒険は1つ手前の階層（`bedFloor`）の最初に戻り、そのあと睡眠の処理（HP・MPの全回復、ゲーム内10時間、熟練の判定）が起きる。1階層なら1階層の最初から。戦っていた群れや中ボスは退く（`sim.js` の `sleepAtBed`）。設計書4.5の寝床は階層を変えなかったのを、40HzP の依頼で変えた。デバッグ画面の「すぐ眠る」も同じ
 - 施設の中にいるときは、知らせを画面の下に出す（上の「← 街へ」を隠さない）
 - 施設を足すとき：スプライトを描き（`style-guide.md` 9章）、`town.json` に1件足す。中身を作ったら `PANELS` に足す

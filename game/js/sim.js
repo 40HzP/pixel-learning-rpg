@@ -111,6 +111,9 @@ export const lifespanOf = (state, balance) => state.life.lifespan + (state.life.
 /** 体の不調を感じ始める年齢：生まれたときの寿命の life.ailmentYearsBefore 年前（寿命80歳なら70歳。治療で延びた分は数えない） */
 export const ailmentAge = (state, balance) => state.life.lifespan - balance.life.ailmentYearsBefore;
 
+/** 冒険画面の主人公を年を取った姿で描くか：体の不調を感じ始めてから（40HzP の依頼）。生まれ変わると若い姿に戻る */
+export const heroLooksOld = (state) => !!state.life.ailing;
+
 /**
  * 病院の治療（次の1回）。体の不調を感じ始めてから受けられ、1回ごとに寿命が hospital.extendYears 年延びる。
  * 治療費は hospital.treatmentCosts の順（1回目・2回目…）で、1つの人生で受けられるのはその数まで

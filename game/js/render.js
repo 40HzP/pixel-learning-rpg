@@ -1,6 +1,6 @@
 // 冒険画面の描画（90×160 のキャンバス）。攻撃エフェクト・ダメージ数字・HPバーはここで描く。
 import { drawSprite, drawPlaceholder, frameAt, cssColor } from './sprites.js';
-import { heroStats, isInvulnerable, currentStage, partyAllies, gimmickIn, MINION_SLOT, PART_SLOT } from './sim.js';
+import { heroStats, isInvulnerable, currentStage, partyAllies, gimmickIn, heroLooksOld, MINION_SLOT, PART_SLOT } from './sim.js';
 
 export const SCENE_W = 90;
 export const SCENE_H = 160;
@@ -199,8 +199,10 @@ export function createRenderer(canvas, app) {
     actors.sort((a, b) => a.feet - b.feet);
     for (const a of actors) {
       if (a.hero) {
-        // 主人公（ひらめきの間は少し光る）
-        drawActor({ idle: app.heroSprites.idle, attack: app.heroSprites.attack }, X.hero, FEET_Y, now, { attackAt: anim.heroAt, lunge: 2 });
+        // 主人公（ひらめきの間は少し光る）。体の不調を感じ始めてからは年を取った姿（杖で突く）
+        const hero = app.heroSprites;
+        const looks = heroLooksOld(state) && hero.old ? { idle: hero.old, attack: hero.oldAttack } : { idle: hero.idle, attack: hero.attack };
+        drawActor(looks, X.hero, FEET_Y, now, { attackAt: anim.heroAt, lunge: 2 });
         continue;
       }
       const sp = a.ally.hired ? (app.recruitSprites || {})[a.ally.id] || {} : { idle: spriteOf(a.ally.id, 'idle'), attack: spriteOf(a.ally.id, 'attack') };

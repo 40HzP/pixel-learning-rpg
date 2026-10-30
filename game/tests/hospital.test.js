@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { tick, startGame, reincarnate, lifespanOf, ailmentAge, treatmentInfo, receiveTreatment, HOURS_PER_YEAR } from '../js/sim.js';
+import { tick, startGame, reincarnate, lifespanOf, ailmentAge, treatmentInfo, receiveTreatment, heroLooksOld, HOURS_PER_YEAR } from '../js/sim.js';
 import { serialize, deserialize } from '../js/save.js';
 import { balance, makeCtx, newGame } from './helpers.js';
 
@@ -21,9 +21,11 @@ test(`体の不調：寿命の${BEFORE}年前（寿命80歳なら70歳）に一�
   assert.equal(ailmentAge(s, balance), 80 - BEFORE);
   assert.ok(!reach(s, ctx, 69).some((e) => e.type === 'ailment'), '69歳ではまだ');
   assert.equal(s.life.ailing, false);
+  assert.equal(heroLooksOld(s), false, '冒険画面の主人公は、まだ若い姿');
   const ev = reach(s, ctx, 70);
   assert.deepEqual(ev.find((e) => e.type === 'ailment'), { type: 'ailment', age: 70 });
   assert.equal(s.life.ailing, true);
+  assert.equal(heroLooksOld(s), true, '不調を感じ始めたら、冒険画面の主人公は年を取った姿');
   assert.ok(!tick(s, 1, ctx).some((e) => e.type === 'ailment'), '二度は出ない');
   // 寿命は生まれるたびに変わるので、不調の年齢も変わる（77歳なら67歳）
   const t = newGame(7);
@@ -73,6 +75,7 @@ test('治療で延びた寿命まで生きる。生まれ変わると不調と�
   assert.ok(re, '延びた寿命で生まれ変わる');
   assert.equal(re.life.age, 80 + H.extendYears);
   assert.deepEqual([s.life.ailing, s.life.treatments], [false, 0]);
+  assert.equal(heroLooksOld(s), false, '生まれ変わると若い姿に戻る');
   startGame(s, 0, undefined, 80);
   assert.equal(lifespanOf(s, balance), 80);
 });
@@ -99,4 +102,9 @@ test('街に病院があり、年老いた主人公の絵（16×16・右向き�
   for (const line of h.ailmentMovie) assert.ok(!/\{(?!name\}|age\})[^}]*\}/.test(line), `使える差し込みは {name} と {age} だけ：${line}`);
   const old = read('../../pixel/sprites/hero_old_idle.json');
   assert.deepEqual([old.category, old.w, old.h, old.frames.length], ['character', 16, 16, 2]);
+  // 冒険画面で杖で突く絵（若い主人公の攻撃と同じ 24×16・2枚。右の端で切れない）
+  const attack = read('../../pixel/sprites/hero_old_attack.json');
+  const young = read('../../pixel/sprites/hero_attack.json');
+  assert.deepEqual([attack.category, attack.w, attack.h, attack.frames.length, attack.fps], ['character', young.w, young.h, 2, young.fps]);
+  assert.ok(attack.frames.every((f) => f.every((r) => r.at(-1) === '.')), '右の端の列に何も描かれていない');
 });

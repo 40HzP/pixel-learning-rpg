@@ -102,10 +102,10 @@ async function boot() {
       recruitSprites[r.id] = { idle: await load(r.sprites.idle), attack: await load(r.sprites.attack) };
     }),
   ]);
-  // hero_old_idle：年を取った主人公（体の不調と寿命のミニムービーに出る）。hero_bow：先生にあやまる主人公（用紙を破りすてたとき）。
-  // hero_blush：赤面する主人公（テストに大喜利を書いたとき）
-  const [heroIdle, heroAttack, heroOld, heroBow, heroBlush] = await Promise.all(
-    [load('hero_idle'), load('hero_attack'), load('hero_old_idle'), load('hero_bow'), load('hero_blush')]);
+  // hero_old_idle・hero_old_attack：年を取った主人公（体の不調を感じ始めてからの冒険画面と、体の不調と寿命のミニムービーに出る）。
+  // hero_bow：先生にあやまる主人公（用紙を破りすてたとき）。hero_blush：赤面する主人公（テストに大喜利を書いたとき）
+  const [heroIdle, heroAttack, heroOld, heroOldAttack, heroBow, heroBlush] = await Promise.all(
+    [load('hero_idle'), load('hero_attack'), load('hero_old_idle'), load('hero_old_attack'), load('hero_bow'), load('hero_blush')]);
   // 用紙を破りすてたときのミニモーションの教室（背景と、先生の前に重ねる教卓）。ロケットのミニムービーの打ち上げ場と飛ぶロケット
   const [classroom, lectern, launchpad, rocket] = await Promise.all([load('scene_classroom'), load('scene_lectern'), load('scene_launchpad'), load('rocket_flight')]);
   // 10階層ごとの世界の背景（stages.json に書いた名前だけ読む）
@@ -146,7 +146,7 @@ async function boot() {
     genreSprites,
     menuSprites,      // 勉強のメニューのボタンのアイコン
     itemSprites,      // 店の品物のアイコン（品物のid → スプライト）
-    heroSprites: { idle: heroIdle, attack: heroAttack, old: heroOld, bow: heroBow, blush: heroBlush },
+    heroSprites: { idle: heroIdle, attack: heroAttack, old: heroOld, oldAttack: heroOldAttack, bow: heroBow, blush: heroBlush },
     sceneSprites: { classroom, lectern, launchpad, rocket },
     stages: stageList,
     town: { ...town, bg: townBg, sprites: townSprites },
