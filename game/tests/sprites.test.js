@@ -41,3 +41,17 @@ test('月面のボスの差分（描き足した山と影・分かれた地球�
     }
   }
 });
+
+test('主人公の攻撃の絵（hero_attack）：突き出した剣の刃先まで入る（40HzP の依頼。24×16で、絵の端で切れない）', () => {
+  const read = (name) => JSON.parse(readFileSync(spriteFile(name), 'utf8'));
+  const idle = read('hero_idle');
+  const attack = read('hero_attack');
+  // 左の16×16が主人公（待機の絵と同じ位置・同じ高さ）。右に剣の分を広げた
+  assert.deepEqual([attack.w, attack.h], [24, idle.h]);
+  for (const [i, f] of attack.frames.entries()) {
+    assert.ok(f.every((r) => r.at(-1) === '.'), `${i + 1}枚目：右の端の列に何も描かれていない（切れていない）`);
+  }
+  // 2枚目の剣は横に突き出し、刃先（輪郭）が16より右にある
+  const thrust = attack.frames[1];
+  assert.ok(thrust.some((r) => r.slice(16).includes('0')), '2枚目の刃先は16ドットより右');
+});
