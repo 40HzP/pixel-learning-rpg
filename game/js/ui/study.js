@@ -1,5 +1,5 @@
 // 勉強画面（設計ページ「勉強画面の表示」）
-import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH, flyerSpan, recordTorn, remedialOpen, adoptedQuestions, testShareText, SHARE_HASHTAG, toggleFavorite, isFavorite, reviewLists, dailyPending, dailyInfo } from '../quiz.js';
+import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH, flyerSpan, recordTorn, remedialOpen, adoptedQuestions, testShareText, SHARE_HASHTAG, toggleFavorite, isFavorite, reviewLists, dailyPending, dailyInfo, testCountLabel } from '../quiz.js';
 import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap, ageYears, newspaperActive, authorRightsInfo } from '../sim.js';
 import { fieldById, fieldActive } from '../fields.js';
 import { GENRES } from '../genres.js';
@@ -184,7 +184,7 @@ function openTestGenre(app) {
 
 /**
  * 問題のあるジャンルを、data/genre-groups.json のまとまり（ことば・数学…）ごとに並べる。
- * まとまりの色でボタンを縁取り、ジャンルのアイコン（genre_*、16×16 を2倍）と、テストの問題数・熟練Lvを出す。
+ * まとまりの色でボタンを縁取り、ジャンルのアイコン（genre_*、16×16 を2倍）と、問題数（全○問の中から5問出題）・熟練Lvを出す。
  * genre-groups.json に無いジャンル（genres.js に足したばかり）は「そのほか」に入れる
  */
 function renderTestGenre(app) {
@@ -206,8 +206,10 @@ function renderTestGenre(app) {
 
 function genreButton(app, genre, color, count) {
   const lv = (app.state.knowledge.genres[genre] || {}).level || 0;
-  const n = Math.min(app.ctx.balance.quiz.testQuestions, count);
-  return tintButton(app, { cls: 'genre-btn', color, sprite: app.genreSprites[genre], title: genre, sub: `${n}問・熟練Lv${lv}`, onclick: () => start(app, 'test', genre) });
+  // 「全○問の中から」「5問出題」を2行に分ける（狭い画面でも途中で切れないように）
+  const label = testCountLabel(count, app.ctx.balance.quiz.testQuestions).map((t) => el('span', { class: 'line' }, t));
+  const sub = [el('span', { class: 'count' }, label), `熟練Lv${lv}`];
+  return tintButton(app, { cls: 'genre-btn', color, sprite: app.genreSprites[genre], title: genre, sub, onclick: () => start(app, 'test', genre) });
 }
 
 function start(app, mode, genre = null, pool = null) {

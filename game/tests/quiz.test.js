@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSession, nextQuestion, presentQuestion, answer, buildChoices, pickDifficulty, pickQuestion, averageLevel, timeLimitFor, forgetMissingQuestions, presentTest, gradeTest, OOGIRI_MAX_LENGTH } from '../js/quiz.js';
+import { createSession, nextQuestion, presentQuestion, answer, buildChoices, pickDifficulty, pickQuestion, averageLevel, timeLimitFor, forgetMissingQuestions, presentTest, gradeTest, OOGIRI_MAX_LENGTH, testCountLabel } from '../js/quiz.js';
 import { genreState, spawnEnemy } from '../js/sim.js';
 import { GENRES } from '../js/genres.js';
 import { balance, makeCtx, newGame, questions, constRng, seededRng, questionFor } from './helpers.js';
@@ -297,4 +297,16 @@ test('用紙の破れ目は、決まった形のぎざぎざではなく、毎�
   assert.notDeepEqual(a, b, '毎回ちがう線');
   const c = tearClips(a);
   assert.ok(c.left.startsWith('polygon(0% 0%') && c.right.endsWith('100% 0%)'));
+});
+
+test('テストのジャンルのボタンの問題数：「全○問の中から5問出題」。問題が5問より少なければ、ある分だけ出す', () => {
+  const n = balance.quiz.testQuestions;
+  assert.equal(testCountLabel(73, n).join(''), `全73問の中から${n}問出題`);
+  assert.equal(testCountLabel(3, n).join(''), '全3問の中から3問出題');
+  // 書いた数のとおりに出す（presentTest と同じ）
+  const genre = GENRES.find((g) => questions.filter((q) => q.genre === g).length > n);
+  const s = newGame(0);
+  const ctx = makeCtx(seededRng(5));
+  const sess = createSession(s, 'test', ctx, genre);
+  assert.equal(presentTest(s, sess, ctx).length, n);
 });

@@ -165,6 +165,13 @@ export function presentTest(state, session, ctx) {
   return sheet;
 }
 
+/**
+ * テストのジャンルのボタンに出す問題数（40HzP の依頼「全○問の中から5問出題」）。
+ * count はそのジャンルの問題数。問題が testQuestions 問より少なければ、ある分だけ出す（presentTest と同じ）。
+ * ボタンでは2行に分けて出すので、['全18問の中から', '5問出題'] のように2つに分けて返す
+ */
+export const testCountLabel = (count, testQuestions) => [`全${count}問の中から`, `${Math.min(testQuestions, count)}問出題`];
+
 /** 大喜利（テストのフリースペース）に書ける字数 */
 export const OOGIRI_MAX_LENGTH = 60;
 
