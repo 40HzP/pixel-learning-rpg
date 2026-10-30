@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import {
   tick, heroStats, lifespanFor, generationMultiplier, reincarnate, heroTitles, payRocketBuildCost, startGame,
   genreState, midbossState, foundCompany, companiesProfit, spawnGroup, damageEnemy, ageYears, HOURS_PER_YEAR,
-  buyItem, shopList, hireRecruit, recruitList, industryList, hireStaff, bestStaffGrade, staffCost, proficiencyCap, sleep, receiveTreatment, canStartAt,
+  buyItem, shopList, hireRecruit, recruitList, industryList, hireStaff, bestStaffGrade, staffCost, proficiencyCap, sleep, receiveTreatment, canStartAt, honorific, GENDERS,
 } from '../js/sim.js';
+import { serialize, deserialize } from '../js/save.js';
 import { createSession, presentQuestion, answer } from '../js/quiz.js';
 import { balance, questions, makeCtx, newGame, constRng, seededRng } from './helpers.js';
 
@@ -29,6 +30,27 @@ test('最初の案内の年齢：ゲームを初めて始めるとき（1世代�
   assert.equal(s.life.generation, 2);
   assert.equal(canStartAt(s, 0), true);
   assert.equal(canStartAt(s, 7), true, '生まれ変わったあとは7歳からも選べる');
+});
+
+test('性別（40HzP の依頼）：初回起動時と転生時に選ぶ。はじめは男の子。生まれ変わると前の性別が案内に入っていて、選び直せる', () => {
+  assert.deepEqual(GENDERS, ['male', 'female']);
+  const s = newGame();
+  assert.equal(s.hero.gender, 'male', 'はじめは男の子（前のセーブも男の子として読む）');
+  startGame(s, 0, 'ハナ', 80, 'female');
+  assert.equal(s.hero.gender, 'female');
+  assert.equal(honorific(s), 'さん', '先生は女の子を「さん」と呼ぶ');
+  startGame(s, 0, 'ハナ', 80, 'どちらでもない');
+  assert.equal(s.hero.gender, 'female', '選べるもの以外は変えない');
+  // 生まれ変わっても性別は残り（案内で前のものを選んでおく）、案内で選び直せる
+  s.life.gameHours = s.life.lifespan * HOURS_PER_YEAR;
+  reincarnate(s, makeCtx());
+  assert.equal(s.hero.gender, 'female');
+  startGame(s, 7, 'タロウ', 80, 'male');
+  assert.deepEqual([s.hero.gender, honorific(s)], ['male', '君']);
+  // 前のセーブ（性別の項目が無い）は男の子として読む
+  const old = newGame();
+  delete old.hero.gender;
+  assert.equal(deserialize(serialize(old), balance).hero.gender, 'male');
 });
 
 test('寿命になると生まれ変わる。Lv・ゴールド・装備・仲間・会社・中ボス・ボスは最初から、知識・図鑑・称号・名前は残る', () => {

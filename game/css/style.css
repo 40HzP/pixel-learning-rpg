@@ -147,10 +147,24 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 }
 .dialog { background: var(--panel); border: 2px solid var(--line); padding: 20px; max-width: 420px; width: 100%; }
 .intro-goal { font-size: 18px; text-align: center; margin: 0 0 20px; line-height: 1.7; }
+/* 最初の案内：縦の短い画面（生まれ変わったときの「◯世代目」の行や性別の欄で高くなる）でも、案内の中をスクロールして全部見られる */
+#intro .dialog { max-height: 100%; overflow-y: auto; }
+@media (max-height: 640px) {
+  #intro .dialog { padding: 14px 16px; }
+  .intro-goal { font-size: 16px; margin-bottom: 12px; line-height: 1.6; }
+  .intro-name, .intro-gender { margin-bottom: 10px; }
+  .intro-choices { gap: 8px; }
+  .intro-choices button { padding: 8px; }
+}
 .intro-gen { color: var(--accent); font-size: 14px; line-height: 1.7; margin: 0 0 12px; text-align: center; }
 .intro-name { display: flex; flex-direction: column; gap: 4px; margin: 0 0 16px; font-size: 14px; }
 .intro-name input { width: 100%; font-size: 18px; }
 .intro-name small { color: var(--muted); font-size: 12px; }
+.intro-gender { display: flex; flex-direction: column; gap: 4px; margin: 0 0 16px; font-size: 14px; }
+.intro-gender-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.intro-gender-choices button { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 8px; min-height: 48px; font-size: 16px; }
+.intro-gender-choices button.on { border-color: var(--accent); background: var(--panel2); box-shadow: inset 0 0 0 1px var(--accent); }
+.intro-gender-choices button:not(.on) canvas { opacity: 0.5; }
 .intro-choices { display: flex; flex-direction: column; gap: 12px; }
 .intro-choices button { display: flex; flex-direction: column; align-items: center; padding: 12px; }
 .intro-choices small { color: var(--muted); font-size: 12px; margin-top: 4px; }

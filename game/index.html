@@ -62,6 +62,12 @@
         <input id="hero-name" type="text" maxlength="8" placeholder="主人公" autocomplete="off" enterkeyhint="done">
         <small>8文字まで。あとで街から変えられます</small>
       </label>
+      <div class="intro-gender">性別
+        <div class="intro-gender-choices" role="radiogroup" aria-label="性別">
+          <button type="button" data-gender="male" role="radio" aria-checked="true" class="on">男の子</button>
+          <button type="button" data-gender="female" role="radio" aria-checked="false">女の子</button>
+        </div>
+      </div>
       <div class="intro-choices">
         <button data-age="0" class="big">0歳から始める<small id="intro-age0-note">準備期間が長い</small></button>
         <button data-age="7" class="big">7歳から始める<small id="intro-age7-note">すぐ戦えるが弱い</small></button>

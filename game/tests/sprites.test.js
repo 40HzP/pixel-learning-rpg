@@ -55,3 +55,17 @@ test('主人公の攻撃の絵（hero_attack）：突き出した剣の刃先ま
   const thrust = attack.frames[1];
   assert.ok(thrust.some((r) => r.slice(16).includes('0')), '2枚目の刃先は16ドットより右');
 });
+
+test('女の子の主人公の絵（heroine_*）が、男の子の絵（hero_*）とそれぞれ同じ大きさ・枚数・速さでそろっている', () => {
+  const read = (name) => {
+    assert.ok(existsSync(spriteFile(name)), `${name}.json がある`);
+    return JSON.parse(readFileSync(spriteFile(name), 'utf8'));
+  };
+  for (const k of ['idle', 'attack', 'old_idle', 'old_attack', 'bow', 'blush']) {
+    const boy = read(`hero_${k}`);
+    const girl = read(`heroine_${k}`);
+    assert.equal(girl.name, `heroine_${k}`);
+    assert.deepEqual([girl.category, girl.w, girl.h, girl.frames.length, girl.fps], [boy.category, boy.w, boy.h, boy.frames.length, boy.fps], k);
+    assert.notDeepEqual(girl.frames, boy.frames, `${k}：男の子の絵とはちがう`);
+  }
+});

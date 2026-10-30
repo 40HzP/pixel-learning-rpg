@@ -18,6 +18,8 @@ const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const STEP_SEC = 0.1; // 戦闘を細かく刻む幅（速さ×600でも攻撃の順番が崩れないように）
 export const DEFAULT_HERO_NAME = '主人公';
 export const HERO_NAME_MAX = 8;
+/** 主人公の性別（初回起動時と転生時に選ぶ。40HzP の依頼）。変わるのは見た目（hero_* と heroine_* の絵）と、先生の呼び方（君・さん）だけ */
+export const GENDERS = ['male', 'female'];
 
 /* ================= 状態 ================= */
 
@@ -26,7 +28,7 @@ export function createState(balance) {
     meta: { startAge: null },                       // 開始年齢の選択（null＝まだ選んでいない）
     // 何世代目か・0歳1月1日0時からの経過時間・生まれたときに決まった寿命（歳）・この人生で一番深い階層（地球）・月面で一番深い階層（0＝まだ行っていない）・体の不調を感じ始めたか・病院で治療を受けた回数
     life: { generation: 1, gameHours: 0, lifespan: balance.life.lifespanYears, maxFloor: 1, moonMaxFloor: 0, ailing: false, treatments: 0 },
-    hero: { name: DEFAULT_HERO_NAME, level: 1, exp: 0, totalExp: 0, hp: balance.hero.base.hp, mp: balance.hero.base.mp },
+    hero: { name: DEFAULT_HERO_NAME, gender: 'male', level: 1, exp: 0, totalExp: 0, hp: balance.hero.base.hp, mp: balance.hero.base.mp },
     gold: 0,
     equipment: { weapon: null, armor: null, accessory: null }, // 武器・防具・装飾品（品物のid）
     owned: [],                                      // 買った品物のid
@@ -89,12 +91,16 @@ export function setHeroLevel(state, level, ctx) {
 }
 
 /** 開始年齢（0歳 or 7歳）と名前を決めてゲームを始める */
-export function startGame(state, startAge, name, lifespan) {
+export function startGame(state, startAge, name, lifespan, gender) {
   state.meta.startAge = startAge;
   state.life.gameHours = startAge * HOURS_PER_YEAR;
   if (name !== undefined) renameHero(state, name);
   if (lifespan !== undefined) state.life.lifespan = lifespan;
+  if (GENDERS.includes(gender)) state.hero.gender = gender;
 }
+
+/** 先生が主人公を呼ぶときの敬称（大喜利のミニムービー）：男の子は「君」、女の子は「さん」 */
+export const honorific = (state) => (state.hero.gender === 'female' ? 'さん' : '君');
 
 /** 最初の案内で選べる年齢か。ゲームを初めて始めるとき（1世代目）は0歳からだけで、7歳からは生まれ変わったあとに選べる（40HzP の依頼） */
 export const canStartAt = (state, startAge) => startAge === 0 || state.life.generation > 1;
@@ -163,7 +169,7 @@ export function reincarnate(state, ctx) {
   const fresh = createState(b);
   state.meta = fresh.meta;
   state.life = { ...fresh.life, generation: prev.generation + 1 };
-  state.hero = { ...fresh.hero, name: state.hero.name };
+  state.hero = { ...fresh.hero, name: state.hero.name, gender: state.hero.gender }; // 名前と性別は、生まれ変わったときの案内に前のものを入れておく（選び直せる）
   state.gold = 0;
   state.equipment = fresh.equipment;
   state.owned = [];

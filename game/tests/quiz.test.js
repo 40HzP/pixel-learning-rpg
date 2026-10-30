@@ -159,6 +159,11 @@ test('大喜利を提出すると、先生が3つのセリフのどれかを言�
     'ゆうしゃ君、採点の際にこちらの回答、笑わせていただきました。次は間違えないようにしてください。',
     'ゆうしゃ、職員室で話がありますので、放課後来るように。',
   ]);
+  // 女の子の主人公は「さん」と呼ぶ（性別。sim.js の honorific）
+  assert.deepEqual(OOGIRI_LINES.map((l) => oogiriText(l, 'ハナ', 'さん')).slice(0, 2), [
+    'ハナさん、これはどういう意味でしょうか？',
+    'ハナさん、採点の際にこちらの回答、笑わせていただきました。次は間違えないようにしてください。',
+  ]);
   assert.deepEqual(OOGIRI_LINES.map((l) => l.mood), ['puzzled', 'stern', 'stern'], '「笑わせていただきました」も真顔で言う');
   assert.deepEqual(new Set(OOGIRI_LINES.map((l) => l.mood)), new Set(OOGIRI_MOODS));
   assert.equal(pickOogiriLine(constRng(0)), OOGIRI_LINES[0]);

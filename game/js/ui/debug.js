@@ -68,7 +68,14 @@ export function init(app) {
           app.notify('体の不調を感じ始める直前にした');
         },
       }, '体の不調の直前にする'),
-      el('button', { onclick: () => { app.state.life.gameHours = lifespanOf(app.state, ctx.balance) * HOURS_PER_YEAR - 24; app.notify('寿命の直前にした'); } }, 'すぐ寿命にする'))),
+      el('button', { onclick: () => { app.state.life.gameHours = lifespanOf(app.state, ctx.balance) * HOURS_PER_YEAR - 24; app.notify('寿命の直前にした'); } }, 'すぐ寿命にする'),
+      // 性別（ふだんは初回起動時と転生時に選ぶ）。女の子・男の子の絵を確かめる用
+      el('button', {
+        onclick: () => {
+          app.state.hero.gender = app.state.hero.gender === 'female' ? 'male' : 'female';
+          app.notify(`性別を${app.state.hero.gender === 'female' ? '女の子' : '男の子'}にした`);
+        },
+      }, '性別を切り替える'))),
     el('div', { class: 'section' }, el('h2', {}, '階層（ボスの確認用）'),
       el('div', {}, floor, '階層', el('button', {
         onclick: () => {

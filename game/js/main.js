@@ -102,10 +102,15 @@ async function boot() {
       recruitSprites[r.id] = { idle: await load(r.sprites.idle), attack: await load(r.sprites.attack) };
     }),
   ]);
-  // hero_old_idle・hero_old_attack：年を取った主人公（体の不調を感じ始めてからの冒険画面と、体の不調と寿命のミニムービーに出る）。
-  // hero_bow：先生にあやまる主人公（用紙を破りすてたとき）。hero_blush：赤面する主人公（テストに大喜利を書いたとき）
-  const [heroIdle, heroAttack, heroOld, heroOldAttack, heroBow, heroBlush] = await Promise.all(
-    [load('hero_idle'), load('hero_attack'), load('hero_old_idle'), load('hero_old_attack'), load('hero_bow'), load('hero_blush')]);
+  // 主人公の絵。男の子は hero_*、女の子は heroine_*（同じ形・同じ大きさ。性別は初回起動時と転生時に選ぶ）。
+  // old_idle・old_attack：年を取った姿（体の不調を感じ始めてからの冒険画面と、体の不調と寿命のミニムービーに出る）。
+  // bow：先生にあやまる（用紙を破りすてたとき）。blush：赤面する（テストに大喜利を書いたとき）
+  const heroSet = async (prefix) => {
+    const [idle, attack, old, oldAttack, bow, blush] = await Promise.all(
+      ['idle', 'attack', 'old_idle', 'old_attack', 'bow', 'blush'].map((k) => load(`${prefix}_${k}`)));
+    return { idle, attack, old, oldAttack, bow, blush };
+  };
+  const heroSets = { male: await heroSet('hero'), female: await heroSet('heroine') };
   // 用紙を破りすてたときのミニモーションの教室（背景と、先生の前に重ねる教卓）。ロケットのミニムービーの打ち上げ場と飛ぶロケット
   const [classroom, lectern, launchpad, rocket] = await Promise.all([load('scene_classroom'), load('scene_lectern'), load('scene_launchpad'), load('rocket_flight')]);
   // 10階層ごとの世界の背景（stages.json に書いた名前だけ読む）
@@ -146,7 +151,9 @@ async function boot() {
     genreSprites,
     menuSprites,      // 勉強のメニューのボタンのアイコン
     itemSprites,      // 店の品物のアイコン（品物のid → スプライト）
-    heroSprites: { idle: heroIdle, attack: heroAttack, old: heroOld, oldAttack: heroOldAttack, bow: heroBow, blush: heroBlush },
+    heroSets,
+    // 今の主人公の性別の絵（男の子は hero_*、女の子は heroine_*）
+    get heroSprites() { return heroSets[this.state && this.state.hero.gender] || heroSets.male; },
     sceneSprites: { classroom, lectern, launchpad, rocket },
     stages: stageList,
     town: { ...town, bg: townBg, sprites: townSprites },
@@ -468,10 +475,28 @@ async function boot() {
         + `ステータスの伸び・経験値・ゴールドが ${generationMultiplier(s, balance)}倍`;
     }
     document.getElementById('hero-name').value = s.hero.name === '主人公' ? '' : s.hero.name;
+    // 性別は前に選んだもの（初めては男の子）を選んでおく
+    pickGender(s.hero.gender);
     // 初めて始めるとき（1世代目）は7歳からを選べない。生まれ変わったあとは選べる
     for (const b of intro.querySelectorAll('[data-age]')) b.disabled = !canStartAt(s, Number(b.dataset.age));
     document.getElementById('intro-age7-note').textContent = canStartAt(s, 7) ? 'すぐ戦えるが弱い' : '生まれ変わると選べる';
     intro.hidden = false;
+  }
+  // 性別のボタン（男の子・女の子）。それぞれの主人公の絵を付ける
+  let gender = 'male';
+  const genderButtons = [...intro.querySelectorAll('[data-gender]')];
+  function pickGender(g) {
+    gender = g === 'female' ? 'female' : 'male';
+    for (const b of genderButtons) {
+      const on = b.dataset.gender === gender;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-checked', String(on));
+    }
+  }
+  for (const b of genderButtons) {
+    const sp = heroSets[b.dataset.gender] && heroSets[b.dataset.gender].idle;
+    if (sp) b.prepend(spriteCanvas(sp, 2, palette));
+    b.addEventListener('click', () => pickGender(b.dataset.gender));
   }
   if (app.state.meta.startAge == null) showIntro();
   // 7歳まで現実でどのくらいかかるか（balance.json の時間の速さから出す）
@@ -481,7 +506,7 @@ async function boot() {
   for (const b of intro.querySelectorAll('[data-age]')) {
     b.addEventListener('click', () => {
       if (!canStartAt(app.state, Number(b.dataset.age))) return;
-      startGame(app.state, Number(b.dataset.age), document.getElementById('hero-name').value, lifespanFor(balance, Math.random));
+      startGame(app.state, Number(b.dataset.age), document.getElementById('hero-name').value, lifespanFor(balance, Math.random), gender);
       intro.hidden = true;
       saveNow();
       refreshActive(true);

@@ -4,19 +4,20 @@
 import { drawSprite, frameAt } from '../sprites.js';
 import { el } from './dom.js';
 import { SCENE } from './tear.js';
+import { honorific } from '../sim.js';
 
 /**
- * 先生のセリフ（40HzP の依頼）と、そのときの先生の顔（<先生>_oogiri_<顔>）。{name} に主人公の名前が入る。
+ * 先生のセリフ（40HzP の依頼）と、そのときの先生の顔（<先生>_oogiri_<顔>）。{name} に主人公の名前、{kun} に敬称（男の子は「君」、女の子は「さん」）が入る。
  * 提出するたびに、どれか1つを言う（足すときはここに足す。顔は puzzled（困惑顔）・stern（真顔）のどちらか）
  */
 export const OOGIRI_LINES = [
-  { mood: 'puzzled', text: '{name}君、これはどういう意味でしょうか？' },
-  { mood: 'stern', text: '{name}君、採点の際にこちらの回答、笑わせていただきました。次は間違えないようにしてください。' }, // 真顔で言う（40HzP の依頼）
+  { mood: 'puzzled', text: '{name}{kun}、これはどういう意味でしょうか？' },
+  { mood: 'stern', text: '{name}{kun}、採点の際にこちらの回答、笑わせていただきました。次は間違えないようにしてください。' }, // 真顔で言う（40HzP の依頼）
   { mood: 'stern', text: '{name}、職員室で話がありますので、放課後来るように。' },
 ];
 export const OOGIRI_MOODS = ['puzzled', 'stern'];
 export const pickOogiriLine = (rng = Math.random) => OOGIRI_LINES[Math.floor(rng() * OOGIRI_LINES.length) % OOGIRI_LINES.length];
-export const oogiriText = (line, name) => line.text.replaceAll('{name}', name);
+export const oogiriText = (line, name, kun = '君') => line.text.replaceAll('{name}', name).replaceAll('{kun}', kun);
 
 const FADE_MS = 300;      // 暗転して始まり、暗転して終わる
 const TYPE_MS = 60;       // セリフの字が1つずつ出る間隔
@@ -31,7 +32,7 @@ export function playOogiri(app, teacherId) {
     const teacher = (all.oogiri || {})[line.mood] || all.idle || null; // 正面を向いて答案を持つ絵（無ければいつもの絵）
     const { classroom, lectern } = app.sceneSprites || {};
     const hero = app.heroSprites.blush || null; // 1枚目はふつうに立つ姿、2枚目から赤面
-    const text = oogiriText(line, app.state.hero.name);
+    const text = oogiriText(line, app.state.hero.name, honorific(app.state));
 
     const scale = Math.max(2, Math.min(5, Math.floor((window.innerWidth - 32) / SCENE.w)));
     const cv = el('canvas', { class: 'pixel', width: SCENE.w, height: SCENE.h });
