@@ -110,7 +110,7 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 #tabs button {
   --shade: transparent;
   flex: 1; min-width: 0; min-height: var(--tabs-h); border: 0; color: #f6e9cf;
-  background-color: #d9b07a;
+  background-color: #b5774a;
   background-image: linear-gradient(var(--shade), var(--shade)), var(--board, none);
   background-size: auto, var(--board-size, auto);
   background-position: 0 0, center top;
