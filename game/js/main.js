@@ -155,19 +155,19 @@ async function boot() {
   // 勉強のメニューのボタンのアイコン（study.js の MENU_LOOK に書いた名前だけ読む）
   const menuSprites = {};
   await Promise.all(Object.entries(study.MENU_LOOK).map(async ([id, m]) => { menuSprites[id] = await load(m.icon); }));
-  // 下の切り替えバーの木の板（ui_tabs_wood）。1枚が1つのボタンの板で、ボタンの順に1枚目・2枚目…と使う
-  // （板ごとに年輪がちがう）。2倍に拡大してボタンの背景にする（CSS の --board）。無ければ CSS の茶色の地
-  const woodSprite = await load('ui_tabs_wood');
-  if (woodSprite) {
-    const boards = woodSprite.frames.map((img) => {
+  // 下の切り替えバーのコルクの板（ui_tabs_cork）。1枚が1つのボタンの板で、ボタンの順に1枚目・2枚目…と使う
+  // （板ごとに粒の並びがちがう）。2倍に拡大してボタンの背景にする（CSS の --board）。無ければ CSS のコルク色の地
+  const corkSprite = await load('ui_tabs_cork');
+  if (corkSprite) {
+    const boards = corkSprite.frames.map((img) => {
       const big = document.createElement('canvas');
-      big.width = woodSprite.w * 2; big.height = woodSprite.h * 2;
+      big.width = corkSprite.w * 2; big.height = corkSprite.h * 2;
       const g = big.getContext('2d');
       g.imageSmoothingEnabled = false;
       g.drawImage(img, 0, 0, big.width, big.height);
       return `url(${big.toDataURL()})`;
     });
-    document.getElementById('tabs').style.setProperty('--board-size', `${woodSprite.w * 2}px ${woodSprite.h * 2}px`);
+    document.getElementById('tabs').style.setProperty('--board-size', `${corkSprite.w * 2}px ${corkSprite.h * 2}px`);
     [...document.querySelectorAll('#tabs button')].forEach((b, i) => b.style.setProperty('--board', boards[i % boards.length]));
   }
   // 下の切り替えバーのアイコン（index.html のボタンの data-icon に書いた名前だけ読む。無ければ字だけ）
