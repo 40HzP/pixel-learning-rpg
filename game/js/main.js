@@ -15,6 +15,7 @@ import * as study from './ui/study.js';
 import * as facility from './ui/facility.js';
 import * as zukan from './ui/zukan.js';
 import * as debug from './ui/debug.js';
+import * as settings from './ui/settings.js';
 import { el, fmt } from './ui/dom.js';
 import { playMovie } from './ui/movie.js';
 import { askNande } from './ui/nande.js';
@@ -31,7 +32,7 @@ const UPDATE_CHECK_MS = 3 * 60_000;
 const DAY_CHECK_MS = 30_000; // 日付が変わったか（今日の1問）を見る間隔
 const FONT_WAIT_MS = 3000;
 
-const screens = { adventure, study, facility, zukan, debug };
+const screens = { adventure, study, facility, zukan, settings, debug };
 
 async function fetchJSON(url) {
   const res = await fetch(url, { cache: 'no-cache' });
@@ -178,6 +179,7 @@ async function boot() {
     state: null,
     speed: 1,
     debug: params.get('debug') === '1',
+    settings: settings.loadSettings(), // 設定（画面の色など）。セーブとは別にこの端末に覚える（ui/settings.js）
     rate: createRateTracker(),
     tab: 'adventure',
     noSave: false,
@@ -221,6 +223,7 @@ async function boot() {
   app.state.hero.mp = Math.min(app.state.hero.mp, hsOnLoad.maxMp);
   app.renderer = createRenderer(document.getElementById('scene'), app);
 
+  settings.applyTheme(app.settings.theme); // 画面の色（index.html の先頭でも先に当てている）
   for (const s of Object.values(screens)) s.init(app);
   if (adoptedOnLoad.length) {
     setTimeout(() => notify(`あなたが作った問題が採用された！（${adoptedOnLoad.length}問）\n${adoptedOnLoad.slice(0, 3).map((q) => `「${q.question.length > 24 ? q.question.slice(0, 24) + '…' : q.question}」`).join('\n')}\n勉強の「作問」で見られる`, 'good'), 1200);

@@ -144,7 +144,7 @@ EOF
   - `pixel/editor.html` とスプライトJSONの形式（`serializeSprite`）を変更しない
   - ゲームは `pixel/sprites/*.json` と `pixel/palette.json` を **読むだけ**。`_original/` と `export/` は読まない
   - スプライトをゲーム用にコピー・変換して置かない（手直しした瞬間にゲームへ反映されるようにする）
-  - ゲームが読むスプライトは `monsters.json`（`idle`・`attack`、学校の先生は用紙を破りすてたときの `scold`（怒り顔）と `puzzled`（困惑顔）、大喜利を提出したときの `oogiri`（顔ごと）、月面のボスの `marked`・`parts` と `remains` の `sprite` も）・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`（月面の街の `moon` も）と掲示板の `board.sprite`、`stages.json` の `background`、`hero_idle` / `hero_attack` / `hero_old_idle` / `hero_old_attack`（年を取った主人公。体の不調を感じ始めてからの冒険画面とミニムービー）、`hero_bow`（先生にあやまる主人公）、`hero_blush`（大喜利を書いて赤面する主人公）と、女の子の主人公の同じ6つ（`heroine_idle` など。`hero_` を `heroine_` にした名前。下の「性別」）、`scene_classroom` / `scene_lectern`（用紙を破りすてたときの教室と教卓）、`scene_launchpad` / `rocket_flight`（ロケットのミニムービーの打ち上げ場と飛ぶロケット）、下の切り替えバーのアイコン（`index.html` のボタンの `data-icon`：`icon_adventure`・`icon_study`・`icon_town`・`icon_zukan`）、テストのジャンルのボタンのアイコン（`genre-groups.json` の `icon`。`genre_*`）、勉強のメニューのボタンのアイコン（`study.js` の `MENU_LOOK`。`menu_*`）、店の品物のアイコン（`items.json` の `icon`。`item_*`）だけ（ブラウザはフォルダの中身を一覧できないため）
+  - ゲームが読むスプライトは `monsters.json`（`idle`・`attack`、学校の先生は用紙を破りすてたときの `scold`（怒り顔）と `puzzled`（困惑顔）、大喜利を提出したときの `oogiri`（顔ごと）、月面のボスの `marked`・`parts` と `remains` の `sprite` も）・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`（月面の街の `moon` も）と掲示板の `board.sprite`、`stages.json` の `background`、`hero_idle` / `hero_attack` / `hero_old_idle` / `hero_old_attack`（年を取った主人公。体の不調を感じ始めてからの冒険画面とミニムービー）、`hero_bow`（先生にあやまる主人公）、`hero_blush`（大喜利を書いて赤面する主人公）と、女の子の主人公の同じ6つ（`heroine_idle` など。`hero_` を `heroine_` にした名前。下の「性別」）、`scene_classroom` / `scene_lectern`（用紙を破りすてたときの教室と教卓）、`scene_launchpad` / `rocket_flight`（ロケットのミニムービーの打ち上げ場と飛ぶロケット）、下の切り替えバーのアイコン（`index.html` のボタンの `data-icon`：`icon_adventure`・`icon_study`・`icon_town`・`icon_zukan`・`icon_settings`）、テストのジャンルのボタンのアイコン（`genre-groups.json` の `icon`。`genre_*`）、勉強のメニューのボタンのアイコン（`study.js` の `MENU_LOOK`。`menu_*`）、店の品物のアイコン（`items.json` の `icon`。`item_*`）だけ（ブラウザはフォルダの中身を一覧できないため）
 - 計算（`sim.js`・`quiz.js`・`fields.js`・`save.js`・`genres.js`・`outfit.js`）はブラウザの機能（DOM・localStorage）に触らない。乱数は `ctx.rng` で渡す（テストで固定するため）
 - 対象はスマホのブラウザ（縦画面）とデスクトップ版 Chrome。将来ストアアプリ化するので、ブラウザ固有の機能に頼りすぎない
 
@@ -164,7 +164,7 @@ game/
     outfit.js            … 装備に合わせた主人公の見た目（主人公の絵の色を塗り替える計算）
     sprites.js           … スプライトJSONの読み込みと描画
     render.js            … 冒険画面の描画（90×160）
-    ui/                  … 画面ごとの表示（adventure / study / facility（街） / zukan / debug / dom / movie（ミニムービー） / nande（孫の「なんで？」） / tear（テスト用紙を破りすてる） / oogiri（テストに大喜利を書いて提出した） / doodle（テスト用紙の落書き） / share（テストの結果をツイートする） / launch（ロケットの打ち上げと帰還） / daily（今日の1問））
+    ui/                  … 画面ごとの表示（adventure / study / facility（街） / zukan / debug / dom / movie（ミニムービー） / nande（孫の「なんで？」） / tear（テスト用紙を破りすてる） / oogiri（テストに大喜利を書いて提出した） / doodle（テスト用紙の落書き） / share（テストの結果をツイートする） / launch（ロケットの打ち上げと帰還） / daily（今日の1問） / settings（設定））
   data/
     balance.json         … 数値（ここを書き換えるだけで調整できる）
     monsters.json        … 魔物・ボス・中ボス
@@ -509,15 +509,19 @@ tools/check-questions.mjs … questions.json の検査
 - 学際分野を足すとき：`fields.json` に1件足す（`genres` は問題ジャンルの名前2つ。同じ組み合わせは1つまで）。`fields.test.js` が組み合わせと説明を確かめる。効果は id で `fieldActive(state, ctx, id)` を見て書く
 - デバッグ画面の「学際分野を全部解放する」で、組み合わせのジャンルを全部 Lv3 以上にできる
 
-## 画面の色
+## 画面の色と設定
 
-- ふだんの画面（勉強・図鑑・街の施設の中・デバッグ、案内・今日の1問・孫の「なんで？」などの窓、下の切り替えバー）は、明るい紙の色に濃い字（40HzP の依頼「勉強画面・図鑑画面などの基本背景を明るくして」。前は暗い紫）。色は `css/style.css` の一番上の `:root`：`--bg` 背景・`--panel` 枠の中・`--panel2` ボタン・`--line` 枠線・`--text` 字・`--muted` 薄い字・`--accent` 見出しなどの濃いオレンジ・`--accent-bg` ボタンを塗る明るいオレンジ。色の値は Claude Code の判断（40HzP が直してよい）
-- 暗いままのもの：冒険画面（絵の上のステータス）・街の絵（建物の名札と上の帯）・知らせ・ミニムービー（中ボス・寿命・ロケット・破りすてる・大喜利）。ドット絵の上で読みやすいように、`:root` のすぐ下で暗い色を入れ直している（前の暗い紫の色）
+- ふだんの画面（勉強・図鑑・街の施設の中・設定・デバッグ、案内・今日の1問・孫の「なんで？」などの窓、下の切り替えバー）は、明るい紙の色に濃い字（40HzP の依頼「勉強画面・図鑑画面などの基本背景を明るくして」。前は暗い紫）。色は `css/style.css` の一番上の `:root`：`--bg` 背景・`--panel` 枠の中・`--panel2` ボタン・`--line` 枠線・`--text` 字・`--muted` 薄い字・`--accent` 見出しなどの濃いオレンジ・`--accent-bg` ボタンを塗る明るいオレンジ、ほかに正解・不正解の選択肢、魔物が口を挟む枠、図鑑の絵の下地、お気に入りの☆の色。色の値は Claude Code の判断（40HzP が直してよい）
+- ダーク（40HzP の依頼「設定でダークモードも選択出来るようにして」）：下の切り替えバーの「設定」（歯車のアイコン `icon_settings`。`ui/settings.js`）で「明るい色」「ダーク」を選ぶ。はじめは明るい色。ダークは前の暗い紫の色（`:root[data-theme="dark"]` で上の色を全部決め直している。明るい色に色を足したら、ダークにも同じ名前で足す。`settings.test.js` が確かめる）
+  - 設定はセーブとは別に、この端末に覚える（localStorage の `plrpg.settings`）。生まれ変わっても、セーブを消しても残る。セーブの形は変えていない
+  - 読み込みの途中で色が一瞬変わらないように、`index.html` の先頭の小さなスクリプトが同じ名前を読んで先にダークにする
+  - 設定の画面には、今は画面の色だけ。設定を足すときは `ui/settings.js` の `normalizeSettings` に既定値を足す
+- どちらを選んでも暗いままのもの：冒険画面（絵の上のステータス）・街の絵（建物の名札と上の帯）・知らせ・ミニムービー（中ボス・寿命・ロケット・破りすてる・大喜利）。ドット絵の上で読みやすいように、ダークと同じ色を入れている（`style.css` の同じ所）
 - 明るい画面では、パレットの明るい色（山吹・水色・ピンクなど）を字の色に使わない。テストのジャンルのまとまりの名前は、字を濃くして左に色の印を付けた
 
 ## 施設画面（街）
 
-- 下の切り替えバーの「冒険」「勉強」「街」「図鑑」には、字の上にアイコンを付けている（40HzP の依頼。冒険＝剣、勉強＝用紙と鉛筆、街＝家並み、図鑑＝本と虫めがね。16×16 を2倍で出し、選んでいない画面のアイコンは少し暗くする。ボタンの高さは前と同じ 56px）。スプライトの名前は `index.html` のボタンの `data-icon` に書く（`main.js` が読んでボタンの頭に入れる。無ければ字だけ）。`tabs.test.js` がスプライトがそろっているかを確かめる
+- 下の切り替えバーの「冒険」「勉強」「街」「図鑑」「設定」には、字の上にアイコンを付けている（40HzP の依頼。冒険＝剣、勉強＝用紙と鉛筆、街＝家並み、図鑑＝本と虫めがね、設定＝歯車。16×16 を2倍で出し、選んでいない画面のアイコンは少し暗くする。ボタンの高さは前と同じ 56px）。スプライトの名前は `index.html` のボタンの `data-icon` に書く（`main.js` が読んでボタンの頭に入れる。無ければ字だけ）。`tabs.test.js` がスプライトがそろっているかを確かめる
 - 施設画面は「街」（下の切り替えバーの名前も「街」。40HzP の依頼。中の名前は `facility` のまま）。`bg_town`（90×160）の上に施設の外観（`town_<施設>`、32×32、category `building`）を並べ、真ん中の道の下の小さな広場に今日の1問の掲示板（`town.json` の `board`）、その上の道に主人公が立つ（右下にあった噴水の広場は病院にした。広場に主人公が立っていたのを、掲示板を置くために道へ動かした）。設計ページ「施設画面の表示」の「施設を並べる」を、40HzP の依頼で街の見た目にした
 - 並べる位置は `town.json` の `x`・`y`（街の左上からのドット数）。建物の前の道と広場は `bg_town` に描いてあるので、位置を変えるときは背景も合わせる。2列×4段で埋まっているので、施設をもっと足すときは街の並べ方から考え直す。`town.test.js` が「街の中に収まる・重ならない・スプライトがある」を確かめる
 - 建物をタップするとその施設に入る（上に「← 街へ」）。中身があるのは店（`shop`）・仲間が集まる場所（`guild`）・寝床（`home`）・会社（`company`）・ロケット発射場（`rocket`）・学校・研究室（`major`。専攻の付け替えと、学校・研究室の顧問）・拠点（`base`）・病院（`hospital`）。中身は `facility.js` の `PANELS`（月面の街の帰還ロケット `moon_rocket`・月面基地 `moon_base` も）。条件を満たすまで「準備中」と `desc` を出す施設（会社・拠点）は `LOCKS`

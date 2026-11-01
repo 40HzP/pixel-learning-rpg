@@ -4,8 +4,9 @@
   font-display: swap;
 }
 
-/* ふだんの画面（勉強・図鑑・街の施設の中・案内など）は明るい紙の色に濃い字（40HzP の依頼「基本背景を明るく」）。
-   --accent は字に使う濃いオレンジ、--accent-bg はボタンなどを塗る明るいオレンジ */
+/* 画面の色（40HzP の依頼）。ふだんは明るい紙の色に濃い字（「基本背景を明るく」）。
+   設定でダークを選ぶと <html data-theme="dark">（ui/settings.js）になり、下の暗い色に変わる。
+   --accent は字に使うオレンジ、--accent-bg はボタンなどを塗る明るいオレンジ */
 :root {
   --bg: #ebe5d3;
   --panel: #fbf8ef;
@@ -18,10 +19,20 @@
   --good: #3b7a28;
   --bad: #c4313b;
   --info: #2f6fb8;
+  --correct-bg: #dcefd2;   /* 正解の選択肢 */
+  --wrong-bg: #f8dcdf;     /* 選んだ不正解の選択肢 */
+  --meddle-bg: #efe4f7;    /* 魔物が口を挟んでいる枠 */
+  --meddle-line: #8a55b0;
+  --blocked-bg: #e1f0dc;   /* 口を挟めない（行動経済学など） */
+  --pic-bg: #d9d2bd;       /* 図鑑の絵の下地 */
+  --fav: #c98a00;          /* お気に入りの☆ */
+  --fav-on-text: #7a4f00;
+  --fav-on-bg: #fff1b8;
   --tabs-h: 56px;
 }
-/* 暗いままのもの：冒険画面（絵の上のステータス）・街の絵・知らせ・ミニムービー（中ボス・寿命・ロケット・破りすてる・大喜利） */
-#screen-adventure, #screen-facility.town-screen, #notices, .overlay.movie, .overlay.tear, .overlay.oogiri {
+/* ダーク（設定で選んだとき）と、どちらでも暗いままのもの：冒険画面（絵の上のステータス）・街の絵・知らせ・
+   ミニムービー（中ボス・寿命・ロケット・破りすてる・大喜利） */
+:root[data-theme="dark"], #screen-adventure, #screen-facility.town-screen, #notices, .overlay.movie, .overlay.tear, .overlay.oogiri {
   --bg: #1a1626;
   --panel: #262139;
   --panel2: #332c4a;
@@ -29,9 +40,19 @@
   --text: #f2efe6;
   --muted: #a9a7b8;
   --accent: #f7b23c;
+  --accent-bg: #f7b23c;
   --good: #6fb042;
   --bad: #e05561;
   --info: #4d93de;
+  --correct-bg: #1f4a3a;
+  --wrong-bg: #6e1f2e;
+  --meddle-bg: #3a2152;
+  --meddle-line: #a26cc8;
+  --blocked-bg: #1f3a2e;
+  --pic-bg: #3d3a4f;
+  --fav: #f7b23c;
+  --fav-on-text: #fbe57a;
+  --fav-on-bg: var(--panel2);
   color: var(--text);
 }
 #screen-adventure, #screen-facility.town-screen { background: var(--bg); }
@@ -267,9 +288,9 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .review-note { font-size: 12px; margin: -2px 0 6px; }
 .review-yours { font-size: 14px; margin: 4px 0; }
 .genre-tag { flex: none; font-size: 11px; padding: 0 4px; border: 1px solid var(--tint); background: var(--tint-bg); white-space: nowrap; }
-.fav-mark { flex: none; color: #c98a00; }
+.fav-mark { flex: none; color: var(--fav); }
 .fav-btn { min-height: 40px; padding: 4px 10px; font-size: 14px; margin: 6px 0 2px; }
-.fav-btn.on { color: #7a4f00; background: #fff1b8; border-color: #c98a00; }
+.fav-btn.on { color: var(--fav-on-text); background: var(--fav-on-bg); border-color: var(--fav); }
 .paper .fav-btn { background: #fff; color: var(--ink); border: 2px solid #9a9686; }
 .paper .fav-btn.on { background: #fff1b8; border-color: #c27654; }
 .prof-list { margin-top: 14px; font-size: 13px; display: grid; grid-template-columns: 1fr auto auto; gap: 2px 10px; }
@@ -278,12 +299,12 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .interfere {
   display: flex; align-items: center; gap: 8px; padding: 0 8px; margin-bottom: 8px;
   height: 46px; white-space: nowrap; overflow: hidden;
-  background: #efe4f7; border: 2px solid #8a55b0; font-size: 14px;
+  background: var(--meddle-bg); border: 2px solid var(--meddle-line); font-size: 14px;
 }
 .interfere canvas { flex-shrink: 0; }
 .interfere span { overflow: hidden; text-overflow: ellipsis; }
 .interfere.off { visibility: hidden; }
-.interfere.blocked { background: #e1f0dc; border-color: var(--good); }
+.interfere.blocked { background: var(--blocked-bg); border-color: var(--good); }
 .interfere .line { display: block; overflow: hidden; text-overflow: ellipsis; line-height: 1.35; }
 .interfere small.line { font-size: 12px; color: var(--good); }
 .qmeta { color: var(--muted); font-size: 13px; }
@@ -293,8 +314,8 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .timebar.low i { background: var(--bad); }
 .choices { display: flex; flex-direction: column; gap: 8px; }
 .choices button { text-align: left; min-height: 52px; line-height: 1.4; }
-.choices button.correct { border-color: var(--good); background: #dcefd2; }
-.choices button.wrong { border-color: var(--bad); background: #f8dcdf; }
+.choices button.correct { border-color: var(--good); background: var(--correct-bg); }
+.choices button.wrong { border-color: var(--bad); background: var(--wrong-bg); }
 /* 答えたあとの選択肢：明るい画面で薄くなりすぎないように。正解と自分の答えははっきり */
 .choices button:disabled { opacity: .7; }
 .choices button.correct:disabled, .choices button.wrong:disabled { opacity: 1; }
@@ -560,12 +581,27 @@ button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 /* ---------- 図鑑 ---------- */
 .zukan { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 .zcard { background: var(--panel); border: 2px solid var(--line); padding: 8px; font-size: 13px; line-height: 1.6; }
-.zcard .pic { display: flex; justify-content: center; padding: 6px 0; background: #d9d2bd; margin-bottom: 6px; }
+.zcard .pic { display: flex; justify-content: center; padding: 6px 0; background: var(--pic-bg); margin-bottom: 6px; }
 .zcard .zname { font-size: 15px; }
 .zcard .label { color: var(--muted); font-size: 11px; display: block; margin-top: 4px; }
 .zcard.unknown .zname { color: var(--muted); }
 .zcard .area { color: var(--accent); font-size: 12px; line-height: 1.5; margin-top: 2px; }
 .zcard.wide { grid-column: 1 / -1; }
+
+/* ---------- 設定 ---------- */
+.settings h2 { font-size: 20px; font-weight: normal; color: var(--accent); margin: 0 0 12px; }
+.theme-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.theme-choices button { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; min-height: 0; }
+.theme-choices button.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.theme-choices button small { color: var(--muted); font-size: 12px; line-height: 1.4; }
+/* 見本：その色の背景・枠・字（どちらの設定でも同じ見た目で出す） */
+.theme-sample { display: block; width: 100%; max-width: 140px; padding: 6px; border: 2px solid; text-align: left; font-size: 13px; line-height: 1.4; }
+.theme-sample i { display: block; font-style: normal; padding: 2px 6px; margin-top: 4px; border: 2px solid; }
+.theme-sample.light { background: #ebe5d3; color: #2b2838; border-color: #b0a68b; }
+.theme-sample.light i { background: #fbf8ef; border-color: #b0a68b; color: #9c4f08; }
+.theme-sample.dark { background: #1a1626; color: #f2efe6; border-color: #4a4166; }
+.theme-sample.dark i { background: #262139; border-color: #4a4166; color: #f7b23c; }
+.settings-note { font-size: 13px; color: var(--muted); margin: 10px 0 0; line-height: 1.6; }
 
 /* ---------- デバッグ ---------- */
 .debug .section > div { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }

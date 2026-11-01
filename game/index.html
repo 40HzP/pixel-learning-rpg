@@ -10,6 +10,8 @@
 <link rel="preload" href="fonts/DotGothic16-Regular.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="fonts/klee-one/klee-one.css"><!-- テストの用紙の字（教科書体に近い Klee One）。画面に出る文字の分だけ読み込む -->
 <link rel="stylesheet" href="css/style.css">
+<script>/* 設定でダークを選んでいたら、読み込みの途中から暗い色で出す（設定は js/ui/settings.js。名前 plrpg.settings も同じ） */
+try { if (JSON.parse(localStorage.getItem('plrpg.settings') || '{}').theme === 'dark') document.documentElement.dataset.theme = 'dark'; } catch (e) { /* 読めなければ明るい色 */ }</script>
 <script type="module" src="js/main.js"></script>
 </head>
 <body>
@@ -38,6 +40,9 @@
     <!-- 図鑑 -->
     <section id="screen-zukan" class="screen" hidden></section>
 
+    <!-- 設定（画面の色） -->
+    <section id="screen-settings" class="screen" hidden></section>
+
     <!-- デバッグ（?debug=1 のときだけ） -->
     <section id="screen-debug" class="screen" hidden></section>
   </main>
@@ -48,6 +53,7 @@
     <button data-tab="study" data-icon="icon_study"><span>勉強</span></button>
     <button data-tab="facility" data-icon="icon_town"><span>街</span></button>
     <button data-tab="zukan" data-icon="icon_zukan"><span>図鑑</span></button>
+    <button data-tab="settings" data-icon="icon_settings"><span>設定</span></button>
     <button data-tab="debug" hidden>デバッグ</button>
   </nav>
 
