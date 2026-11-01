@@ -7,7 +7,8 @@ import {
 import { SAVE_KEY, serialize, deserialize } from './save.js';
 import { forgetMissingQuestions, ensureAuthorCode, takeNewAdoptions, refreshDaily, dayKey } from './quiz.js';
 import { MAJOR_SLOTS } from './fields.js';
-import { loadPalette, loadSprite, spriteCanvas } from './sprites.js';
+import { loadPalette, loadSprite, spriteCanvas, buildSprite } from './sprites.js';
+import { outfitOf, outfitKey, dressFrames } from './outfit.js';
 import { createRenderer, SCENE_W, SCENE_H } from './render.js';
 import * as adventure from './ui/adventure.js';
 import * as study from './ui/study.js';
@@ -111,6 +112,22 @@ async function boot() {
     return { idle, attack, old, oldAttack, bow, blush };
   };
   const heroSets = { male: await heroSet('hero'), female: await heroSet('heroine') };
+  // 装備に合わせて塗り替えた主人公の絵（outfit.js）。性別と装備の組み合わせごとに1回だけ作る。
+  // 剣を持つのは若い姿の待機と攻撃だけ（年を取った姿は杖のまま、服と装飾品だけ変わる）。あやまる・赤面する絵は変えない
+  const dressed = new Map();
+  const dressSprite = (sp, outfit, armed) => (sp && sp.rows
+    ? buildSprite({ name: sp.name, w: sp.w, h: sp.h, fps: sp.fps, frames: dressFrames(sp.rows, outfit, armed) }, palette) || sp
+    : sp);
+  function heroLooks(state) {
+    const g = state && state.hero.gender === 'female' ? 'female' : 'male';
+    const outfit = outfitOf(state || { equipment: {} }, items);
+    const key = `${g}|${outfitKey(outfit)}`;
+    if (!dressed.has(key)) {
+      const set = heroSets[g];
+      dressed.set(key, { ...set, idle: dressSprite(set.idle, outfit, true), attack: dressSprite(set.attack, outfit, true), old: dressSprite(set.old, outfit, false), oldAttack: dressSprite(set.oldAttack, outfit, false) });
+    }
+    return dressed.get(key);
+  }
   // 用紙を破りすてたときのミニモーションの教室（背景と、先生の前に重ねる教卓）。ロケットのミニムービーの打ち上げ場と飛ぶロケット
   const [classroom, lectern, launchpad, rocket] = await Promise.all([load('scene_classroom'), load('scene_lectern'), load('scene_launchpad'), load('rocket_flight')]);
   // 10階層ごとの世界の背景（stages.json に書いた名前だけ読む）
@@ -152,8 +169,8 @@ async function boot() {
     menuSprites,      // 勉強のメニューのボタンのアイコン
     itemSprites,      // 店の品物のアイコン（品物のid → スプライト）
     heroSets,
-    // 今の主人公の性別の絵（男の子は hero_*、女の子は heroine_*）
-    get heroSprites() { return heroSets[this.state && this.state.hero.gender] || heroSets.male; },
+    // 今の主人公の絵：性別（男の子は hero_*、女の子は heroine_*）と、付けている装備の見た目
+    get heroSprites() { return heroLooks(this.state); },
     sceneSprites: { classroom, lectern, launchpad, rocket },
     stages: stageList,
     town: { ...town, bg: townBg, sprites: townSprites },
@@ -494,7 +511,8 @@ async function boot() {
     }
   }
   for (const b of genderButtons) {
-    const sp = heroSets[b.dataset.gender] && heroSets[b.dataset.gender].idle;
+    // 生まれたばかりは何も装備していないので、素手でいつもの服の姿
+    const sp = heroLooks({ hero: { gender: b.dataset.gender }, equipment: {} }).idle;
     if (sp) b.prepend(spriteCanvas(sp, 2, palette));
     b.addEventListener('click', () => pickGender(b.dataset.gender));
   }

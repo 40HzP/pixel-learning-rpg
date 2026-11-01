@@ -61,7 +61,8 @@ export function buildSprite(d, palette) {
     ctx.putImageData(img, 0, 0);
     return c;
   });
-  return { name: d.name, w, h, fps: d.fps > 0 ? d.fps : 4, frames, flipped: [], silhouettes: [], outlineRgb: palette.get('0') || [26, 22, 38] };
+  // rows：もとの文字の行（主人公の絵を装備に合わせて塗り替えるときに使う。outfit.js）
+  return { name: d.name, w, h, fps: d.fps > 0 ? d.fps : 4, frames, rows: d.frames, flipped: [], silhouettes: [], outlineRgb: palette.get('0') || [26, 22, 38] };
 }
 
 /** アニメーションのコマ番号（時刻 t 秒） */

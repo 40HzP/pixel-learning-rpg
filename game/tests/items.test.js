@@ -26,7 +26,7 @@ test('品物：枠は武器・防具・装飾品のどれか。同じ枠では�
   for (const it of items) {
     assert.ok(EQUIP_SLOTS.includes(it.slot), `${it.name} の枠（${it.slot}）`);
     assert.ok(power(it) > 0, `${it.name} は何かのステータスを足す`);
-    for (const k of Object.keys(it)) assert.ok(['id', 'name', 'slot', 'icon', 'price', 'unlockCorrect', ...ITEM_STATS].includes(k), `${it.name} の項目 ${k}`);
+    for (const k of Object.keys(it)) assert.ok(['id', 'name', 'slot', 'icon', 'price', 'unlockCorrect', 'look', ...ITEM_STATS].includes(k), `${it.name} の項目 ${k}`);
   }
   assert.ok(items.filter((i) => i.slot === 'weapon').every((i) => Object.keys(i).filter((k) => ITEM_STATS.includes(k)).join() === 'atk'), '武器は攻撃だけ');
   assert.ok(items.filter((i) => i.slot === 'armor').every((i) => Object.keys(i).filter((k) => ITEM_STATS.includes(k)).join() === 'def'), '防具は防御だけ');
