@@ -95,35 +95,43 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .screen { position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .screen.pad { padding: 12px 12px 24px; }
 
-/* 下の切り替えバー：木目の板（40HzP の依頼「下のメニューバーの背景デザインを木目調に」）。
-   ドット絵 ui_tabs_wood（64×28）を2倍で敷き詰める（main.js が --tabs-wood・--tabs-wood-size に入れる。絵が無ければ茶色の地）。
-   明るい色でもダークでも同じ板で、ダークのときは少し暗くする */
+/* 下の切り替えバー：ボタン1つずつが木の板（40HzP の依頼「木目調に」「隣のボタンとの境目がわかりやすく、年輪が見えるように」）。
+   板の絵は ui_tabs_wood（40×28・3枚。板ごとに年輪がちがう）を2倍にしたもの（main.js が各ボタンの --board に入れる。絵が無ければ茶色の地）。
+   板と板の間は暗いすき間（#tabs の地の色が gap から見える）、板の縁は左上が明るく右下が暗い（盛り上がった板）。
+   明るい色でもダークでも同じ板で、ダークのときは少し暗くする（--shade） */
 #tabs {
   display: flex;
-  background-color: #7d4a30;
-  background-image: var(--tabs-wood, none);
-  background-size: var(--tabs-wood-size, auto);
-  background-position: 0 0;
-  image-rendering: pixelated;
-  border-top: 2px solid #4a2a22;
+  gap: 2px;
+  background: #2e1912;
+  border-top: 2px solid #2e1912;
   padding-bottom: env(safe-area-inset-bottom);
-}
-:root[data-theme="dark"] #tabs {
-  background-image: linear-gradient(rgba(26, 22, 38, .3), rgba(26, 22, 38, .3)), var(--tabs-wood, none);
-  background-size: auto, var(--tabs-wood-size, auto);
 }
 /* 字は木の上でも読めるように、明るいクリーム色にこげ茶の縁取り */
 #tabs button {
-  flex: 1; min-height: var(--tabs-h); border: 0; background: none; color: #f6e9cf;
+  --shade: transparent;
+  flex: 1; min-width: 0; min-height: var(--tabs-h); border: 0; color: #f6e9cf;
+  background-color: #b5774a;
+  background-image: linear-gradient(var(--shade), var(--shade)), var(--board, none);
+  background-size: auto, var(--board-size, auto);
+  background-position: 0 0, center top;
+  background-repeat: no-repeat, repeat-x;
+  image-rendering: pixelated;
+  box-shadow: inset 2px 2px 0 rgba(255, 232, 190, .4), inset -2px -2px 0 rgba(46, 25, 18, .55);
   text-shadow: 1px 1px 0 #3a2018, -1px 1px 0 #3a2018, 1px -1px 0 #3a2018, -1px -1px 0 #3a2018;
   padding: 3px 4px; white-space: nowrap; font-size: 13px; line-height: 1.1;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
 }
-/* 選んでいる画面：板を少しへこませて（暗く）、上に金色の線。字は黄色 */
-#tabs button.active { color: #fbe57a; background: rgba(42, 22, 14, .38); box-shadow: inset 0 3px 0 #f7b23c; }
+:root[data-theme="dark"] #tabs button { --shade: rgba(26, 22, 38, .3); }
+/* 選んでいる画面：板がへこむ（暗くなり、縁の明暗が逆になる）。上に金色の線、字は黄色 */
+#tabs button.active {
+  --shade: rgba(42, 22, 14, .4);
+  color: #fbe57a;
+  box-shadow: inset 0 3px 0 #f7b23c, inset 2px 5px 0 rgba(20, 10, 8, .4), inset -2px -2px 0 rgba(255, 232, 190, .25);
+}
+:root[data-theme="dark"] #tabs button.active { --shade: rgba(20, 10, 8, .55); }
 /* アイコン（16×16 を2倍）。選んでいない画面のアイコンは少し暗く */
 #tabs button canvas { flex-shrink: 0; }
-#tabs button:not(.active) canvas { opacity: .7; }
+#tabs button:not(.active) canvas { opacity: .75; }
 
 /* ---------- 冒険 ---------- */
 #screen-adventure { display: flex; align-items: center; justify-content: center; overflow: hidden; }

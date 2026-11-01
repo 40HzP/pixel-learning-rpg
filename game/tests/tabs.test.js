@@ -28,14 +28,15 @@ test('勉強のメニューのボタン（クイズ・テスト・過去問復�
   }
 });
 
-test('下の切り替えバーの木目：ui_tabs_wood（category texture）を2倍に敷き詰め、高さはバーの高さと同じ', () => {
+test('下の切り替えバーの木の板：ui_tabs_wood（category texture）はボタンごとの板（2枚以上）で、2倍にした高さはバーの高さと同じ', () => {
   const sp = JSON.parse(read('../../pixel/sprites/ui_tabs_wood.json'));
   assert.deepEqual([sp.name, sp.category], ['ui_tabs_wood', 'texture']);
   const css = read('../css/style.css');
   const tabsH = Number(css.match(/--tabs-h:\s*(\d+)px/)[1]);
-  assert.equal(sp.h * 2, tabsH, '2倍にするとバーの高さぴったり（板のすき間がずれない）');
+  assert.equal(sp.h * 2, tabsH, '2倍にするとボタンの高さぴったり');
+  assert.ok(sp.frames.length >= 2, '板ごとに年輪がちがう（ボタンの順に1枚ずつ使う）');
   const palette = new Set(JSON.parse(read('../../pixel/palette.json')).colors.map((c) => c.key));
-  for (const r of sp.frames[0]) {
+  for (const f of sp.frames) for (const r of f) {
     assert.equal(r.length, sp.w);
     for (const ch of r) assert.ok(palette.has(ch), '透明を使わない（下の地が透けない）');
   }
