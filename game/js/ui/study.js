@@ -199,7 +199,7 @@ function renderTestGenre(app) {
       el('button', { onclick: () => { view.phase = 'menu'; renderBody(app); } }, '← もどる'),
       el('span', {}, 'テストのジャンルを選ぶ')),
     ...groups.map((g) => el('section', { class: 'genre-group' },
-      el('h3', { class: 'genre-group-name', style: `color:${cssColor(app.palette, g.color, '#a9a7b8')}` }, g.name),
+      el('h3', { class: 'genre-group-name', style: `--tint:${cssColor(app.palette, g.color, '#a9a7b8')}` }, g.name),
       el('div', { class: 'genre-grid' }, g.genres.map((x) => genreButton(app, x.name, g.color, counts[x.name]))))),
   );
 }

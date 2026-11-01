@@ -4,7 +4,24 @@
   font-display: swap;
 }
 
+/* ふだんの画面（勉強・図鑑・街の施設の中・案内など）は明るい紙の色に濃い字（40HzP の依頼「基本背景を明るく」）。
+   --accent は字に使う濃いオレンジ、--accent-bg はボタンなどを塗る明るいオレンジ */
 :root {
+  --bg: #ebe5d3;
+  --panel: #fbf8ef;
+  --panel2: #e3dcc8;
+  --line: #b0a68b;
+  --text: #2b2838;
+  --muted: #625e70;
+  --accent: #9c4f08;
+  --accent-bg: #f7b23c;
+  --good: #3b7a28;
+  --bad: #c4313b;
+  --info: #2f6fb8;
+  --tabs-h: 56px;
+}
+/* 暗いままのもの：冒険画面（絵の上のステータス）・街の絵・知らせ・ミニムービー（中ボス・寿命・ロケット・破りすてる・大喜利） */
+#screen-adventure, #screen-facility.town-screen, #notices, .overlay.movie, .overlay.tear, .overlay.oogiri {
   --bg: #1a1626;
   --panel: #262139;
   --panel2: #332c4a;
@@ -15,8 +32,9 @@
   --good: #6fb042;
   --bad: #e05561;
   --info: #4d93de;
-  --tabs-h: 56px;
+  color: var(--text);
 }
+#screen-adventure, #screen-facility.town-screen { background: var(--bg); }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
@@ -38,8 +56,8 @@ button {
   touch-action: manipulation;
 }
 button:disabled { opacity: .45; cursor: default; }
-button.primary { background: var(--accent); border-color: #c27654; color: #1a1626; }
-select, input, textarea { background: var(--panel2); border: 2px solid var(--line); border-radius: 0; min-height: 44px; padding: 4px 8px; }
+button.primary { background: var(--accent-bg); border-color: #c27654; color: #1a1626; }
+select, input, textarea { background: var(--panel); border: 2px solid var(--line); border-radius: 0; min-height: 44px; padding: 4px 8px; }
 textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .pixel { image-rendering: pixelated; image-rendering: crisp-edges; }
 .muted { color: var(--muted); }
@@ -88,7 +106,7 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 }
 #hud.big { font-size: 16px; padding: 5px 8px; left: 4px; right: 4px; top: 4px; }
 #hud .row { display: flex; justify-content: space-between; gap: 6px; white-space: nowrap; }
-/* 最高到達地点の行：入りきらないときは右（月面・これまでの最高）を次の行へ */
+/* 最高到達地点の行：入りきらないときは右（月面・歴代最高）を次の行へ */
 #hud .row.far { flex-wrap: wrap; column-gap: 6px; row-gap: 0; }
 #hud .row.far > span:last-child { margin-left: auto; }
 #hud .hpbar { height: 6px; background: #1a1626; border: 1px solid #1a1626; margin: 1px 0 2px; }
@@ -194,11 +212,11 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .nande-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .nande-head canvas { image-rendering: pixelated; flex: none; }
 .bubble {
-  position: relative; background: var(--text); color: var(--bg); font-size: 20px; padding: 6px 14px; border-radius: 12px;
+  position: relative; background: #fff; color: #2b2838; border: 2px solid #2b2838; font-size: 20px; padding: 4px 12px; border-radius: 12px;
 }
 .bubble::before {
   content: ''; position: absolute; left: -8px; top: 50%; margin-top: -6px;
-  border-style: solid; border-width: 6px 8px 6px 0; border-color: transparent var(--text) transparent transparent;
+  border-style: solid; border-width: 6px 8px 6px 0; border-color: transparent #2b2838 transparent transparent;
 }
 
 /* ---------- 勉強 ---------- */
@@ -215,12 +233,13 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .genre-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
 .genre-head button { min-height: 40px; padding: 4px 10px; flex: none; }
 .genre-group { margin: 12px 0 4px; }
-.genre-group-name { font-size: 14px; font-weight: normal; margin: 0 0 6px; }
+/* まとまりの名前：字は濃く、左にまとまりの色の印（明るい色の字は紙の色の上で読みにくいので） */
+.genre-group-name { font-size: 14px; font-weight: normal; margin: 0 0 6px; border-left: 6px solid var(--tint, var(--line)); padding-left: 6px; line-height: 1.3; }
 .genre-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 /* 色とアイコンの付いたボタン（テストのジャンル・勉強のメニュー。study.js の tintButton）：色で縁取り、薄く敷く */
 .tint-btn {
   display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 6px 8px; text-align: left;
-  background: linear-gradient(var(--tint-bg), var(--tint-bg)), var(--panel2); border: 2px solid var(--tint); border-left-width: 6px;
+  background: linear-gradient(var(--tint-bg), var(--tint-bg)), var(--panel); border: 2px solid var(--tint); border-left-width: 6px;
 }
 .tint-btn canvas { flex: none; }
 .tint-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
@@ -248,9 +267,9 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .review-note { font-size: 12px; margin: -2px 0 6px; }
 .review-yours { font-size: 14px; margin: 4px 0; }
 .genre-tag { flex: none; font-size: 11px; padding: 0 4px; border: 1px solid var(--tint); background: var(--tint-bg); white-space: nowrap; }
-.fav-mark { flex: none; color: #f7b23c; }
+.fav-mark { flex: none; color: #c98a00; }
 .fav-btn { min-height: 40px; padding: 4px 10px; font-size: 14px; margin: 6px 0 2px; }
-.fav-btn.on { color: #fbe57a; border-color: #f7b23c; }
+.fav-btn.on { color: #7a4f00; background: #fff1b8; border-color: #c98a00; }
 .paper .fav-btn { background: #fff; color: var(--ink); border: 2px solid #9a9686; }
 .paper .fav-btn.on { background: #fff1b8; border-color: #c27654; }
 .prof-list { margin-top: 14px; font-size: 13px; display: grid; grid-template-columns: 1fr auto auto; gap: 2px 10px; }
@@ -259,23 +278,26 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .interfere {
   display: flex; align-items: center; gap: 8px; padding: 0 8px; margin-bottom: 8px;
   height: 46px; white-space: nowrap; overflow: hidden;
-  background: #3a2152; border: 2px solid #a26cc8; font-size: 14px;
+  background: #efe4f7; border: 2px solid #8a55b0; font-size: 14px;
 }
 .interfere canvas { flex-shrink: 0; }
 .interfere span { overflow: hidden; text-overflow: ellipsis; }
 .interfere.off { visibility: hidden; }
-.interfere.blocked { background: #1f3a2e; border-color: var(--good); }
+.interfere.blocked { background: #e1f0dc; border-color: var(--good); }
 .interfere .line { display: block; overflow: hidden; text-overflow: ellipsis; line-height: 1.35; }
 .interfere small.line { font-size: 12px; color: var(--good); }
 .qmeta { color: var(--muted); font-size: 13px; }
 .qtext { font-size: 17px; margin: 6px 0 10px; line-height: 1.6; }
 .timebar { height: 8px; background: var(--panel2); border: 2px solid var(--line); margin-bottom: 12px; }
-.timebar i { display: block; height: 100%; background: var(--accent); }
+.timebar i { display: block; height: 100%; background: var(--accent-bg); }
 .timebar.low i { background: var(--bad); }
 .choices { display: flex; flex-direction: column; gap: 8px; }
 .choices button { text-align: left; min-height: 52px; line-height: 1.4; }
-.choices button.correct { border-color: var(--good); background: #1f4a3a; }
-.choices button.wrong { border-color: var(--bad); background: #6e1f2e; }
+.choices button.correct { border-color: var(--good); background: #dcefd2; }
+.choices button.wrong { border-color: var(--bad); background: #f8dcdf; }
+/* 答えたあとの選択肢：明るい画面で薄くなりすぎないように。正解と自分の答えははっきり */
+.choices button:disabled { opacity: .7; }
+.choices button.correct:disabled, .choices button.wrong:disabled { opacity: 1; }
 .credit { margin-top: 6px; font-size: 13px; color: var(--muted); }
 .credit b { color: var(--good); font-weight: normal; }
 .compose p { font-size: 14px; margin: 6px 0; line-height: 1.5; }
@@ -538,7 +560,7 @@ button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 /* ---------- 図鑑 ---------- */
 .zukan { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 .zcard { background: var(--panel); border: 2px solid var(--line); padding: 8px; font-size: 13px; line-height: 1.6; }
-.zcard .pic { display: flex; justify-content: center; padding: 6px 0; background: #3d3a4f; margin-bottom: 6px; }
+.zcard .pic { display: flex; justify-content: center; padding: 6px 0; background: #d9d2bd; margin-bottom: 6px; }
 .zcard .zname { font-size: 15px; }
 .zcard .label { color: var(--muted); font-size: 11px; display: block; margin-top: 4px; }
 .zcard.unknown .zname { color: var(--muted); }
@@ -547,7 +569,7 @@ button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 
 /* ---------- デバッグ ---------- */
 .debug .section > div { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.debug button.on { background: var(--accent); color: #1a1626; }
+.debug button.on { background: var(--accent-bg); color: #1a1626; }
 
 /* 月面のボス・ツキジンセツの新聞のビラ（問題文の一部を隠す） */
 .flyer { background: #f2efe6 repeating-linear-gradient(0deg, transparent 0 4px, #a9a7b8 4px 5px); color: transparent; border-radius: 2px; box-shadow: 0 0 0 1px #6e6b80; padding: 0 1px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }

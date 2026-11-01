@@ -132,7 +132,7 @@ export function paperCanvas(paper, pad, footer = '') {
   if (pad) pad.paint(g, box.left + paper.clientLeft, box.top + paper.clientTop, paper);
   g.restore();
   if (footer) {
-    g.fillStyle = '#9a96ad';
+    g.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted').trim() || '#625e70';
     g.font = `13px ${getComputedStyle(document.body).fontFamily}`;
     g.textAlign = 'right'; g.textBaseline = 'middle';
     g.fillText(footer, W - MARGIN, H - FOOTER / 2);
