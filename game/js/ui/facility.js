@@ -794,7 +794,7 @@ function heroPanel(app) {
   const far = farthestReached(s, app.stages);
   const whose = (g) => (g === s.life.generation ? 'この人生' : `${g}世代目`);
   const farText = 'この人生でいちばん深く進んだところ' + (s.legacy.lives.length
-    ? `。前世も含めた最高は${far.best.floor}階層（${whose(far.best.generation)}）${far.bestMoon.floor ? `・月面${far.bestMoon.floor}階層（${whose(far.bestMoon.generation)}）` : ''}`
+    ? `。歴代最高は${far.best.floor}階層（${whose(far.best.generation)}）${far.bestMoon.floor ? `・月面${far.bestMoon.floor}階層（${whose(far.bestMoon.generation)}）` : ''}`
     : '');
   return [
     el('div', { class: 'rename' }, nameInput, el('button', { onclick: rename }, '名前を変える')),

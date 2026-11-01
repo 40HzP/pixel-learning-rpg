@@ -40,7 +40,7 @@ test('最高到達地点（40HzP の依頼）：この人生でいちばん深�
   s.life.maxFloor = 57;
   far = farthestReached(s, ctx.stages);
   assert.deepEqual([far.floor, far.stage.name, far.best], [57, '火山', { floor: 57, generation: 1 }]);
-  // 生まれ変わると、この人生は1階層から。前世も含めた最高は前世の57階層
+  // 生まれ変わると、この人生は1階層から。歴代最高は前世の57階層
   s.life.gameHours = s.life.lifespan * HOURS_PER_YEAR;
   reincarnate(s, ctx);
   s.life.maxFloor = 30;

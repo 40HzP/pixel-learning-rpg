@@ -45,7 +45,7 @@ export function init(app) {
   const r = refs;
   hud.append(
     el('div', { class: 'row' }, r.date, r.floor),
-    // 最高到達地点（40HzP の依頼）：この人生でいちばん深く進んだ階層。右に月面の階層と、前世のほうが深ければ「前世の最高 ◯階層（◯世代目）」（入りきらなければ次の行）
+    // 最高到達地点（40HzP の依頼）：この人生でいちばん深く進んだ階層。右に月面の階層と、前世のほうが深ければ「歴代最高 ◯階層（◯世代目）」（入りきらなければ次の行）
     el('div', { class: 'row far' }, el('span', {}, '最高到達 ', r.far), r.farBest),
     el('div', { class: 'row' }, el('span', {}, r.name, '　Lv ', r.lv), r.allies),
     el('div', { class: 'gauges' },
@@ -84,7 +84,7 @@ export function update(app) {
   r.floor.textContent = bossFloor ? `${where} ボス` : `${where} ${adv.kills}/${ctx.balance.floor.monstersPerFloor}体`;
   const far = farthestReached(s, app.stages);
   r.far.textContent = `${far.floor}階層${far.stage ? `（${far.stage.name}）` : ''}`;
-  r.farBest.textContent = [far.moon ? `月面${far.moon}階層` : '', far.best.floor > far.floor ? `前世の最高 ${far.best.floor}階層（${far.best.generation}世代目）` : ''].filter(Boolean).join('・');
+  r.farBest.textContent = [far.moon ? `月面${far.moon}階層` : '', far.best.floor > far.floor ? `歴代最高 ${far.best.floor}階層（${far.best.generation}世代目）` : ''].filter(Boolean).join('・');
   r.name.textContent = s.life.generation > 1 ? `${s.hero.name}（${s.life.generation}世代目）` : s.hero.name;
   r.lv.textContent = s.hero.level;
   const party = partyAllies(s).length, advisors = s.allies.filter((a) => a.advisor).length, bench = s.allies.length - party - advisors;
