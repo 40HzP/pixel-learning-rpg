@@ -155,6 +155,18 @@ async function boot() {
   // 勉強のメニューのボタンのアイコン（study.js の MENU_LOOK に書いた名前だけ読む）
   const menuSprites = {};
   await Promise.all(Object.entries(study.MENU_LOOK).map(async ([id, m]) => { menuSprites[id] = await load(m.icon); }));
+  // 下の切り替えバーの木目（ui_tabs_wood を2倍に拡大して背景に敷き詰める。無ければ CSS の茶色の地）
+  const woodSprite = await load('ui_tabs_wood');
+  if (woodSprite) {
+    const tabs = document.getElementById('tabs');
+    const big = document.createElement('canvas');
+    big.width = woodSprite.w * 2; big.height = woodSprite.h * 2;
+    const g = big.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    g.drawImage(spriteCanvas(woodSprite, 1, palette), 0, 0, big.width, big.height);
+    tabs.style.setProperty('--tabs-wood', `url(${big.toDataURL()})`);
+    tabs.style.setProperty('--tabs-wood-size', `${big.width}px ${big.height}px`);
+  }
   // 下の切り替えバーのアイコン（index.html のボタンの data-icon に書いた名前だけ読む。無ければ字だけ）
   await Promise.all([...document.querySelectorAll('#tabs button[data-icon]')].map(async (b) => {
     const sp = await load(b.dataset.icon);

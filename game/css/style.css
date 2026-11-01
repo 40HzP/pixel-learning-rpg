@@ -95,21 +95,35 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .screen { position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .screen.pad { padding: 12px 12px 24px; }
 
+/* 下の切り替えバー：木目の板（40HzP の依頼「下のメニューバーの背景デザインを木目調に」）。
+   ドット絵 ui_tabs_wood（64×28）を2倍で敷き詰める（main.js が --tabs-wood・--tabs-wood-size に入れる。絵が無ければ茶色の地）。
+   明るい色でもダークでも同じ板で、ダークのときは少し暗くする */
 #tabs {
   display: flex;
-  background: var(--panel);
-  border-top: 2px solid var(--line);
+  background-color: #7d4a30;
+  background-image: var(--tabs-wood, none);
+  background-size: var(--tabs-wood-size, auto);
+  background-position: 0 0;
+  image-rendering: pixelated;
+  border-top: 2px solid #4a2a22;
   padding-bottom: env(safe-area-inset-bottom);
 }
+:root[data-theme="dark"] #tabs {
+  background-image: linear-gradient(rgba(26, 22, 38, .3), rgba(26, 22, 38, .3)), var(--tabs-wood, none);
+  background-size: auto, var(--tabs-wood-size, auto);
+}
+/* 字は木の上でも読めるように、明るいクリーム色にこげ茶の縁取り */
 #tabs button {
-  flex: 1; min-height: var(--tabs-h); border: 0; background: none; color: var(--muted);
+  flex: 1; min-height: var(--tabs-h); border: 0; background: none; color: #f6e9cf;
+  text-shadow: 1px 1px 0 #3a2018, -1px 1px 0 #3a2018, 1px -1px 0 #3a2018, -1px -1px 0 #3a2018;
   padding: 3px 4px; white-space: nowrap; font-size: 13px; line-height: 1.1;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
 }
-#tabs button.active { color: var(--accent); background: var(--panel2); }
+/* 選んでいる画面：板を少しへこませて（暗く）、上に金色の線。字は黄色 */
+#tabs button.active { color: #fbe57a; background: rgba(42, 22, 14, .38); box-shadow: inset 0 3px 0 #f7b23c; }
 /* アイコン（16×16 を2倍）。選んでいない画面のアイコンは少し暗く */
 #tabs button canvas { flex-shrink: 0; }
-#tabs button:not(.active) canvas { opacity: .55; }
+#tabs button:not(.active) canvas { opacity: .7; }
 
 /* ---------- 冒険 ---------- */
 #screen-adventure { display: flex; align-items: center; justify-content: center; overflow: hidden; }

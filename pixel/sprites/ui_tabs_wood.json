@@ -1,0 +1,41 @@
+{
+  "name": "ui_tabs_wood",
+  "category": "texture",
+  "w": 64,
+  "h": 28,
+  "fps": 1,
+  "frames": [
+    [
+      "bbbbbbbbbbbbbbbbbbb98bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "aaaaaaaaaaaaaaaaaaa98baaaaaaaabbbbbbaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "aaaaaaaaaaaaaaaaaaa98baaaaaaaaaaaaaaaaaa999999999999aa99999aaaaa",
+      "999999aaaaaaaaaaaaa98baaaaa9aa99999999aaaaaaaaaaaaaaaaaaaaa99999",
+      "aaaaaa999999bbb999998b99999aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "aaaaaaaaaaa9999999998baaaaaaaaaaaaaaaaaaaaa999aaaaa99aaaaaaaaaaa",
+      "aaaaa99aa99aaaaaaaa98baaaaaaaaaaaaaaaa99999aaaaaaaaaa99999aaaaaa",
+      "99999aaaaaaaaaaaaaa98baaaaa99999999aaaaabbbbbbbbbbbbaaaaaaaa9999",
+      "aaaaaaa999999aa999998b999aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "9999999aaaaaaaaaaaa98baaaaa999999999999aaaaaaaaaaaaaaaaaaaaaa999",
+      "aaaaaaaaaaaaaaaa99998baaa9aaaaaaaaaaaaa999aaa9999999999999aaaaaa",
+      "aaaaaaaaaa9aaa99aaa98baaaa999999aaaaaaaaaa999999aaaaaaaaaa99999a",
+      "9999999999999999999989999999999999999999999999999999999999999999",
+      "8888888888888888888888888888888888888888888888888888888888888888",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb98bbbbbbbbbbb",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa98bbbbbbbbaaa",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa98baaaaaaaaaa",
+      "aaaaaaaa9aaaa99999aaaaaaaaaaaaaaaaaaaaaa999999999aa98baaaaaaaaaa",
+      "aa999999aaaaaaaaaa999aaaaaaaaaa99aaa9999aaaaaaaaaaa98b99aaaaaaaa",
+      "99aaaaaaaaaabbbbbbbbbbaaa99999999999aaaaaaaaaaaaaaa98baa999999aa",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa9889a9999999aaa99998baaaaaaaaaa",
+      "99aaaaaaaaaaaaaaaaaaaa99999aaaaa9999aaaaaaaaaaaaaaa98b9999aaaa99",
+      "aa9999999aaaa999999999aaaaaaaaa99aaaa99aaaaaaabbbbb98baaaaaaaaaa",
+      "999999999aaaaaaaaaaaaaaaaaaaaaaaaaa999999aaaaaaaaaa98baaaaaaaaa9",
+      "aaaaaaaaa9999aaaaaaaaaaaa99999aaaaaaaaaaa999999aaaa98baaa999aaaa",
+      "aaaaaaaaaaaaaaa9999999999aaaaaaaaaaaaaaaaaaaaaa9aa998b999aaaaaaa",
+      "9999999999999999999999999999999999999999999999999999899999999999",
+      "8888888888888888888888888888888888888888888888888888888888888888"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

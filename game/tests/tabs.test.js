@@ -27,3 +27,17 @@ test('勉強のメニューのボタン（クイズ・テスト・過去問復�
     assert.ok(palette.has(color), `${id} の色はパレットのキー`);
   }
 });
+
+test('下の切り替えバーの木目：ui_tabs_wood（category texture）を2倍に敷き詰め、高さはバーの高さと同じ', () => {
+  const sp = JSON.parse(read('../../pixel/sprites/ui_tabs_wood.json'));
+  assert.deepEqual([sp.name, sp.category], ['ui_tabs_wood', 'texture']);
+  const css = read('../css/style.css');
+  const tabsH = Number(css.match(/--tabs-h:\s*(\d+)px/)[1]);
+  assert.equal(sp.h * 2, tabsH, '2倍にするとバーの高さぴったり（板のすき間がずれない）');
+  const palette = new Set(JSON.parse(read('../../pixel/palette.json')).colors.map((c) => c.key));
+  for (const r of sp.frames[0]) {
+    assert.equal(r.length, sp.w);
+    for (const ch of r) assert.ok(palette.has(ch), '透明を使わない（下の地が透けない）');
+  }
+  assert.ok(read('../js/main.js').includes("load('ui_tabs_wood')"), 'main.js が読む');
+});
