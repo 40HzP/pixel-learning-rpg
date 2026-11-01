@@ -1,7 +1,7 @@
 // 冒険画面の表示項目（設計ページ「自動冒険画面に必ず表示する項目」）。空の部分（y=0〜97）に重ねる
 import {
   heroStats, partyAllies, companiesProfit, expToNext, formatDate, monthlyRates, monthlyContractCost, monthlyNetGold, isInvulnerable, midbossLeft, pendingBoss, expMultiplier,
-  challengeableMidboss, challengeMidboss, retreatMidboss, onMoon,
+  challengeableMidboss, challengeMidboss, retreatMidboss, onMoon, farthestReached,
 } from '../sim.js';
 import { dailyCardVisible, dailyInfo } from '../quiz.js';
 import { dailyTitle } from './daily.js';
@@ -14,7 +14,7 @@ export function init(app) {
   const span = () => el('span');
   refs = {
     hud,
-    date: span(), floor: span(), name: span(), lv: span(), allies: span(),
+    date: span(), floor: span(), far: span(), farBest: span(), name: span(), lv: span(), allies: span(),
     hp: span(), hpbar: el('i'), mp: span(), mpbar: el('i'),
     atk: span(), def: span(), wis: span(), agi: span(), luck: span(),
     exp: span(), total: span(), gold: span(), xmul: span(), rexp: span(), rgold: span(), fee: span(), net: span(), enemy: span(),
@@ -45,6 +45,8 @@ export function init(app) {
   const r = refs;
   hud.append(
     el('div', { class: 'row' }, r.date, r.floor),
+    // 最高到達地点（40HzP の依頼）：この人生でいちばん深く進んだ階層。右に月面の階層と、前世のほうが深ければ「これまで◯階層」（入りきらなければ次の行）
+    el('div', { class: 'row far' }, el('span', {}, '最高到達 ', r.far), r.farBest),
     el('div', { class: 'row' }, el('span', {}, r.name, '　Lv ', r.lv), r.allies),
     el('div', { class: 'gauges' },
       el('div', {}, el('div', { class: 'row' }, el('span', {}, 'HP'), r.hp), el('div', { class: 'hpbar' }, r.hpbar)),
@@ -80,6 +82,9 @@ export function update(app) {
   const bossFloor = adv.enemies.some((e) => e.kind === 'boss') || pendingBoss(s, ctx);
   const where = `${onMoon(s) ? '月面' : ''}${adv.floor}階層`;
   r.floor.textContent = bossFloor ? `${where} ボス` : `${where} ${adv.kills}/${ctx.balance.floor.monstersPerFloor}体`;
+  const far = farthestReached(s, app.stages);
+  r.far.textContent = `${far.floor}階層${far.stage ? `（${far.stage.name}）` : ''}`;
+  r.farBest.textContent = [far.moon ? `月面${far.moon}階層` : '', far.best.floor > far.floor ? `これまで ${far.best.floor}階層` : ''].filter(Boolean).join('・');
   r.name.textContent = s.life.generation > 1 ? `${s.hero.name}（${s.life.generation}世代目）` : s.hero.name;
   r.lv.textContent = s.hero.level;
   const party = partyAllies(s).length, advisors = s.allies.filter((a) => a.advisor).length, bench = s.allies.length - party - advisors;
