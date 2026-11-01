@@ -492,10 +492,10 @@ button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 .rename { display: flex; gap: 8px; margin-bottom: 10px; }
 .rename input { flex: 1; min-width: 0; font-size: 16px; }
 .stats { display: flex; flex-direction: column; gap: 2px; }
-.stat { display: grid; grid-template-columns: 5.5em 4.5em 1fr; align-items: baseline; gap: 6px; background: var(--panel); padding: 4px 8px; }
+.stat { display: grid; grid-template-columns: 6em 4.5em 1fr; align-items: baseline; gap: 6px; background: var(--panel); padding: 4px 8px; }
 .stat b { font-weight: normal; color: var(--accent); }
 .stat small { color: var(--muted); font-size: 12px; }
-.stat.wide { grid-template-columns: 5.5em 1fr; }
+.stat.wide { grid-template-columns: 6em 1fr; }
 .stat.wide small { grid-column: 2; }
 #update-bar {
   position: fixed; left: 0; right: 0; top: env(safe-area-inset-top); z-index: 25;

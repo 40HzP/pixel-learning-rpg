@@ -603,6 +603,26 @@ export function stageFor(floor, stages, world = 'earth') {
 /** 今いる階層の世界（地球の10階層ごとの世界か、月面） */
 export const currentStage = (state, stages) => stageFor(state.adventure.floor, stages, state.adventure.world || 'earth');
 
+/**
+ * 最高到達地点（主人公のステータスに出す。40HzP の依頼）：この人生でいちばん深く進んだ地球の階層とその世界、月面の階層（行っていなければ0）。
+ * best・bestMoon は、前世（legacy.lives）も含めたいちばん深い階層と、それが何世代目か（同じ深さなら先の世代）
+ */
+export function farthestReached(state, stages) {
+  const floor = state.life.maxFloor || 1;
+  const moon = state.life.moonMaxFloor || 0;
+  const lives = [
+    ...(state.legacy.lives || []).map((p) => ({ generation: p.generation, floor: p.maxFloor || 1, moon: p.moonFloor || 0 })),
+    { generation: state.life.generation, floor, moon },
+  ];
+  const top = (k) => lives.reduce((a, p) => (p[k] > a[k] ? p : a));
+  const best = top('floor'), bestMoon = top('moon');
+  return {
+    floor, stage: stageFor(floor, stages, 'earth'), moon,
+    best: { floor: best.floor, generation: best.generation },
+    bestMoon: { floor: bestMoon.moon, generation: bestMoon.generation },
+  };
+}
+
 /** 年齢を満たした未撃破の中ボス（いなければ null） */
 export function pendingMidboss(state, ctx) {
   const age = ageYears(state);

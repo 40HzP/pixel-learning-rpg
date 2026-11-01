@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   tick, heroStats, lifespanFor, generationMultiplier, reincarnate, heroTitles, payRocketBuildCost, startGame,
   genreState, midbossState, foundCompany, companiesProfit, spawnGroup, damageEnemy, ageYears, HOURS_PER_YEAR,
-  buyItem, shopList, hireRecruit, recruitList, industryList, hireStaff, bestStaffGrade, staffCost, proficiencyCap, sleep, receiveTreatment, canStartAt, honorific, GENDERS,
+  buyItem, shopList, hireRecruit, recruitList, industryList, hireStaff, bestStaffGrade, staffCost, proficiencyCap, sleep, receiveTreatment, canStartAt, honorific, GENDERS, farthestReached,
 } from '../js/sim.js';
 import { serialize, deserialize } from '../js/save.js';
 import { createSession, presentQuestion, answer } from '../js/quiz.js';
@@ -30,6 +30,27 @@ test('最初の案内の年齢：ゲームを初めて始めるとき（1世代�
   assert.equal(s.life.generation, 2);
   assert.equal(canStartAt(s, 0), true);
   assert.equal(canStartAt(s, 7), true, '生まれ変わったあとは7歳からも選べる');
+});
+
+test('最高到達地点（40HzP の依頼）：この人生でいちばん深い階層とその世界・月面。前世も含めた最高と、それが何世代目か', () => {
+  const ctx = makeCtx();
+  const s = newGame();
+  let far = farthestReached(s, ctx.stages);
+  assert.deepEqual([far.floor, far.stage.name, far.moon], [1, 'はじまりの草原', 0]);
+  s.life.maxFloor = 57;
+  far = farthestReached(s, ctx.stages);
+  assert.deepEqual([far.floor, far.stage.name, far.best], [57, '火山', { floor: 57, generation: 1 }]);
+  // 生まれ変わると、この人生は1階層から。前世の57階層がこれまでの最高
+  s.life.gameHours = s.life.lifespan * HOURS_PER_YEAR;
+  reincarnate(s, ctx);
+  s.life.maxFloor = 30;
+  s.life.moonMaxFloor = 4;
+  far = farthestReached(s, ctx.stages);
+  assert.deepEqual([far.floor, far.stage.name, far.moon], [30, '平安京', 4]);
+  assert.deepEqual(far.best, { floor: 57, generation: 1 });
+  assert.deepEqual(far.bestMoon, { floor: 4, generation: 2 }, '月面はこの人生がいちばん');
+  s.life.maxFloor = 80;
+  assert.deepEqual(farthestReached(s, ctx.stages).best, { floor: 80, generation: 2 }, 'この人生が前世を越えた');
 });
 
 test('性別（40HzP の依頼）：初回起動時と転生時に選ぶ。はじめは男の子。生まれ変わると前の性別が案内に入っていて、選び直せる', () => {

@@ -10,7 +10,7 @@ import {
   hireStaff, dismissStaff, bestStaffGrade, staffCost, staffBonus, buildBase, baseActive,
   lifespanOf, treatmentInfo, receiveTreatment, onMoon, launchInfo,
   ADVISOR_PLACES, advisorDef, advisorSlots, advisorsAt, advisorActive, setAdvisor, citationsLeft, rocketBuildCost, hrFactor, nextBoss,
-  canIncorporate, incorporate, corporateTax, LAW_ECONOMICS,
+  canIncorporate, incorporate, corporateTax, LAW_ECONOMICS, farthestReached,
 } from '../sim.js';
 import { fieldList, fieldById, fieldActive, isUnlocked, setMajor, MAJOR_SLOTS } from '../fields.js';
 import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor } from '../sprites.js';
@@ -790,6 +790,12 @@ function heroPanel(app) {
     update(app, true);
   };
   const stat = (label, value, text) => el('div', { class: 'stat' }, el('span', {}, label), value instanceof Node ? value : el('b', {}, value), el('small', {}, text));
+  // 最高到達地点（40HzP の依頼）：この人生でいちばん深く進んだ階層とその世界、月面。生まれ変わったあとは前世も含めた最高も出す
+  const far = farthestReached(s, app.stages);
+  const whose = (g) => (g === s.life.generation ? 'この人生' : `${g}世代目`);
+  const farText = 'この人生でいちばん深く進んだところ' + (s.legacy.lives.length
+    ? `。これまでの最高は${far.best.floor}階層（${whose(far.best.generation)}）${far.bestMoon.floor ? `・月面${far.bestMoon.floor}階層（${whose(far.bestMoon.generation)}）` : ''}`
+    : '');
   return [
     el('div', { class: 'rename' }, nameInput, el('button', { onclick: rename }, '名前を変える')),
     el('div', { class: 'stats' },
@@ -802,6 +808,9 @@ function heroPanel(app) {
       stat('すばやさ', hs.agi, `回避率 ${(evadeChance(hs, b) * 100).toFixed(1)}%（敵の攻撃をかわす。上限${Math.round(b.stats.evadeMax * 100)}%）`),
       stat('運の良さ', hs.luck, `会心の一撃 ${(critChance(hs, b) * 100).toFixed(1)}%・ゴールドが増える`),
       stat('経験値倍率', `×${expMultiplier(s, b).toFixed(2)}`, `勉強で正解するたびに +${Math.round((b.hero.expBonusPerCorrect || 0) * 100)}%`),
+      el('div', { class: 'stat wide' }, el('span', {}, '最高到達地点'),
+        el('b', {}, `${far.floor}階層${far.stage ? `（${far.stage.name}）` : ''}${far.moon ? `・月面${far.moon}階層` : ''}`),
+        el('small', {}, farText)),
       el('div', { class: 'stat wide' }, el('span', {}, '装備'),
         el('b', {}, EQUIP_SLOTS.map((slot) => app.ctx.items.find((i) => i.id === s.equipment[slot])).filter(Boolean).map((i) => i.name).join('・') || 'なし'),
         el('small', {}, '街の店で買う。武器・防具・装飾品を1つずつ付けられる')),
@@ -869,7 +878,7 @@ export function update(app, force) {
     return;
   }
   town = null;
-  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.hero.gender, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched, !!a.advisor]), s.citationsUsed, s.knowledge.torn.length, s.tax.owed > 0, s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket.buildCostPaid, s.life.generation, s.life.ailing, s.life.treatments,
+  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.hero.gender, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched, !!a.advisor]), s.citationsUsed, s.knowledge.torn.length, s.tax.owed > 0, s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket.buildCostPaid, s.life.generation, s.life.ailing, s.life.treatments, s.life.maxFloor, s.life.moonMaxFloor,
     // 学際分野（解放・休眠・専攻・熟練）と拠点・ロケットの工程（進み具合は作り直さずに書き換える）
     fieldList(s, app.ctx).map((f) => [f.unlocked, f.dormant, f.slot, f.levels]), s.adventure.baseFloor, rocketSteps(s, app.ctx).map((st) => [st.done, st.active]), (nextBoss(s, app.ctx) || {}).id]);
   // 名前を入力している途中は作り直さない（入力が消えないように）
