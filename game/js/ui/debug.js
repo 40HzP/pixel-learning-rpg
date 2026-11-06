@@ -127,7 +127,14 @@ export function init(app) {
         },
       }, 'ロケットを完成させる'),
       el('button', { onclick: () => app.launch() }, '打ち上げる'),
-      el('button', { onclick: () => app.returnHome() }, '地球に帰る'))),
+      el('button', { onclick: () => app.returnHome() }, '地球に帰る'),
+      el('button', {
+        onclick: () => {
+          // 裏側の電波望遠鏡の「宇宙からの電波」を、あと1回の正解でいっぱいになるところまでためる（月面で正解すると頁が開く）
+          app.state.knowledge.radio.charge = Math.max(0, ctx.balance.moon.radioCharge - 1);
+          app.notify('宇宙からの電波をためた（月面で勉強に1問正解すると、図鑑の頁が開く）');
+        },
+      }, '宇宙からの電波をためる'))),
     el('div', { class: 'section' }, el('h2', {}, '睡眠'),
       el('div', {}, el('button', { onclick: () => app.sleepNow() }, 'すぐ眠る'))),
     el('div', { class: 'section' }, el('h2', {}, 'セーブ'),

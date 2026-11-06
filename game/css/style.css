@@ -529,6 +529,10 @@ button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 .tax-box { font-size: 13px; color: var(--muted); margin: 4px 0 8px; }
 .company.corp { border-color: var(--accent); }
 .prep { background: var(--panel); border: 2px dashed var(--accent); padding: 6px 10px; margin: 10px 0 4px; font-size: 14px; }
+/* 月面の街：施設ごとの月の一言（town.json の note）と、補給所の月面だけの品の印 */
+.moon-note { background: var(--panel); border-left: 4px solid var(--info); padding: 6px 10px; margin: 0 0 10px; font-size: 14px; line-height: 1.6; }
+.moon-note b { display: block; color: var(--info); font-size: 13px; }
+.moon-tag { display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid var(--info); border-radius: 8px; color: var(--info); font-size: 12px; vertical-align: 2px; }
 .field-group { font-size: 13px; margin: 10px 0 4px; }
 .outlook { font-size: 13px; background: var(--panel2); padding: 4px 6px; line-height: 1.5; }
 .outlook b { display: block; color: var(--accent); font-weight: normal; }
@@ -645,3 +649,5 @@ button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 .flyer { background: #f2efe6 repeating-linear-gradient(0deg, transparent 0 4px, #a9a7b8 4px 5px); color: transparent; border-radius: 2px; box-shadow: 0 0 0 1px #6e6b80; padding: 0 1px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
 .flyer-note { color: var(--bad); font-size: 13px; margin-bottom: 2px; }
 .zcard.page p { margin: 4px 0; font-size: 14px; line-height: 1.6; }
+.radio-page { border-top: 1px dashed var(--line); padding-top: 6px; margin-top: 6px; }
+.radio-page b { font-size: 14px; }

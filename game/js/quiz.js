@@ -2,7 +2,7 @@
 // ctx = { balance, monsters, items, questions, rng }（questions は questions.json の questions 配列）
 
 import { GENRES } from './genres.js';
-import { genreState, raiseZukan, zukanEntry, breakMidbosses, healEnemy, proficiencyCap, markSmooth, advisorActive, citationsLeft } from './sim.js';
+import { genreState, raiseZukan, zukanEntry, breakMidbosses, healEnemy, proficiencyCap, markSmooth, hearRadio, advisorActive, citationsLeft } from './sim.js';
 import { fieldActive, fieldById } from './fields.js';
 
 export { GENRES };
@@ -393,6 +393,8 @@ export function answer(state, session, choiceIndex, ctx) {
     if (breakMidbosses(state, ctx, events).length) res.midbossBroken = true;
     // 月面のボス（カンペキキュウ）：正解するたびに、つるつるの月に山と影が描き足される
     markSmooth(state, ctx, events);
+    // 月面の街の裏側の電波望遠鏡：月面で正解すると「宇宙からの電波」がたまる
+    hearRadio(state, ctx, events);
   } else {
     if (!k.review.includes(q.id)) k.review.push(q.id);
     if (interferer && choice && choice.kind === 'myth') {

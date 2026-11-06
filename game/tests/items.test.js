@@ -14,7 +14,8 @@ test('品物：枠は武器・防具・装飾品のどれか。同じ枠では�
   assert.equal(new Set(items.map((i) => i.name)).size, items.length, '名前は重ならない');
   const power = (it) => ITEM_STATS.reduce((n, k) => n + (it[k] || 0), 0);
   for (const slot of EQUIP_SLOTS) {
-    const list = items.filter((i) => i.slot === slot);
+    // 月面だけの品（moon: true）は割合で効くので、強さの並びには入れない（moontown.test.js）
+    const list = items.filter((i) => i.slot === slot && !i.moon);
     assert.ok(list.length >= 5, `${slot} は5品以上（${list.length}）`);
     for (let i = 1; i < list.length; i++) {
       const [a, b] = [list[i - 1], list[i]];
@@ -25,11 +26,14 @@ test('品物：枠は武器・防具・装飾品のどれか。同じ枠では�
   }
   for (const it of items) {
     assert.ok(EQUIP_SLOTS.includes(it.slot), `${it.name} の枠（${it.slot}）`);
-    assert.ok(power(it) > 0, `${it.name} は何かのステータスを足す`);
-    for (const k of Object.keys(it)) assert.ok(['id', 'name', 'slot', 'icon', 'price', 'unlockCorrect', 'look', ...ITEM_STATS].includes(k), `${it.name} の項目 ${k}`);
+    if (it.moon) assert.ok(Object.keys(it.effects || {}).length && power(it) === 0, `${it.name}（月面だけの品）は割合で効く`);
+    else assert.ok(power(it) > 0 && !it.effects, `${it.name} は何かのステータスを足す`);
+    assert.ok(it.weight > 0, `${it.name} の重さ（月面の補給所の輸送費になる）`);
+    for (const k of Object.keys(it)) assert.ok(['id', 'name', 'slot', 'icon', 'price', 'unlockCorrect', 'weight', 'moon', 'effects', 'look', ...ITEM_STATS].includes(k), `${it.name} の項目 ${k}`);
   }
-  assert.ok(items.filter((i) => i.slot === 'weapon').every((i) => Object.keys(i).filter((k) => ITEM_STATS.includes(k)).join() === 'atk'), '武器は攻撃だけ');
-  assert.ok(items.filter((i) => i.slot === 'armor').every((i) => Object.keys(i).filter((k) => ITEM_STATS.includes(k)).join() === 'def'), '防具は防御だけ');
+  const earth = items.filter((i) => !i.moon);
+  assert.ok(earth.filter((i) => i.slot === 'weapon').every((i) => Object.keys(i).filter((k) => ITEM_STATS.includes(k)).join() === 'atk'), '武器は攻撃だけ');
+  assert.ok(earth.filter((i) => i.slot === 'armor').every((i) => Object.keys(i).filter((k) => ITEM_STATS.includes(k)).join() === 'def'), '防具は防御だけ');
 });
 
 test('品物のアイコンは 16×16・category icon のスプライトで、品物ごとにちがう', () => {

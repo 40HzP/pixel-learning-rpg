@@ -124,7 +124,7 @@ test('構造工学：専攻にしている間、今いる階層に拠点を建�
   s.adventure.floor = 20;
   assert.match(buildBase(s, ctx).reason, /専攻にすると建てられる/);
   setMajor(s, 1, 'structural_engineering', ctx);
-  assert.deepEqual(buildBase(s, ctx), { ok: true, floor: 20 });
+  assert.deepEqual(buildBase(s, ctx), { ok: true, floor: 20, moon: false });
   assert.match(buildBase(s, ctx).reason, /もう20階層に拠点がある/);
   s.adventure.floor = 25;
   assert.equal(respawnFloor(s, ctx), 20);

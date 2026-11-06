@@ -18,7 +18,12 @@ const CHAR_SEC = 0.06;    // 文を1文字ずつ出す間隔
 const FLAME_FPS = 10;
 
 /** 発着場の上のロケット（16×48）の左上。地球は打ち上げ場、月面は月面の街の帰還ロケットの場所 */
-export const PADS = { earth: { x: 37, y: 98 }, moon: { x: 61, y: 38 } };
+// 発着場（飛ぶロケットの絵 rocket_flight の左上）。地球は打ち上げ場の絵、月面は月面の街の帰還ロケット（town.json の moon_rocket）の場所
+export const PADS = { earth: { x: 37, y: 98 }, moon: { x: 61, y: 8 } };
+const padsFor = (app) => {
+  const f = app.moonTown.facilities.find((x) => x.id === 'moon_rocket');
+  return f ? { ...PADS, moon: { x: f.x + 8, y: f.y } } : PADS;
+};
 
 /**
  * ロケットのミニムービーを流す。from：飛び立つ世界（earth・moon）、to：行き先（失敗なら null）、
@@ -39,13 +44,14 @@ export function playLaunch(app, { from, to, lines }) {
     document.getElementById('app').append(overlay);
 
     const rocket = app.sceneSprites.rocket;
+    const pads = padsFor(app);
     const scenes = {
       earth: { bg: app.sceneSprites.launchpad, extra: [] },
       moon: { bg: app.moonTown.bg, extra: app.moonTown.facilities.filter((f) => f.id !== 'moon_rocket').map((f) => ({ sp: app.moonTown.sprites[f.id], x: f.x, y: f.y })) },
     };
     const T0 = 3 * COUNT_SEC;            // 火がつく
     const T1 = T0 + SHAKE_SEC;           // 浮き上がる
-    const T2 = T1 + Math.sqrt((2 * (PADS[from].y + 48)) / RISE_ACCEL);  // 画面の外へ出る
+    const T2 = T1 + Math.sqrt((2 * (pads[from].y + 48)) / RISE_ACCEL);  // 画面の外へ出る
     const T3 = T2 + SWITCH_SEC;          // 行き先が見え始める
     const end = to ? T3 + LAND_SEC : T1 + FAIL_SEC;
     let start = performance.now() / 1000 + FADE_MS / 1000;
@@ -71,7 +77,7 @@ export function playLaunch(app, { from, to, lines }) {
     }
     /** 発着場の煙（火がついてからの秒数 s に合わせて広がる） */
     function smoke(world, s, big = false) {
-      const p = PADS[world];
+      const p = pads[world];
       const n = big ? 7 : 5;
       for (let i = 0; i < n; i++) {
         const side = i % 2 ? 1 : -1;
@@ -86,7 +92,7 @@ export function playLaunch(app, { from, to, lines }) {
       const now = performance.now() / 1000;
       const t = now - start;
       g.clearRect(0, 0, W, H);
-      const p = PADS[from];
+      const p = pads[from];
       let label = '';
       if (t < T0) {
         drawScene(from);
@@ -112,7 +118,7 @@ export function playLaunch(app, { from, to, lines }) {
         label = '発射！';
       } else {
         // 行き先：上から降りてきて、発着場に着く
-        const q = PADS[to];
+        const q = pads[to];
         const s = Math.min(1, Math.max(0, (t - T3) / LAND_SEC));
         drawScene(to);
         const y = -48 + (q.y + 48) * (1 - (1 - s) ** 2);

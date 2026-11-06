@@ -4,7 +4,7 @@
 // 上のボタンで並べ方を選べる（40HzP の依頼「図鑑の魔物をソートしたい。例えばジャンル別とかで」）：
 // 種類順・ジャンル別・出現エリア別・名前順。選んだ並べ方は設定と一緒にこの端末に覚える（settings.js の zukanSort）
 import { spriteCanvas, cssColor } from '../sprites.js';
-import { ADVISOR_PLACES, advisorActive, nextBoss, areaLabels, stageFor, stageRange, worldOf } from '../sim.js';
+import { ADVISOR_PLACES, advisorActive, nextBoss, areaLabels, stageFor, stageRange, worldOf, onMoon } from '../sim.js';
 import { el } from './dom.js';
 import { ZUKAN_SORTS, saveSettings } from './settings.js';
 
@@ -24,6 +24,24 @@ function pageCard(app, m) {
   return el('div', { class: 'zcard wide page' },
     el('div', { class: 'zname' }, p.title, el('span', { class: 'muted' }, `（称号「${m.clear.title}」）`)),
     p.lines.map((line) => el('p', {}, line)));
+}
+
+/**
+ * 月の裏側から聞こえた宇宙（town.json の moon.radio）：月面の街の裏側の電波望遠鏡で「宇宙からの電波」がいっぱいになるたびに1頁ずつ開く。
+ * 月面に行ったことがあるか、1頁でも開いていれば見せる。まだの頁は題を伏せる
+ */
+function radioCard(app) {
+  const radio = app.ctx.radio;
+  const s = app.state;
+  const opened = Math.min(s.knowledge.radio.pages, radio.pages.length);
+  if (!opened && !onMoon(s) && !s.life.moonMaxFloor) return null;
+  return el('div', { class: 'zcard wide page radio' },
+    el('div', { class: 'zname' }, radio.title, el('span', { class: 'muted' }, `（${opened}/${radio.pages.length}頁）`)),
+    el('p', { class: 'muted' }, radio.intro),
+    radio.pages.map((p, i) => (i < opened
+      ? el('div', { class: 'radio-page' }, el('b', {}, `${i + 1}. ${p.name}`), p.lines.map((line) => el('p', {}, line)))
+      : el('div', { class: 'radio-page unknown' }, el('b', {}, `${i + 1}. ？？？`),
+        el('p', { class: 'muted' }, i === opened ? '月面の街の「裏側の電波望遠鏡」で、宇宙からの電波を受信すると開く（月面で勉強に正解するとたまる）' : '')))));
 }
 
 export function init() {
@@ -148,7 +166,7 @@ export function update(app, force) {
   const zk = app.state.knowledge.zukan;
   const prep = advisorActive(app.state, app.ctx, 'professor') ? (nextBoss(app.state, app.ctx) || {}).id : null;
   const sort = app.settings.zukanSort;
-  const k = JSON.stringify([zk, app.state.knowledge.moonCleared, prep, sort]);
+  const k = JSON.stringify([zk, app.state.knowledge.moonCleared, prep, sort, app.state.knowledge.radio.pages, app.state.adventure.world]);
   if (!force && k === key) return;
   key = k;
   const list = app.ctx.monsters;
@@ -179,8 +197,7 @@ export function update(app, force) {
             el('span', {}, g.title), el('small', { class: 'muted' }, `出会った ${gm}/${g.items.length}`)),
           el('div', { class: 'zukan' }, g.items.map((m) => card(app, m))));
       }),
-      // 月面を踏破すると開く頁は、どの並べ方でもいちばん下
-      list.filter((m) => m.clear && m.clear.page).length
-        ? el('div', { class: 'zukan', style: { marginTop: '14px' } }, list.filter((m) => m.clear && m.clear.page).map((m) => pageCard(app, m))) : null),
+      // 月面を踏破すると開く頁と、月の裏側から聞こえた宇宙の頁は、どの並べ方でもいちばん下
+      el('div', { class: 'zukan', style: { marginTop: '14px' } }, list.filter((m) => m.clear && m.clear.page).map((m) => pageCard(app, m)), radioCard(app))),
   );
 }

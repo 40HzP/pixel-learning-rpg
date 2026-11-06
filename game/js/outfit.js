@@ -7,7 +7,7 @@
 //   武器を付けていないと剣を消して素手にする（消したところの手の輪郭は描き足し、剣の輪郭だけ残った点は消す）
 // - 服（すべての姿）：頭より下（9行目から）の n・m・l（服の明・中・暗。l はズボンにも使う）と u・v（えりとマフラー）。
 //   防具を付けていないと、いつもの青い服のまま
-// - 装飾品：shoes（いちばん下の行の 9＝靴）・brooch（えりの光 v）・glasses（目の上に光るレンズ）・cape（背中のマフラーを伸ばしたマント）
+// - 装飾品：shoes（いちばん下の行の 9＝靴）・brooch（えりの光 v）・glasses（目の上に光るレンズ。colors でレンズの色）・cape（背中のマフラーを伸ばしたマント）
 
 const WEAPON_KEYS = { 4: 'tip', 3: 'blade', f: 'guard', g: 'guardLight' };
 const ARMOR_KEYS = { n: 'light', m: 'cloth', l: 'shade', u: 'collar', v: 'collarLight' };
@@ -77,9 +77,10 @@ export function dressFrame(rows, outfit, armed) {
     for (let y = BODY_FROM_Y; y < h; y++) for (let x = 0; x < g[y].length; x++) if (g[y][x] === 'v') set(x, y, color(k++));
   }
   if (acc && acc.type === 'glasses') {
-    // 目：上から最初の、左右が肌の色の黒い点。その点を白く光らせ、左に水色（眼鏡のレンズ）
+    // 目：上から最初の、左右が肌の色の黒い点。その点を白く光らせ、左に水色（眼鏡のレンズ）。
+    // colors があればレンズと光の色（金のバイザー＝山吹と黄）
     eye: for (let y = 0; y < BODY_FROM_Y; y++) for (let x = 1; x < g[y].length - 1; x++) {
-      if (g[y][x] === '0' && SKIN.has(g[y][x - 1]) && SKIN.has(g[y][x + 1])) { set(x, y, '4'); set(x - 1, y, 'o'); break eye; }
+      if (g[y][x] === '0' && SKIN.has(g[y][x - 1]) && SKIN.has(g[y][x + 1])) { set(x, y, colors[1] || '4'); set(x - 1, y, colors[0] || 'o'); break eye; }
     }
   }
   if (acc && acc.type === 'cape' && colors.length) {

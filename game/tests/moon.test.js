@@ -148,7 +148,7 @@ test('月面の階層を進むと月面の最高階層が増える（地球の�
   assert.equal(s.life.maxFloor, 1);
 });
 
-test('月面でやられると月面の1階層から（地球の拠点は使わない）。月面基地で眠ると1つ手前の月面の階層へ', () => {
+test('拠点は地球と月面で1つずつ：月面でやられると月面の拠点（前線基地）から（地球の拠点は使わない）。月面基地で眠ると1つ手前の月面の階層へ', () => {
   const ctx = makeCtx(constRng(0.1));
   const s = newGame(7);
   major(s, ctx, 'structural_engineering');
@@ -157,8 +157,13 @@ test('月面でやられると月面の1階層から（地球の拠点は使わ�
   buildRocket(s);
   launchRocket(s, ctx);
   s.adventure.floor = 9;
-  assert.equal(respawnFloor(s, ctx), 1);
-  assert.equal(buildBase(s, ctx).ok, false, '月面には拠点を建てられない');
+  assert.equal(respawnFloor(s, ctx), 1, '地球の拠点（50階層）は月面では使わない');
+  assert.deepEqual(buildBase(s, ctx), { ok: true, floor: 9, moon: true }, '月面の拠点は前線基地で建てる');
+  assert.deepEqual([s.adventure.baseFloor, s.adventure.moonBaseFloor], [50, 9], '地球の拠点はそのまま');
+  assert.match(buildBase(s, ctx).reason, /もう月面9階層に拠点がある/);
+  s.adventure.floor = 12;
+  assert.equal(respawnFloor(s, ctx), 9, '月面の拠点より深い月面の階層でやられたら月面の拠点から');
+  s.adventure.floor = 9;
   const r = sleepAtBed(s, ctx);
   assert.equal(s.adventure.floor, 8);
   assert.equal(r.world, 'moon');
@@ -173,6 +178,13 @@ test('月面でやられると月面の1階層から（地球の拠点は使わ�
   assert.equal(s.adventure.floor, 1);
   assert.equal(onMoon(s), true, 'やられても月面にいる');
   assert.equal(defeated.sleep.world, 'moon');
+  // 地球に帰ると地球の拠点が働く
+  returnToEarth(s, ctx);
+  s.adventure.floor = 55;
+  assert.equal(respawnFloor(s, ctx), 50);
+  // 生まれ変わると、どちらの拠点も無くなる
+  reincarnate(s, ctx);
+  assert.deepEqual([s.adventure.baseFloor, s.adventure.moonBaseFloor], [null, null]);
 });
 
 test('帰還ロケット：無料でいつでも地球に帰れ、地球は打ち上げた階層から。また打ち上げると月面は前の階層から', () => {

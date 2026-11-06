@@ -46,9 +46,27 @@ for (const [label, t] of TOWNS) test(`${label}：建物と主人公は街の中�
   }
 });
 
-test('地球の街の掲示板（今日の1問）：16×16・3枚（何も貼っていない・貼ってある・答えた）のスプライトがある。月面の街には無い', () => {
+test('街の掲示板（今日の1問）：16×16・3枚（何も貼っていない・貼ってある・答えた）のスプライトがある。月面の街にも同じ掲示板', () => {
   assert.ok(town.board && town.board.name, '地球の街に掲示板');
   const sp = read(`../../pixel/sprites/${town.board.sprite}.json`);
   assert.deepEqual([sp.category, sp.w, sp.h, sp.frames.length], ['building', 16, 16, 3]);
-  assert.equal(town.moon.board, undefined);
+  assert.deepEqual(town.moon.board, town.board, '月面の街の掲示板も同じ絵・同じ場所');
+});
+
+test('月面の街：地球の街でできることは、月面の街でもすべてできる（earth に地球の施設の id。ロケット発射場は帰還ロケット）', () => {
+  const covered = new Set(town.moon.facilities.flatMap((f) => f.earth || []));
+  for (const f of town.facilities) {
+    if (f.id === 'rocket') continue;
+    assert.ok(covered.has(f.id), `地球の${f.name}の代わりが月面にある`);
+  }
+  for (const id of covered) assert.ok(town.facilities.some((f) => f.id === id), `${id} は地球の施設`);
+  // 月だけの一言（note）：地球の施設の代わりになる新しい施設には付ける
+  for (const f of town.moon.facilities) if (f.earth && f.id !== 'moon_base') assert.ok(f.note, `${f.name} の一言`);
+  // 並びは地球の街と同じ（同じ役目の施設が同じ場所。会社・仲間の代わりの通信基地は会社の場所）
+  const earthAt = (id) => town.facilities.find((f) => f.id === id);
+  for (const f of town.moon.facilities) {
+    const e = f.id === 'moon_rocket' ? earthAt('rocket') : earthAt((f.earth || [])[(f.earth || []).length - 1]);
+    assert.deepEqual([f.x, f.y], [e.x, e.y], `${f.name} は地球の${e.name}と同じ場所`);
+  }
+  assert.deepEqual(town.moon.hero, town.hero, '主人公の立つ場所も同じ');
 });

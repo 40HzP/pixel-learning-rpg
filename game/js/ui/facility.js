@@ -1,13 +1,15 @@
 // 施設画面＝街。bg_town の上に施設の外観を並べ（並べる位置は data/town.json）、建物をタップするとその施設に入る。
 // 入れる施設：店・仲間が集まる場所・寝床・会社・ロケット発射場・学校・研究室（専攻の付け替えと顧問）・拠点（構造工学を解放するまで準備中）・病院。
 // 仲間にした中ボスは、学校・研究室・会社・ロケット発射場に顧問として置ける（advisorSection）。
-// 月面にいる間は、地球の街の代わりに月面の街（town.json の moon：帰還ロケット・月面基地）が出る。
+// 月面にいる間は、地球の街の代わりに月面の街（town.json の moon）が出る。月面の街でも地球の街と同じことができる
+// （設計ページ「月面の街」の①）：通信基地＝仲間が集まる場所と会社、裏側の電波望遠鏡＝学校・研究室、前線基地＝拠点（月面の拠点）、
+// 補給所＝店（本体＋輸送費）、月面基地＝寝床、医務室＝病院、帰還ロケット、掲示板。中身は地球の画面を使い回し、月の一言（note）を付ける。
 // 小さな広場に立っている主人公をタップすると、主人公のステータスと名前の変更
 import {
   shopList, buyItem, equipItem, EQUIP_SLOTS, bedFloor, heroTitles, inParty, setInParty, partyAllies, partyMax, partyFull, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, evadeChance, expMultiplier,
   recruitList, hireRecruit, dismissRecruit, monthlyContractCost, HOURS_PER_MONTH, HOURS_PER_YEAR,
   canFound, foundCompany, closeCompany, companiesProfit, industryList, industryOutlook, generationMultiplier, ageYears, payRocketBuildCost, rocketSteps,
-  hireStaff, dismissStaff, bestStaffGrade, staffCost, staffBonus, buildBase, baseActive,
+  hireStaff, dismissStaff, bestStaffGrade, staffCost, staffBonus, buildBase, baseActive, baseFloorHere, radioInfo,
   lifespanOf, treatmentInfo, receiveTreatment, onMoon, launchInfo,
   ADVISOR_PLACES, advisorDef, advisorSlots, advisorsAt, advisorActive, setAdvisor, citationsLeft, rocketBuildCost, hrFactor, nextBoss,
   canIncorporate, incorporate, corporateTax, LAW_ECONOMICS, farthestReached,
@@ -38,6 +40,17 @@ export const insideFacility = () => view !== 'town';
 /** 今いる世界の街（月面にいる間は月面の街） */
 const activeTown = (app) => (onMoon(app.state) ? app.moonTown : app.town);
 
+/**
+ * 知らせを出す。月面の通信基地で決めたことは「地球へ送信中…」と出て、地球からの返事が balance.moon.relaySec 秒あとに届く
+ * （地球と月の往復の通信時間。設計ページ「月面の街」）。効果はすぐに出る。断られたこと（'bad'）は送る前なので、すぐに出す
+ */
+function say(app, text, kind = '') {
+  if (view !== 'moon_comm' || kind === 'bad') { app.notify(text, kind); return; }
+  const sec = app.ctx.balance.moon.relaySec;
+  app.notify(`地球へ送信中…（返事まで約${sec}秒）`);
+  setTimeout(() => app.notify(`地球から返事：${text}`, kind), sec * 1000);
+}
+
 function enter(app, id) {
   view = id;
   key = '';
@@ -66,6 +79,7 @@ const LOCKS = {
     return `今の熟練レベル：${f.genres.map((g) => `${g} Lv${genreLv(app.state, g)}`).join('・')}（どちらもLv${app.ctx.balance.fields.unlockLevel}で${f.name}が解放される）`;
   },
 };
+LOCKS.moon_outpost = LOCKS.base; // 前線基地（月面の拠点）も構造工学で解放
 const STRUCTURAL = 'structural_engineering';
 const lockText = (app, id) => (LOCKS[id] ? LOCKS[id](app) : null);
 const isSoon = (app, id) => !PANELS[id] || !!lockText(app, id);
@@ -88,7 +102,7 @@ function buildTown(app) {
     const sp = t.sprites[f.id];
     return { btn, x: f.x, y: f.y, w: sp ? sp.w : 32, h: sp ? sp.h : 32 };
   });
-  // 今日の1問の掲示板（地球の街だけ）。札を開いて閉じると、今日の1問がここに残る（40HzP の依頼）
+  // 今日の1問の掲示板（地球の街と月面の街に同じもの）。札を開いて閉じると、今日の1問がここに残る（40HzP の依頼）
   if (t.board) {
     const sp = t.sprites.board;
     spots.push({
@@ -161,15 +175,24 @@ const SLOT_NOTE = {
   accessory: '1つだけ付けられる。すばやさ（回避）・運の良さ（会心とゴールド）・賢さ（ひらめき）が上がる',
 };
 
+// 月面だけの品の割合の効き目（items.json の effects）
+const EFFECT_LABEL = { damageCut: (v) => `受けるダメージ−${pct(v)}`, critBonus: (v) => `会心の一撃+${pct(v)}`, agiRate: (v) => `すばやさ+${pct(v)}` };
+
 function itemStat(it) {
-  return Object.keys(STAT_LABEL).filter((k) => it[k]).map((k) => `${STAT_LABEL[k]}+${it[k]}`).join(' ');
+  return [
+    ...Object.keys(STAT_LABEL).filter((k) => it[k]).map((k) => `${STAT_LABEL[k]}+${it[k]}`),
+    ...Object.entries(it.effects || {}).map(([k, v]) => (EFFECT_LABEL[k] ? EFFECT_LABEL[k](v) : k)),
+  ].join(' ');
 }
+/** 重さ（月面の補給所の輸送費になる） */
+const kg = (w) => (w >= 1 ? `${+w.toFixed(1)}kg` : `${Math.round(w * 1000)}g`);
 
 const note = (text) => el('div', { class: 'muted', style: { fontSize: '14px', marginBottom: '8px' } }, text);
 
 /**
  * 店：装備を買う。武器・防具・装飾品の枠ごとに並べる。
- * まだ入荷していない品は、枠ごとに次の1品だけ影絵で見せる。持っている品は「装備する」で付け替えられる
+ * まだ入荷していない品は、枠ごとに次の1品だけ影絵で見せる。持っている品は「装備する」で付け替えられる。
+ * 月面の補給所も同じ画面：値段を「本体＋輸送費」に分けて見せ、月面だけの品（割合で効く）も並ぶ
  */
 function shopPanel(app) {
   const s = app.state;
@@ -187,8 +210,8 @@ function shopPanel(app) {
       btn = el('button', {
         onclick: () => {
           const r = equipItem(app.state, it.id, ctx);
-          if (!r.ok) { app.notify(r.reason, 'bad'); return; }
-          app.notify(`${it.name}を装備した`, 'good');
+          if (!r.ok) { say(app, r.reason, 'bad'); return; }
+          say(app, `${it.name}を装備した`, 'good');
           app.save();
           update(app, true);
         },
@@ -197,16 +220,18 @@ function shopPanel(app) {
       btn = el('button', {
         onclick: () => {
           const r = buyItem(app.state, it.id, ctx);
-          if (!r.ok) { app.notify(r.reason, 'bad'); return; }
-          app.notify(`${it.name}を買った${r.equipped ? '。装備した' : '（「装備する」で付け替えられる）'}`, 'good');
+          if (!r.ok) { say(app, r.reason, 'bad'); return; }
+          say(app, `${it.name}を買った${r.equipped ? '。装備した' : '（「装備する」で付け替えられる）'}`, 'good');
           app.save();
           update(app, true);
         },
       }, `${fmt(it.price)}G`);
       live.buttons.push({ btn, price: it.price });
     }
-    const off = !it.owned && it.price < it.listPrice ? el('small', { style: { color: 'var(--good)' } }, `値引き（定価 ${fmt(it.listPrice)}G）`) : null;
-    return el('div', { class: 'item' + (it.equipped ? ' on' : '') }, icon(it), el('div', { class: 'name' }, it.name, el('small', {}, itemStat(it)), off), btn);
+    const off = !it.owned && it.body < it.listPrice ? el('small', { style: { color: 'var(--good)' } }, `値引き（本体の定価 ${fmt(it.listPrice)}G）`) : null;
+    const fare = !it.owned && it.transport ? el('small', {}, `本体 ${fmt(it.body)}G＋輸送費 ${fmt(it.transport)}G（${kg(it.weight)}）`) : null;
+    return el('div', { class: 'item' + (it.equipped ? ' on' : '') }, icon(it),
+      el('div', { class: 'name' }, it.name, it.moon ? el('span', { class: 'moon-tag' }, '月面だけ') : null, el('small', {}, itemStat(it)), fare, off), btn);
   };
   const list = shopList(s, ctx);
   const sections = EQUIP_SLOTS.map((slot) => {
@@ -221,10 +246,12 @@ function shopPanel(app) {
     ];
   });
   const be = fieldById(ctx, 'behavioral_economics');
+  const moon = onMoon(s);
   return [
     el('div', { style: { marginBottom: '6px' } }, '所持金 ', live.gold, 'G'),
     note('買うと、今の装備より強ければ自動で付ける。持っている品は「装備する」で付け替えられる'),
-    be && fieldActive(s, ctx, be.id) ? note(`${be.name}で値引き交渉ができる（${pct(ctx.balance.fields.shopDiscount)}引き）`) : null,
+    moon ? note(`輸送費は品物の重さで決まる（1kgあたり ${fmt(ctx.balance.moon.transportPerKg)}G）。月面だけの品は割合で効くので、地球のどの品より強いとみなして付け替える。買った品は地球に持ち帰れる`) : null,
+    be && fieldActive(s, ctx, be.id) ? note(`${be.name}で値引き交渉ができる（${pct(ctx.balance.fields.shopDiscount)}引き${moon ? '。値引きは本体だけ（重さは値切れない）' : ''}）`) : null,
     ...sections.flat(),
   ];
 }
@@ -257,7 +284,7 @@ function contractRow(app, r) {
       onclick: () => {
         if (!confirm(`${r.name}との契約をやめますか？（払った契約料は戻りません）`)) return;
         dismissRecruit(app.state, r.id);
-        app.notify(`${r.name}との契約をやめた`);
+        say(app, `${r.name}との契約をやめた`);
         app.save();
         update(app, true);
       },
@@ -266,8 +293,8 @@ function contractRow(app, r) {
       disabled: !r.unlocked,
       onclick: () => {
         const res = hireRecruit(app.state, r.id, ctx);
-        if (!res.ok) { app.notify(res.reason, 'bad'); return; }
-        app.notify(`${r.name}と契約した！（1か月 ${fmt(r.monthlyCost)}G）`, 'good');
+        if (!res.ok) { say(app, res.reason, 'bad'); return; }
+        say(app, `${r.name}と契約した！（1か月 ${fmt(r.monthlyCost)}G）`, 'good');
         app.save();
         update(app, true);
       },
@@ -294,7 +321,7 @@ function guildPanel(app) {
     el('div', { class: 'list' }, recruitList(s, ctx).map((r) => contractRow(app, r))),
     total ? el('div', { style: { marginTop: '6px', fontSize: '14px' } }, `契約料の合計（会社の社員も含む）　1か月 ${fmt(total)}G`) : null,
     s.companies.length || canFound(s, ctx)
-      ? note('会社で働く専門職（会計士・営業・企画・事務員）は、街の「会社」で会社ごとに雇う')
+      ? note(`会社で働く専門職（会計士・営業・企画・事務員）は、${view === 'moon_comm' ? '下の「会社」' : '街の「会社」'}で会社ごとに雇う`)
       : null,
     others.length ? el('h3', { class: 'subhead' }, '中ボスだった仲間（契約料なし）') : null,
     others.length ? note(`パーティーに入れるか控えに回すかを、いつでも選べる。パーティーは契約した仲間と合わせて${partyMax(ctx)}人まで。控えの仲間は戦わず、冒険画面にも出ない`) : null,
@@ -317,8 +344,8 @@ function guildPanel(app) {
           'aria-pressed': on ? 'true' : 'false',
           onclick: () => {
             const res = setInParty(app.state, a.id, !on, ctx);
-            if (!res.ok) { app.notify(res.reason, 'bad'); return; }
-            app.notify(on ? `${a.name}を控えに回した` : `${a.name}をパーティーに入れた`);
+            if (!res.ok) { say(app, res.reason, 'bad'); return; }
+            say(app, on ? `${a.name}を控えに回した` : `${a.name}をパーティーに入れた`);
             app.save();
             update(app, true);
           },
@@ -346,8 +373,8 @@ function advisorButton(app, a, d, placeFull) {
     'aria-pressed': on ? 'true' : 'false',
     onclick: () => {
       const r = setAdvisor(app.state, a.id, !on, app.ctx);
-      if (!r.ok) { app.notify(r.reason, 'bad'); return; }
-      app.notify(on ? `${a.name}の顧問をやめさせた（${r.benched ? '控え' : 'パーティー'}に戻った）` : `${a.name}を${r.place}の顧問にした（${d.role}）`, 'good');
+      if (!r.ok) { say(app, r.reason, 'bad'); return; }
+      say(app, on ? `${a.name}の顧問をやめさせた（${r.benched ? '控え' : 'パーティー'}に戻った）` : `${a.name}を${r.place}の顧問にした（${d.role}）`, 'good');
       app.save();
       update(app, true);
     },
@@ -414,8 +441,8 @@ function companyCard(app, p) {
   const hr = hrFactor(s, ctx);
   const act = (fn, msg) => () => {
     const res = fn();
-    if (!res.ok) { app.notify(res.reason, 'bad'); return; }
-    if (msg) app.notify(msg(res), 'good');
+    if (!res.ok) { say(app, res.reason, 'bad'); return; }
+    if (msg) say(app, msg(res), 'good');
     app.save();
     update(app, true);
   };
@@ -511,8 +538,8 @@ function companyPanel(app) {
       onclick: () => {
         if (!confirm(`${fmt(ind.cost)}G を払って${ind.name}を起業しますか？`)) return;
         const res = foundCompany(app.state, ind.id, ctx);
-        if (!res.ok) { app.notify(res.reason, 'bad'); return; }
-        app.notify(`${ind.name}を起業した！`, 'good');
+        if (!res.ok) { say(app, res.reason, 'bad'); return; }
+        say(app, `${ind.name}を起業した！`, 'good');
         app.save();
         update(app, true);
       },
@@ -560,8 +587,8 @@ function rocketPanel(app) {
     onclick: () => {
       if (!confirm(`${fmt(cost)}G を払ってロケットの建造費にしますか？`)) return;
       const res = payRocketBuildCost(app.state, app.ctx);
-      if (!res.ok) { app.notify(res.reason, 'bad'); return; }
-      app.notify('ロケットの建造費を払った！（生まれ変わっても残る）', 'good');
+      if (!res.ok) { say(app, res.reason, 'bad'); return; }
+      say(app, 'ロケットの建造費を払った！（生まれ変わっても残る）', 'good');
       app.save();
       update(app, true);
     },
@@ -645,7 +672,7 @@ const realSpan = (sec) => (sec >= 5400 ? `${(sec / 3600).toFixed(1)}時間` : se
  * 未解放の学際分野は名前を伏せ、片方のジャンルだけ見せる（隠しの学際分野は解放するまで出さない）。
  * 高校教師が学校の顧問なら、解放にいちばん近い未解放の学際分野の、もう片方のジャンルも見せる（進路指導）
  */
-function majorPanel(app) {
+function majorPanel(app, { telescope = false } = {}) {
   const s = app.state;
   const ctx = app.ctx;
   const need = ctx.balance.fields.unlockLevel;
@@ -654,8 +681,8 @@ function majorPanel(app) {
   const byId = Object.fromEntries(list.map((f) => [f.id, f]));
   const change = (slot, id, msg) => () => {
     const r = setMajor(app.state, slot, id, ctx);
-    if (!r.ok) { app.notify(r.reason, 'bad'); return; }
-    app.notify(msg, 'good');
+    if (!r.ok) { say(app, r.reason, 'bad'); return; }
+    say(app, msg, 'good');
     app.save();
     update(app, true);
   };
@@ -690,14 +717,16 @@ function majorPanel(app) {
       btns.length ? el('div', { class: 'btns' }, btns) : null);
   };
   const got = list.filter((f) => f.unlocked).length;
-  // 大学教授が研究室の顧問なら、次に戦うボスの「当時の根拠」を先に教えてくれる（予習）
-  const boss = advisorActive(s, ctx, 'professor') ? nextBoss(s, ctx) : null;
+  // 大学教授が研究室の顧問なら、次に戦うボスの「当時の根拠」を先に教えてくれる（予習）。
+  // 月面の裏側の電波望遠鏡では、大学教授がいなくても次の月面のボスを予習できる（設計ページ「月面の街」）
+  const professor = advisorActive(s, ctx, 'professor');
+  const boss = professor || telescope ? nextBoss(s, ctx) : null;
   return [
-    ...advisorSection(app, ['school', 'lab']),
     boss ? el('div', { class: 'prep' },
-      el('div', {}, el('b', {}, '予習（大学教授）'), `：次に戦うボスは${boss.world === 'moon' ? '月面' : ''}${boss.floor}階層の${boss.name}（${boss.myth}）`),
+      el('div', {}, el('b', {}, professor ? '予習（大学教授）' : '予習（裏側の電波望遠鏡）'), `：次に戦うボスは${boss.world === 'moon' ? '月面' : ''}${boss.floor}階層の${boss.name}（${boss.myth}）`),
       el('div', {}, `当時の根拠：${boss.whyBelieved}`),
       el('small', { class: 'muted' }, 'このボスと戦うときは、この根拠を書いた選択肢が誤答に混ざってくる')) : null,
+    ...advisorSection(app, ['school', 'lab']),
     el('h3', { class: 'subhead' }, '専攻の付け替え'),
     note(`2つのジャンルの熟練がどちらもLv${need}以上になると、その組み合わせの学際分野が解放され、称号がもらえる。効果が出るのは主専攻・副専攻に入れた2つだけ（いつでも付け替えられる）。熟練がLv${need}より下がると休眠して止まり、戻すと復活する`),
     el('div', { class: 'list' }, slots),
@@ -709,29 +738,70 @@ function majorPanel(app) {
   ];
 }
 
-/** 拠点（構造工学）：今いる階層に拠点を建てる。拠点より深い階層でやられると、拠点の階層から再開する */
+/**
+ * 拠点（構造工学）：今いる階層に拠点を建てる。拠点より深い階層でやられると、拠点の階層から再開する。
+ * 拠点は地球と月面で1つずつ（地球の街の「拠点」と、月面の街の「前線基地」）
+ */
 function basePanel(app) {
   const s = app.state;
   const ctx = app.ctx;
   const f = fieldById(ctx, STRUCTURAL);
   const on = fieldActive(s, ctx, f.id);
+  const moon = onMoon(s);
+  const w = moon ? '月面' : '';
+  const base = moon ? '月面の拠点' : '拠点';
   const btn = el('button', {
     class: 'primary',
     onclick: () => {
       const r = buildBase(app.state, ctx);
-      if (!r.ok) { app.notify(r.reason, 'bad'); return; }
-      app.notify(`${r.floor}階層に拠点を建てた！`, 'good');
+      if (!r.ok) { say(app, r.reason, 'bad'); return; }
+      say(app, `${w}${r.floor}階層に拠点を建てた！`, 'good');
       app.save();
       update(app, true);
     },
   });
   live.base = { btn };
-  const bf = s.adventure.baseFloor;
+  const bf = baseFloorHere(s);
+  const other = moon ? s.adventure.baseFloor : s.adventure.moonBaseFloor;
   return [
-    el('div', { class: 'profit' }, '拠点 ', el('b', {}, bf ? `${bf}階層` : 'まだない'), bf && !baseActive(s, ctx) ? el('span', { class: 'bad' }, '（働いていない）') : null),
-    on ? null : note(`${f.name}が専攻に入っていない（または休眠している）ので、拠点は建てられず、働かない。街の「学校・研究室」で主専攻か副専攻にする`),
+    el('div', { class: 'profit' }, `${base} `, el('b', {}, bf ? `${w}${bf}階層` : 'まだない'), bf && !baseActive(s, ctx) ? el('span', { class: 'bad' }, '（働いていない）') : null),
+    other ? el('small', { class: 'muted' }, moon ? `地球の拠点：${other}階層（地球の街の「拠点」）` : `月面の拠点：月面${other}階層（月面の街の「前線基地」）`) : null,
+    on ? null : note(`${f.name}が専攻に入っていない（または休眠している）ので、拠点は建てられず、働かない。${moon ? '月面の街の「裏側の電波望遠鏡」' : '街の「学校・研究室」'}で主専攻か副専攻にする`),
     el('div', { class: 'btnrow' }, btn),
-    note('拠点より深い階層でやられると、拠点の階層の最初から再開する（拠点の階層そのものでやられたときは1階層から）。建て直すと拠点は移る。生まれ変わると拠点は無くなる'),
+    note(`${base}より深い${moon ? '月面の' : ''}階層でやられると、${base}の階層の最初から再開する（${base}の階層そのものでやられたときは${w}1階層から）。建て直すと拠点は移る。拠点は地球と月面で1つずつ持てる。生まれ変わるとどちらも無くなる`),
+  ];
+}
+
+/** 通信基地（月面の街）：地球の仲間が集まる場所と会社の仕事を、地球との通信でする（決めたことの返事は約2.6秒あとに届く） */
+function commPanel(app) {
+  const lock = lockText(app, 'company');
+  // 会社の欄を先に作る（所持金の数字の部品 live.gold は1つなので、あとで作る仲間の欄の所持金に付ける）
+  const company = lock
+    ? [el('div', { class: 'soon-box' }, el('b', {}, '準備中'), el('div', {}, (app.town.facilities.find((f) => f.id === 'company') || {}).desc || ''), el('div', { class: 'unlock' }, lock))]
+    : companyPanel(app).slice(1); // 所持金は上（仲間の欄）に出す
+  return [
+    note('決めたことは地球へ送信し、地球から返事が届く。決めた効果はすぐに出る'),
+    el('h3', { class: 'subhead' }, '仲間（地球の「仲間が集まる場所」）'),
+    ...guildPanel(app),
+    el('h3', { class: 'subhead' }, '会社（地球の「会社」）'),
+    ...company,
+  ];
+}
+
+/**
+ * 裏側の電波望遠鏡（月面の街）：学校・研究室と同じ（専攻の付け替え・学校と研究室の顧問）に、次の月面のボスの予習と、
+ * 「宇宙からの電波」のゲージ（月面で勉強に正解するとたまり、いっぱいになると図鑑の「月の裏側から聞こえた宇宙」の頁が開く）
+ */
+function telescopePanel(app) {
+  const r = radioInfo(app.state, app.ctx);
+  const radio = app.ctx.radio;
+  return [
+    el('h3', { class: 'subhead' }, '宇宙からの電波'),
+    el('div', { class: 'profit' }, '図鑑「', radio.title, '」 ', el('b', {}, `${r.opened}/${r.total}頁`)),
+    ...(r.done ? [note('すべての頁を受信した（図鑑のいちばん下で読める）')]
+      : [el('div', { class: 'timebar' }, el('i', { style: { width: `${(r.charge / r.need) * 100}%` } })),
+        note(`月面で勉強に正解するたびに電波がたまる（${r.charge}/${r.need}）。いっぱいになると、図鑑の頁が1つ開く`)]),
+    ...majorPanel(app, { telescope: true }),
   ];
 }
 
@@ -751,8 +821,8 @@ function hospitalPanel(app) {
     onclick: () => {
       if (!confirm(`${fmt(t.cost)}G を払って治療を受けますか？（寿命が${t.years}年延びる）`)) return;
       const r = receiveTreatment(app.state, ctx);
-      if (!r.ok) { app.notify(r.reason, 'bad'); return; }
-      app.notify(`治療を受けた。寿命が${r.years}年延びた`, 'good');
+      if (!r.ok) { say(app, r.reason, 'bad'); return; }
+      say(app, `治療を受けた。寿命が${r.years}年延びた`, 'good');
       app.save();
       update(app, true);
     },
@@ -786,7 +856,7 @@ function heroPanel(app) {
   const rename = () => {
     const name = renameHero(app.state, nameInput.value);
     app.save();
-    app.notify(`名前を「${name}」にした`, 'good');
+    say(app, `名前を「${name}」にした`, 'good');
     update(app, true);
   };
   const stat = (label, value, text) => el('div', { class: 'stat' }, el('span', {}, label), value instanceof Node ? value : el('b', {}, value), el('small', {}, text));
@@ -799,8 +869,10 @@ function heroPanel(app) {
   return [
     el('div', { class: 'rename' }, nameInput, el('button', { onclick: rename }, '名前を変える')),
     el('div', { class: 'stats' },
-      stat('HP', live.hp, onMoon(s) ? '0になるとやられて月面1階層に戻る'
-        : baseActive(s, app.ctx) ? `0になるとやられて1階層（拠点より深い階層なら${s.adventure.baseFloor}階層）に戻る` : '0になるとやられて1階層に戻る'),
+      stat('HP', live.hp, (() => {
+        const w = onMoon(s) ? '月面' : '';
+        return baseActive(s, app.ctx) ? `0になるとやられて${w}1階層（拠点より深い階層なら${w}${baseFloorHere(s)}階層）に戻る` : `0になるとやられて${w}1階層に戻る`;
+      })()),
       stat('MP', live.mp, `敵が2体以上いると「${b.spell.name}」（MP${b.spell.mpCost}・敵全体）を使う`),
       stat('攻撃', hs.atk, `1体を叩く強さ（秒間${+(1 / b.hero.attackIntervalSec).toFixed(1)}回）`),
       stat('防御', hs.def, '受けるダメージが減る'),
@@ -828,8 +900,12 @@ function heroPanel(app) {
 // 中に入れる施設（town.json の id → 中身）。ここに無い施設は「準備中」
 const PANELS = {
   shop: shopPanel, guild: guildPanel, home: homePanel, company: companyPanel, rocket: rocketPanel, major: majorPanel, base: basePanel, hospital: hospitalPanel,
-  moon_rocket: moonRocketPanel, moon_base: homePanel, // 月面の街
+  // 月面の街（地球の施設と同じ中身。town.json の moon の earth に、代わりになる地球の施設を書いている）
+  moon_rocket: moonRocketPanel, moon_base: homePanel, moon_comm: commPanel, moon_telescope: telescopePanel,
+  moon_outpost: basePanel, moon_supply: shopPanel, moon_clinic: hospitalPanel,
 };
+// 月の一言（town.json の note）
+const moonNote = (f) => (f && f.note ? el('div', { class: 'moon-note' }, el('b', {}, '月のこと'), f.note) : null);
 
 function buildPanel(app) {
   const t = activeTown(app);
@@ -843,14 +919,14 @@ function buildPanel(app) {
   } else if (f && PANELS[f.id] && !lockText(app, f.id)) {
     title = f.name;
     sprite = t.sprites[f.id];
-    body = [note(f.desc || ''), ...PANELS[f.id](app)];
+    body = [note(f.desc || ''), moonNote(f), ...PANELS[f.id](app)];
   } else {
     // 準備中（中身がまだ無い施設と、解放の条件を満たしていない施設）
     const lock = f ? lockText(app, f.id) : null;
     title = f ? f.name : '準備中';
     sprite = f ? t.sprites[f.id] : null;
     body = [el('div', { class: 'soon-box' }, el('b', {}, '準備中'), el('div', {}, f ? f.desc || '' : ''),
-      lock ? el('div', { class: 'unlock' }, lock) : null)];
+      lock ? el('div', { class: 'unlock' }, lock) : null), moonNote(f)];
     if (lock && f.id === 'company') body.push(el('div', { class: 'muted', style: { fontSize: '14px', marginTop: '8px' } }, `解放されると選べる業種：${app.ctx.business.industries.map((x) => x.name).join('・')}`));
   }
   root.className = 'screen pad';
@@ -880,7 +956,7 @@ export function update(app, force) {
   town = null;
   const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.hero.gender, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched, !!a.advisor]), s.citationsUsed, s.knowledge.torn.length, s.tax.owed > 0, s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket.buildCostPaid, s.life.generation, s.life.ailing, s.life.treatments, s.life.maxFloor, s.life.moonMaxFloor,
     // 学際分野（解放・休眠・専攻・熟練）と拠点・ロケットの工程（進み具合は作り直さずに書き換える）
-    fieldList(s, app.ctx).map((f) => [f.unlocked, f.dormant, f.slot, f.levels]), s.adventure.baseFloor, rocketSteps(s, app.ctx).map((st) => [st.done, st.active]), (nextBoss(s, app.ctx) || {}).id]);
+    fieldList(s, app.ctx).map((f) => [f.unlocked, f.dormant, f.slot, f.levels]), s.adventure.baseFloor, s.adventure.moonBaseFloor, s.knowledge.radio, rocketSteps(s, app.ctx).map((st) => [st.done, st.active]), (nextBoss(s, app.ctx) || {}).id]);
   // 名前を入力している途中は作り直さない（入力が消えないように）
   const typing = root.contains(document.activeElement) && document.activeElement.tagName === 'INPUT';
   if (force || ((k !== key || !live) && !typing)) { key = k; buildPanel(app); }
@@ -916,7 +992,8 @@ export function update(app, force) {
   }
   if (live.base) {
     const on = fieldActive(s, app.ctx, STRUCTURAL);
-    live.base.btn.textContent = s.adventure.baseFloor === now ? `${now}階層に拠点がある` : `今いる${now}階層に拠点を建てる`;
-    live.base.btn.disabled = !on || s.adventure.baseFloor === now;
+    const here = baseFloorHere(s);
+    live.base.btn.textContent = here === now ? `${at(now)}に拠点がある` : `今いる${at(now)}に拠点を建てる`;
+    live.base.btn.disabled = !on || here === now;
   }
 }

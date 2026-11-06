@@ -1,7 +1,7 @@
 // ゲームの計算（描画しない・ブラウザの機能に触らない）。
 // 乱数は ctx.rng（0以上1未満を返す関数）で受け取る。テストで固定できるようにするため。
 //
-// ctx = { balance, monsters, items, recruits, business, fields, rng }
+// ctx = { balance, monsters, items, recruits, business, fields, stages, radio（月面の電波望遠鏡の図鑑の頁）, rng }
 //   balance  … data/balance.json
 //   monsters … data/monsters.json の monsters 配列
 //   items    … data/items.json の items 配列
@@ -40,7 +40,8 @@ export function createState(balance) {
     tax: { earned: 0, owed: 0, year: 0 },
     // enemies：今出ている群れ（先頭が狙う相手）。baseFloor：拠点（構造工学）。evadeAcc：ためた回避率。
     // world：今いる世界（earth＝地球、moon＝月面）。floor は今いる世界の階層で、もう片方の世界の階層は earthFloor・moonFloor に取っておく
-    adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1, baseFloor: null, evadeAcc: 0, world: 'earth', earthFloor: null, moonFloor: 1 },
+    // moonBaseFloor：月面の拠点（前線基地。地球の拠点とは別に1つ持つ）
+    adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1, baseFloor: null, moonBaseFloor: null, evadeAcc: 0, world: 'earth', earthFloor: null, moonFloor: 1 },
     knowledge: {                                    // 転生で引き継ぐ前提のもの（第2段階）
       genres: {},                                   // ジャンル名 → { level, progress, correct, studied }
       totalCorrect: 0,
@@ -54,6 +55,7 @@ export function createState(balance) {
       majors: [null, null],                         // 主専攻・副専攻（学際分野id）
       moonCleared: false,                           // 月面を踏破した（月面の最後のボスを倒した。称号と図鑑の頁が残る）
       authorGenres: [],                             // 作問権のあるジャンル（2つのジャンルを Lv5 にするともらえる。一度もらうと熟練が下がっても残る）
+      radio: { charge: 0, pages: 0 },               // 裏側の電波望遠鏡：たまった「宇宙からの電波」と、開いた図鑑の頁の数（月面で正解するとたまる）
     },
     midbosses: {},                                  // 中ボスid → { status: waiting|appeared|broken|defeated, announced }
     bosses: {},                                     // ボスid → { status: waiting|appeared|defeated }（一度倒したボスは、その人生ではもう出ない。生まれ変わるとまた出る）
@@ -326,6 +328,8 @@ export function heroStats(state, ctx) {
   const L = state.hero.level;
   const worn = EQUIP_SLOTS.map((slot) => itemById(ctx.items, state.equipment[slot])).filter(Boolean);
   const gear = (k) => worn.reduce((n, it) => n + (it[k] || 0), 0);
+  // 月面だけの品は割合で効く（effects。宇宙服＝受けるダメージを減らす・金のバイザー＝会心・月面車の車輪＝すばやさ）
+  const eff = (k) => worn.reduce((n, it) => n + ((it.effects || {})[k] || 0), 0);
   const gm = generationMultiplier(state, ctx.balance); // 世代が進むと伸び方が大きくなる
   const grow = (k) => Math.floor((hero.base[k] || 0) + (hero.perLevel[k] || 0) * gm * (L - 1));
   return {
@@ -335,8 +339,10 @@ export function heroStats(state, ctx) {
     def: grow('def') + gear('def'),
     wis: grow('wis') + Math.floor((hero.wisPerCorrect || 0) * gm * state.knowledge.totalCorrect) + gear('wis'),
     // 月面のボスの水しぶき（gimmick: splash）を浴びている間は、すばやさが moon.splashAgiMultiplier 倍に下がる
-    agi: Math.floor((grow('agi') + gear('agi')) * (gimmickIn(state, 'splash') ? ctx.balance.moon.splashAgiMultiplier : 1)),
+    agi: Math.floor((grow('agi') + gear('agi')) * (1 + eff('agiRate')) * (gimmickIn(state, 'splash') ? ctx.balance.moon.splashAgiMultiplier : 1)),
     luck: grow('luck') + gear('luck'),
+    damageCut: Math.min(0.9, eff('damageCut')), // 受けるダメージを減らす割合
+    critBonus: eff('critBonus'),                // 会心の一撃の出やすさに足す割合
   };
 }
 
@@ -350,7 +356,7 @@ export const heroAttackInterval = (balance) => balance.hero.attackIntervalSec;
 export const evadeChance = (stats, balance) => Math.min(balance.stats.evadeMax, stats.agi * balance.stats.evadePerAgi);
 
 /** 運の良さ：会心の一撃の出やすさ（上限あり） */
-export const critChance = (stats, balance) => Math.min(balance.stats.critChanceMax, stats.luck * balance.stats.critChancePerLuck);
+export const critChance = (stats, balance) => Math.min(1, Math.min(balance.stats.critChanceMax, stats.luck * balance.stats.critChancePerLuck) + (stats.critBonus || 0));
 
 /** 運の良さ：もらえるゴールドが増える */
 export const goldWithLuck = (gold, stats, balance) => Math.round(gold * (1 + stats.luck * balance.stats.goldBonusPerLuck));
@@ -490,6 +496,29 @@ export function markSmooth(state, ctx, events) {
     e.marks = (e.marks || 0) + 1;
     events.push({ type: 'smoothMarked', uid: e.uid, monsterId: e.monsterId, name: e.name, marks: e.marks, max });
   }
+}
+
+/**
+ * 裏側の電波望遠鏡（月面の街）：月面にいる間、勉強で正解するたびに「宇宙からの電波」が1つたまる。
+ * balance.moon.radioCharge たまると、図鑑の「月の裏側から聞こえた宇宙」の頁が1つ開く（ctx.radio.pages の順。town.json の moon.radio）。
+ * 全部開いたら、もうためない。知識なので生まれ変わっても残る（knowledge.radio）
+ */
+export function hearRadio(state, ctx, events) {
+  const pages = (ctx.radio && ctx.radio.pages) || [];
+  const r = state.knowledge.radio;
+  if (!onMoon(state) || r.pages >= pages.length) return;
+  r.charge++;
+  if (r.charge < ctx.balance.moon.radioCharge) return;
+  r.charge = 0;
+  r.pages++;
+  events.push({ type: 'radioPage', index: r.pages - 1, name: pages[r.pages - 1].name, opened: r.pages, total: pages.length });
+}
+
+/** 電波望遠鏡のゲージ（画面に出す）：たまった数・いっぱいの数・開いた頁の数・頁の数 */
+export function radioInfo(state, ctx) {
+  const pages = (ctx.radio && ctx.radio.pages) || [];
+  const r = state.knowledge.radio;
+  return { charge: r.charge, need: ctx.balance.moon.radioCharge, opened: Math.min(r.pages, pages.length), total: pages.length, done: r.pages >= pages.length };
 }
 
 /**
@@ -854,7 +883,8 @@ function combatStep(state, dt, ctx, events) {
       events.push({ type: 'attack', by: 'enemy', target: 'hero', uid: e.uid, slot: e.slot, dmg: 0, evaded: true });
       continue;
     }
-    const dmg = calcDamage(e.atk, hs.def, b, ctx.rng);
+    // 宇宙服（月面だけの品）は受けるダメージを割合で減らす
+    const dmg = Math.max(1, Math.round(calcDamage(e.atk, hs.def, b, ctx.rng) * (1 - (hs.damageCut || 0))));
     state.hero.hp = Math.max(0, state.hero.hp - dmg);
     events.push({ type: 'attack', by: 'enemy', target: 'hero', uid: e.uid, slot: e.slot, dmg });
     if (state.hero.hp <= 0) { heroDefeated(state, ctx, events); return; }
@@ -1078,27 +1108,31 @@ function heroDefeated(state, ctx, events) {
 
 const STRUCTURAL = 'structural_engineering';
 
-/** 拠点が働いているか：拠点があり、構造工学を専攻にしていて休眠していない */
-export const baseActive = (state, ctx) => state.adventure.baseFloor != null && fieldActive(state, ctx, STRUCTURAL);
+/**
+ * 今いる世界の拠点の階層（なければ null）。拠点だけは地球と月面で1つずつ持つ（設計ページ「月面の街」）：
+ * 地球は adventure.baseFloor（街の「拠点」）、月面は adventure.moonBaseFloor（月面の街の「前線基地」）
+ */
+export const baseFloorHere = (state) => (onMoon(state) ? state.adventure.moonBaseFloor : state.adventure.baseFloor);
 
-/** 今いる階層に拠点を建てる（構造工学を専攻にしているとき）。拠点は1つで、建て直すと移る */
+/** 今いる世界の拠点が働いているか：拠点があり、構造工学を専攻にしていて休眠していない */
+export const baseActive = (state, ctx) => baseFloorHere(state) != null && fieldActive(state, ctx, STRUCTURAL);
+
+/** 今いる階層に拠点を建てる（構造工学を専攻にしているとき）。拠点は世界ごとに1つで、建て直すと移る */
 export function buildBase(state, ctx) {
   if (!fieldActive(state, ctx, STRUCTURAL)) return { ok: false, reason: `${(fieldById(ctx, STRUCTURAL) || {}).name || '構造工学'}を専攻にすると建てられる` };
-  if (onMoon(state)) return { ok: false, reason: '月面には拠点を建てられない（地球に帰ってから建てる）' };
   const floor = state.adventure.floor;
-  if (state.adventure.baseFloor === floor) return { ok: false, reason: `もう${floor}階層に拠点がある` };
-  state.adventure.baseFloor = floor;
-  return { ok: true, floor };
+  const key = onMoon(state) ? 'moonBaseFloor' : 'baseFloor';
+  if (state.adventure[key] === floor) return { ok: false, reason: `もう${onMoon(state) ? '月面' : ''}${floor}階層に拠点がある` };
+  state.adventure[key] = floor;
+  return { ok: true, floor, moon: onMoon(state) };
 }
 
 /**
- * やられたときに戻る階層：拠点が働いていて、拠点より深い階層でやられたら拠点の階層。それ以外は1階層
- * （拠点の階層そのものでやられたら1階層。勝てない階層でやられ続けないように）。
- * 月面でやられたら月面の1階層（拠点は地球の階層にしか建てられない）
+ * やられたときに戻る階層：今いる世界の拠点が働いていて、拠点より深い階層でやられたら拠点の階層。それ以外は1階層
+ * （拠点の階層そのものでやられたら1階層。勝てない階層でやられ続けないように）。月面は月面の拠点（前線基地）で決まる
  */
 export function respawnFloor(state, ctx) {
-  if (onMoon(state)) return 1;
-  const b = state.adventure.baseFloor;
+  const b = baseFloorHere(state);
   return baseActive(state, ctx) && state.adventure.floor > b ? b : 1;
 }
 
@@ -1660,32 +1694,56 @@ function goToWorld(state, ctx, world) {
 
 /* ================= 店 ================= */
 
-/** 品物の値段。行動経済学を専攻にしていると値引き交渉ができる（balance.fields.shopDiscount 引き） */
-export function itemPrice(state, item, ctx) {
+/** 月面の補給所でだけ売っている品（items.json の moon: true）。割合で効く（effects）。買えば地球にも持ち帰れる */
+export const isMoonItem = (item) => !!(item && item.moon);
+
+/**
+ * 月面の補給所の輸送費：品物の重さ（items.json の weight、kg）× balance.moon.transportPerKg。
+ * 地球の店では0。行動経済学の値引きは効かない（重さは値切れない）。氷の採掘場で下がる（作る順の②。今は下がらない）
+ */
+export function transportCost(state, item, ctx) {
+  if (!onMoon(state)) return 0;
+  return Math.round((item.weight || 0) * ctx.balance.moon.transportPerKg);
+}
+
+/** 品物の本体の値段。行動経済学を専攻にしていると値引き交渉ができる（balance.fields.shopDiscount 引き） */
+export function itemBodyPrice(state, item, ctx) {
   const off = fieldActive(state, ctx, 'behavioral_economics') ? ctx.balance.fields.shopDiscount : 0;
   return Math.max(1, Math.round(item.price * (1 - off)));
 }
 
-/** 店の品揃え。price は値引き後の値段、listPrice は元の値段 */
+/** 品物の値段（払う額）＝ 本体（値引き後）＋ 輸送費（月面の補給所だけ） */
+export const itemPrice = (state, item, ctx) => itemBodyPrice(state, item, ctx) + transportCost(state, item, ctx);
+
+/**
+ * 店の品揃え。price は払う額、body は本体の値段（値引き後）、listPrice は本体の元の値段、transport は輸送費。
+ * 月面だけの品は、月面の補給所に並ぶ（地球の店には、持っているものだけ「装備する」ために並ぶ）
+ */
 export function shopList(state, ctx) {
-  return ctx.items.map((it) => ({
+  return ctx.items.filter((it) => !isMoonItem(it) || onMoon(state) || state.owned.includes(it.id)).map((it) => ({
     ...it,
     price: itemPrice(state, it, ctx),
+    body: itemBodyPrice(state, it, ctx),
     listPrice: it.price,
+    transport: transportCost(state, it, ctx),
     unlocked: state.knowledge.totalCorrect >= it.unlockCorrect,
     owned: state.owned.includes(it.id),
     equipped: state.equipment[it.slot] === it.id,
   }));
 }
 
-/** 品物の強さ：足すステータスの合計（武器は攻撃、防具は防御だけなので、そのまま） */
-const itemPower = (item) => (item ? ITEM_STATS.reduce((n, k) => n + (item[k] || 0), 0) : -Infinity);
+/**
+ * 品物の強さ：足すステータスの合計（武器は攻撃、防具は防御だけなので、そのまま）。
+ * 割合で効く月面だけの品は、地球の品より強いとみなす（月面のレベルでは固定の数値より割合のほうが効くため）
+ */
+const itemPower = (item) => (item ? ITEM_STATS.reduce((n, k) => n + (item[k] || 0), 0) + (item.effects ? 1e9 : 0) : -Infinity);
 
 /** 買う。同じ枠の今の装備より強ければ（足すステータスの合計が大きければ）自動で装備する */
 export function buyItem(state, itemId, ctx) {
   const it = itemById(ctx.items, itemId);
   if (!it) return { ok: false, reason: 'ない品物です' };
   if (state.owned.includes(it.id)) return { ok: false, reason: 'もう持っています' };
+  if (isMoonItem(it) && !onMoon(state)) return { ok: false, reason: '月面の補給所でだけ買える' };
   if (state.knowledge.totalCorrect < it.unlockCorrect) return { ok: false, reason: 'まだ入荷していません' };
   const price = itemPrice(state, it, ctx);
   if (state.gold < price) return { ok: false, reason: 'ゴールドが足りません' };

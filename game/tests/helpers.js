@@ -14,6 +14,7 @@ export const questions = read('questions.json').questions;
 export const business = read('business.json');
 export const fields = read('fields.json');
 export const stages = read('stages.json').stages;
+export const radio = read('town.json').moon.radio; // 月面の街の裏側の電波望遠鏡で開く図鑑の頁
 
 /** いつも同じ値を返す乱数 */
 export const constRng = (v) => () => v;
@@ -37,7 +38,7 @@ export function seededRng(seed) {
 }
 
 export function makeCtx(rng = constRng(0.5)) {
-  return { balance, monsters, items, recruits, questions, business, fields, stages, rng };
+  return { balance, monsters, items, recruits, questions, business, fields, stages, radio, rng };
 }
 
 export function newGame(startAge = 0) {

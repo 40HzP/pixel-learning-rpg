@@ -145,6 +145,7 @@ async function boot() {
   const [moonBg] = await Promise.all([
     load(town.moon.background),
     ...town.moon.facilities.map(async (f) => { moonSprites[f.id] = await load(f.sprite); }),
+    town.moon.board ? load(town.moon.board.sprite).then((sp) => { moonSprites.board = sp; }) : null, // 月面の街の掲示板（地球と同じ）
   ]);
   // テストのジャンルを選ぶボタンのアイコン（genre-groups.json に書いた名前だけ読む。無ければ仮の図形）
   const genreSprites = {};
@@ -176,7 +177,8 @@ async function boot() {
     if (sp) b.prepend(spriteCanvas(sp, 2, palette));
   }));
 
-  const ctx = { balance, monsters, items, questions, recruits, business, fields, stages, rng: Math.random };
+  // radio：月面の街の裏側の電波望遠鏡で開く図鑑の頁（town.json の moon.radio）
+  const ctx = { balance, monsters, items, questions, recruits, business, fields, stages, radio: town.moon.radio, rng: Math.random };
   const app = {
     ctx, palette, monsterSprites, recruitSprites,
     submit,           // 作問フォーム（data/submit.json）
@@ -402,6 +404,7 @@ async function boot() {
       else if (e.type === 'minions') notify(e.called.length ? `${e.name}が手下を呼んだ：${e.called.join('・')}` : `${e.name}の手下は来なかった（図鑑で正体を知っているので）`, e.called.length ? 'bad' : 'good');
       else if (e.type === 'minionsFled') notify(`手下の${e.names.join('・')}は逃げていった`);
       else if (e.type === 'smoothMarked') notify(e.marks >= e.max ? `${e.name}に山と影が描き足された！　もう攻撃は滑らない` : `${e.name}に山と影が描き足された！　攻撃が少し効くようになった`, 'good');
+      else if (e.type === 'radioPage') notify(`宇宙からの電波を受信した！（月面の街の裏側の電波望遠鏡）\n図鑑「${ctx.radio.title}」に「${e.name}」が載った（${e.opened}/${e.total}）`, 'good');
       else if (e.type === 'split') notify(`${e.name}が地球と月に分かれた！\n両方をほぼ同時に倒そう（片方だけだと元に戻る）`, 'bad');
       else if (e.type === 'partDown') notify(`${e.part === 'earth' ? '地球' : '月'}のほうを倒した！　急いでもう片方も`, 'good');
       else if (e.type === 'merged') notify(`${e.name}が元の1体に戻った…`, 'bad');
