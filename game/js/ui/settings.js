@@ -11,18 +11,28 @@ export const THEMES = [
   { id: 'dark', name: 'ダーク', desc: '暗い背景に明るい字。夜や暗い所で目にやさしい' },
 ];
 export const DEFAULT_THEME = 'light';
+/** 図鑑の並べ方（図鑑の上のボタン。ui/zukan.js の zukanGroups）。最後に選んだものを覚える */
+export const ZUKAN_SORTS = [
+  { id: 'kind', name: '種類順' },
+  { id: 'genre', name: 'ジャンル別' },
+  { id: 'area', name: '出現エリア別' },
+  { id: 'name', name: '名前順' },
+];
 
 /** 読んだ設定を整える（無い・知らない値は既定に） */
 export function normalizeSettings(raw) {
   const s = raw && typeof raw === 'object' ? raw : {};
-  return { theme: THEMES.some((t) => t.id === s.theme) ? s.theme : DEFAULT_THEME };
+  return {
+    theme: THEMES.some((t) => t.id === s.theme) ? s.theme : DEFAULT_THEME,
+    zukanSort: ZUKAN_SORTS.some((t) => t.id === s.zukanSort) ? s.zukanSort : ZUKAN_SORTS[0].id,
+  };
 }
 
 export function loadSettings() {
   try { return normalizeSettings(JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch { return normalizeSettings(null); }
 }
 
-function saveSettings(settings) {
+export function saveSettings(settings) {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* 覚えられない環境でも、今は変わる */ }
 }
 

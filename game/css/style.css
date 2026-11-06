@@ -609,6 +609,18 @@ button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 .zcard.unknown .zname { color: var(--muted); }
 .zcard .area { color: var(--accent); font-size: 12px; line-height: 1.5; margin-top: 2px; }
 .zcard.wide { grid-column: 1 / -1; }
+/* 並べ方のボタン（種類順・ジャンル別・出現エリア別・名前順） */
+.zukan-sort { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-bottom: 6px; }
+.zukan-sort > span { font-size: 12px; }
+.zukan-sort button { min-height: 38px; padding: 4px 7px; font-size: 13px; }
+.zukan-sort button.on { border-color: var(--accent); color: var(--accent); background: var(--panel); box-shadow: inset 0 0 0 1px var(--accent); }
+/* まとまりの見出し（ジャンル別はまとまりの色の印。テストのジャンル選びと同じ色） */
+.zgroup-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  font-size: 15px; font-weight: normal; margin: 14px 0 6px; padding-left: 6px; line-height: 1.3;
+  border-left: 6px solid var(--tint, var(--line));
+}
+.zgroup-head small { font-size: 12px; white-space: nowrap; }
 
 /* ---------- 設定 ---------- */
 .settings h2 { font-size: 20px; font-weight: normal; color: var(--accent); margin: 0 0 12px; }
