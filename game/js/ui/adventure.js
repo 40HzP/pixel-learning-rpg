@@ -6,7 +6,6 @@ import {
 import { dailyCardVisible, dailyInfo } from '../quiz.js';
 import { dailyTitle } from './daily.js';
 import { el, fmt } from './dom.js';
-import * as firstCheck from './firstcheck.js';
 
 let refs = null;
 
@@ -50,36 +49,28 @@ export function init(app) {
   refs.lifeBar = el('span', { class: 'lifebar', role: 'img', 'aria-label': '寿命' }, refs.lifeFill);
   refs.lifeKey = '';
   const r = refs;
-  // detail：常識チェックを出している間は隠す行（ステータスを短くして、問題と戦いの様子を見せる）
   hud.append(
     el('div', { class: 'row' }, r.date, el('span', { class: 'floor-wrap' }, r.floor, r.move)),
     el('div', { class: 'row life' }, el('span', { class: 'life-label' }, '寿命'), r.lifeBar),
     // 最高到達地点（40HzP の依頼）：この人生でいちばん深く進んだ階層。右に月面の階層と、前世のほうが深ければ「歴代最高 ◯階層（◯世代目）」（入りきらなければ次の行）
-    el('div', { class: 'row far detail' }, el('span', {}, '最高到達 ', r.far), r.farBest),
+    el('div', { class: 'row far' }, el('span', {}, '最高到達 ', r.far), r.farBest),
     el('div', { class: 'row' }, el('span', {}, r.name, '　Lv ', r.lv), r.allies),
     el('div', { class: 'gauges' },
       el('div', {}, el('div', { class: 'row' }, el('span', {}, 'HP'), r.hp), el('div', { class: 'hpbar' }, r.hpbar)),
       el('div', {}, el('div', { class: 'row' }, el('span', {}, 'MP'), r.mp), el('div', { class: 'hpbar mp' }, r.mpbar))),
-    el('div', { class: 'row detail' }, el('span', {}, '攻撃 ', r.atk, '　防御 ', r.def, '　賢さ ', r.wis)),
-    el('div', { class: 'row detail' }, el('span', {}, 'すばやさ ', r.agi, '　運の良さ ', r.luck)),
-    el('div', { class: 'row detail' }, el('span', {}, '経験値 ', r.exp), el('span', {}, '累計 ', r.total)),
-    el('div', { class: 'row detail' }, el('span', {}, '所持金 ', r.gold, 'G'), el('span', {}, '経験値 ×', r.xmul)),
-    el('div', { class: 'row detail' }, el('span', {}, '1か月あたり 経験値 ', r.rexp, '・', r.rgold, 'G')),
-    r.companyRow = el('div', { class: 'row detail', hidden: true }, r.company),
-    el('div', { class: 'row detail' }, el('span', {}, '契約料 ', r.fee, 'G'), el('span', {}, '手取り ', r.net, 'G')),
+    el('div', { class: 'row' }, el('span', {}, '攻撃 ', r.atk, '　防御 ', r.def, '　賢さ ', r.wis)),
+    el('div', { class: 'row' }, el('span', {}, 'すばやさ ', r.agi, '　運の良さ ', r.luck)),
+    el('div', { class: 'row' }, el('span', {}, '経験値 ', r.exp), el('span', {}, '累計 ', r.total)),
+    el('div', { class: 'row' }, el('span', {}, '所持金 ', r.gold, 'G'), el('span', {}, '経験値 ×', r.xmul)),
+    el('div', { class: 'row' }, el('span', {}, '1か月あたり 経験値 ', r.rexp, '・', r.rgold, 'G')),
+    r.companyRow = el('div', { class: 'row', hidden: true }, r.company),
+    el('div', { class: 'row' }, el('span', {}, '契約料 ', r.fee, 'G'), el('span', {}, '手取り ', r.net, 'G')),
     el('div', { class: 'row enemy' }, r.enemy),
     r.bossBar,
     r.challenge,
     r.daily,
   );
-  // 常識チェック（初めて遊ぶ人の最初の人生だけ。ui/firstcheck.js）
-  firstCheck.init(app, hud);
 }
-
-export function reset() { firstCheck.reset(); }
-
-/** 毎フレーム（ゲームの時間が進んでいる間）：常識チェックの制限時間 */
-export function frame(app, realDt) { firstCheck.frame(app, realDt); }
 
 export function setScale(app, scale) {
   if (refs) refs.hud.classList.toggle('big', scale >= 4);
@@ -162,14 +153,7 @@ export function update(app) {
     r.boss.hidden = true;
   }
 
-  // 常識チェック：出している間はステータスを短くし、今日の1問の札は後にする
-  firstCheck.update(app);
-  const checking = firstCheck.showing();
-  if (r.hud.classList.contains('checking') !== checking) {
-    r.hud.classList.toggle('checking', checking);
-    app.placeNotices(); // ステータスの高さが変わったので、その下に出す知らせも動かす
-  }
-  const showDaily = !checking && dailyCardVisible(s, ctx);
+  const showDaily = dailyCardVisible(s, ctx);
   r.daily.hidden = !showDaily;
   const info = showDaily && dailyInfo(s, ctx);
   const dk = info ? info.day + info.question.id : '';

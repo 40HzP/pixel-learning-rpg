@@ -61,8 +61,8 @@ export function createState(balance) {
     midbosses: {},                                  // 中ボスid → { status: waiting|appeared|broken|defeated, announced }
     bosses: {},                                     // ボスid → { status: waiting|appeared|defeated }（一度倒したボスは、その人生ではもう出ない。生まれ変わるとまた出る）
     scaffold: {},                                   // 足場（構造工学）：ボスid → 前の挑戦で与えたダメージ（次の挑戦に持ち越す。その人生だけ）
-    // 最初の3分（初めて遊ぶ人だけ。quiz.js の beginFirstRun で作る。前のセーブは null のまま＝常識チェックも覚えたザコも無い）：
-    // check：常識チェックの問題id（5問）と答え（{ id, monsterId, kind: correct|myth|wrong|timeout }）・
+    // 最初の3分（初めて遊ぶ人だけ。quiz.js の beginFirstRun で作る。前のセーブは null のまま＝前世の記憶をたどる問題も覚えたザコも無い）：
+    // check：前世の記憶をたどる問題id（5問）と答え（{ id, monsterId, kind: correct|myth|wrong|timeout }）・
     // introduced：最初の人生の1〜10階層で、もう優先して出した覚えたザコ・zukanShown：初めてザコを倒したときの図鑑の札を出したか
     firstRun: null,
     legacy: {                                     // 転生しても残るもの
@@ -751,7 +751,7 @@ export function spawnGroup(state, ctx, events, monsterIds = null) {
   const b = ctx.balance;
   let list;
   let minions = [];
-  const misbelief = []; // 常識チェックで覚えたザコのうち、この群れで初めて出したもの
+  const misbelief = []; // 前世の記憶をたどるで覚えたザコ（前世で魔物に吹き込まれた噂）のうち、この群れで初めて出したもの
   if (monsterIds) list =monsterIds.map((id) => ctx.monsters.find((m) => m.id === id)).filter(Boolean);
   else {
     const mb = pendingBoss(state, ctx);
@@ -762,7 +762,7 @@ export function spawnGroup(state, ctx, events, monsterIds = null) {
       if ((mb.minions || []).length) events.push({ type: 'minions', monsterId: mb.id, name: mb.name, called: minions.map((m) => m.name), known: mb.minions.length - minions.length });
     } else {
       const n = Math.max(1, b.floor.monstersPerFloor - adv.kills);
-      if (state.firstRun) list = pickZakoGroup(state, ctx, n, misbelief); // 最初の人生は、常識チェックで覚えたザコを先に
+      if (state.firstRun) list = pickZakoGroup(state, ctx, n, misbelief); // 最初の人生は、前世の記憶をたどるで覚えたザコを先に
       else {
         const pool = zakoPool(state, ctx);
         list = [];
@@ -792,7 +792,7 @@ export function spawnGroup(state, ctx, events, monsterIds = null) {
     }
     events.push({ type: 'spawn', monsterId: e.monsterId, name: e.name, kind: e.kind, uid: e.uid, slot: e.slot, floor: adv.floor, first });
   }
-  // 常識チェックで間違えた問題のザコが出てきた（誤解を選んでいたら「あなたが信じていた誤解」と添える）
+  // 前世の記憶をたどるで間違えた問題のザコが出てきた（「前世で魔物に吹き込まれた噂」と添える。main.js）
   for (const r of misbelief) {
     const e = adv.enemies.find((x) => x.monsterId === r.monster.id);
     events.push({ type: 'misbelief', monsterId: r.monster.id, name: r.monster.name, myth: r.monster.myth, believed: r.believed, uid: e ? e.uid : null });
@@ -1872,14 +1872,14 @@ export function equipItem(state, itemId, ctx) {
 }
 
 /* ================= 最初の3分（設計ページ「最初の3分：あなたの誤解が魔物になる」） ================= */
-// 常識チェックの出題と答えは quiz.js（beginFirstRun・answerFirstCheck）。ここは冒険のほう
+// 前世の記憶をたどる（前の名前は常識チェック）の出題と答えは quiz.js（beginFirstRun・answerFirstCheck）。ここは冒険のほう
 
 /** 覚えたザコを優先して出すのは、最初の人生の地球のこの階層まで */
 export const FIRST_LIFE_FLOORS = 10;
 
 /**
- * 常識チェックで覚えたザコ：正解しなかった問題のザコ（答えた順。{ monster, believed }）。
- * believed は誤答1（誤解）を選んだとき（「あなたが信じていた誤解」と添える）。誤答2・3と時間切れは false
+ * 前世の記憶をたどるで覚えたザコ（前世で魔物に吹き込まれた噂）：正解しなかった問題のザコ（答えた順。{ monster, believed }）。
+ * believed は誤答1（その魔物の噂そのもの）を選んだとき。誤答2・3と時間切れは false（どれも噂として出る）
  */
 export function rememberedZako(state, ctx) {
   const check = state.firstRun && state.firstRun.check;
@@ -1900,7 +1900,7 @@ function rememberedHere(state, ctx) {
 }
 
 /**
- * ザコの群れを選ぶ。最初の人生の1〜10階層では、常識チェックで覚えたザコのうちまだ出していないものを先頭に並べ、
+ * ザコの群れを選ぶ。最初の人生の1〜10階層では、前世の記憶をたどるで覚えたザコのうちまだ出していないものを先頭に並べ、
  * 残りは今いる世界のザコ（と覚えたザコ）から選ぶ。出したザコは introduced に入れ、misbelief に積む
  */
 function pickZakoGroup(state, ctx, n, misbelief) {
@@ -1919,7 +1919,7 @@ function pickZakoGroup(state, ctx, n, misbelief) {
 }
 
 /**
- * 常識チェックで間違えた問題のザコを、答えてすぐ今の群れに出す（誤解がその場で魔物になって現れる）。
+ * 前世の記憶をたどるで間違えた問題のザコを、答えてすぐ今の群れに出す（ザコの群れと戦っている最中に答えたとき。デバッグの「前世の記憶をたどり直す」など）。
  * 最初の人生の1〜10階層で、ザコの群れと戦っているときだけ。そのザコがもう群れにいればそれに印を付け、
  * いなければ群れのいちばん後ろのザコ（先頭以外）と入れ替える（強さは同じ階層の強さで、HPは満タン）。
  * 入れ替えられる相手がいなければ（先頭の1体だけ）、次の群れの先頭で出る（pickZakoGroup）。出したザコを misbelief の知らせに積む

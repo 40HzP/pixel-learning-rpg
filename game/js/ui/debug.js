@@ -140,7 +140,7 @@ export function init(app) {
     el('div', { class: 'section' }, el('h2', {}, '最初の3分'),
       el('div', {},
         el('button', { onclick: () => app.playPrologue() }, '前世の最期を流す'),
-        el('button', { onclick: () => app.restartFirstCheck() }, '常識チェックをやり直す'),
+        el('button', { onclick: () => app.restartFirstCheck() }, '前世の記憶をたどり直す'),
         el('button', { onclick: () => app.launchCompareNow() }, '起動から3分の比較を今出す'))),
     el('div', { class: 'section' }, el('h2', {}, 'セーブ'),
       el('div', {},

@@ -1,4 +1,4 @@
-// 最初の3分（設計ページ「最初の3分：あなたの誤解が魔物になる」）：常識チェック・覚えたザコ・図鑑の1体目・起動から3分の比較・寿命の帯
+// 最初の3分（設計ページ「最初の3分」）：前世の記憶をたどる（前の名前は常識チェック）・前世で魔物に吹き込まれた噂のザコ・図鑑の1体目・起動から3分の比較・寿命の帯
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -9,11 +9,12 @@ import {
 } from '../js/quiz.js';
 import { serialize, deserialize } from '../js/save.js';
 import { balance, monsters, questions, firstCheck, makeCtx, newGame, seededRng, constRng } from './helpers.js';
+import { createState, startGame } from '../js/sim.js';
 
 const byName = (name) => monsters.find((m) => m.name === name);
 const grassland = monsters.filter((m) => m.kind === 'monster' && (m.areas || []).includes('はじまりの草原'));
 
-/** 常識チェックを始めた新しいゲーム（問題の並びは ids で決める） */
+/** 前世の記憶をたどる5問を決めた新しいゲーム（問題の並びは ids で決める） */
 function firstRunGame(ids = null, rng = seededRng(3)) {
   const ctx = makeCtx(rng);
   const s = newGame(0);
@@ -31,7 +32,7 @@ function reply(s, ctx, kind) {
 
 const idOf = (monsterName) => firstCheck.find((c) => c.monster === monsterName).id;
 
-test('データ：常識チェックの候補は10〜15問。どれも今の問題にあり、☆で、地球のザコ（⚠でない）とつながっている', () => {
+test('データ：前世の記憶をたどる問題の候補は10〜15問。どれも今の問題にあり、☆で、地球のザコ（⚠でない）とつながっている', () => {
   assert.ok(firstCheck.length >= 10 && firstCheck.length <= 15, `候補は${firstCheck.length}問`);
   assert.equal(new Set(firstCheck.map((c) => c.id)).size, firstCheck.length, '同じ問題は1回だけ');
   for (const c of firstCheck) {
@@ -47,7 +48,7 @@ test('データ：常識チェックの候補は10〜15問。どれも今の問�
   assert.ok(new Set(firstCheck.map((c) => c.genre)).size >= FIRST_CHECK_SIZE, 'ジャンルを散らせるだけの数がある');
 });
 
-test('常識チェックの5問：ジャンルを散らして選び、毎回同じにはならない', () => {
+test('前世の記憶をたどる5問：ジャンルを散らして選び、毎回同じにはならない', () => {
   const sets = new Set();
   for (let seed = 1; seed <= 20; seed++) {
     const ids = pickFirstCheck(makeCtx(seededRng(seed)));
@@ -64,7 +65,7 @@ test('常識チェックの5問：ジャンルを散らして選び、毎回同�
   assert.equal(pickFirstCheck(few).length, FIRST_CHECK_SIZE);
 });
 
-test('常識チェックの答えはふつうの勉強と同じに数え、どう答えたか（正解・誤解・誤答2と3・時間切れ）を覚える', () => {
+test('前世の記憶をたどる問題の答えはふつうの勉強と同じに数え、どう答えたか（正解・誤解・誤答2と3・時間切れ）を覚える', () => {
   const ids = ['ジュッパーノウ', 'イチヤヅケ', 'ニドオチズ', 'カゼコウセイ', 'ラクダミズブクロ'].map(idOf);
   const { s, ctx } = firstRunGame(ids);
   assert.deepEqual(firstCheckProgress(s), { index: 0, total: 5, done: false });
@@ -91,7 +92,7 @@ test('常識チェックの答えはふつうの勉強と同じに数え、ど�
     [['ジュッパーノウ', true], ['イチヤヅケ', false], ['ニドオチズ', false]]);
 });
 
-test('覚えたザコは、最初の人生の1〜10階層で群れの先頭に1回ずつ優先して出る。誤解を選んだザコには「あなたが信じていた誤解」の印', () => {
+test('間違えた問題のザコ（前世で魔物に吹き込まれた噂）は、最初の人生の1〜10階層で群れの先頭に1回ずつ優先して出る', () => {
   const ids = ['ジュッパーノウ', 'ニドオチズ', 'キンジツナツ', 'カゼコウセイ', 'ラクダミズブクロ'].map(idOf);
   const { s, ctx } = firstRunGame(ids);
   reply(s, ctx, 'myth');    // ジュッパーノウ（草原）
@@ -185,6 +186,24 @@ test('まだ出していない覚えたザコは、10階層までのどこで答
   }
 });
 
+test('前世の最期のすぐあと（最初の案内の前）に答えた5問：間違えた問題のザコは、冒険を始めた最初の群れの先頭に出る', () => {
+  const ctx = makeCtx(seededRng(9));
+  const s = createState(balance);
+  beginFirstRun(s, ctx); // 前世の最期が終わったところ（まだ年齢を選んでいない）
+  s.firstRun.check.questions = ['ジュッパーノウ', 'キンジツナツ', 'ニドオチズ', 'カゼコウセイ', 'ラクダミズブクロ'].map(idOf);
+  const r = reply(s, ctx, 'myth');
+  assert.ok(!r.events.some((e) => e.type === 'misbelief'), 'まだ冒険が始まっていないので、その場には出ない');
+  reply(s, ctx, 'wrong');
+  reply(s, ctx, 'timeout');
+  reply(s, ctx, 'answer');
+  reply(s, ctx, 'answer');
+  assert.equal(s.knowledge.totalCorrect, 2, '答えは数える（生まれ変わった最初の人生に持ち越す）');
+  startGame(s, 0, '主人公', 80, 'male'); // 最初の案内で年齢を選んだ
+  const ev = tick(s, 0.05, ctx);
+  assert.deepEqual(s.adventure.enemies.slice(0, 3).map((e) => e.name), ['ジュッパーノウ', 'キンジツナツ', 'ニドオチズ']);
+  assert.deepEqual(ev.filter((e) => e.type === 'misbelief').map((e) => e.name), ['ジュッパーノウ', 'キンジツナツ', 'ニドオチズ'], '3つとも「前世で魔物に吹き込まれた噂」として出る');
+});
+
 test('全問正解なら、覚えたザコは無く、いつもの草原のザコが出る', () => {
   const { s, ctx } = firstRunGame();
   for (let i = 0; i < FIRST_CHECK_SIZE; i++) reply(s, ctx, 'answer');
@@ -218,7 +237,7 @@ test('図鑑の1体目：初めてザコを倒した瞬間に一度だけ「1／
   assert.ok(!more.some((e) => e.type === 'firstZukan'), '2体目からは出さない');
 });
 
-test('前のセーブ（firstRun が無い）は、常識チェックも覚えたザコも図鑑の札も無いものとして読む', () => {
+test('前のセーブ（firstRun が無い）は、前世の記憶をたどる問題も覚えたザコも図鑑の札も無いものとして読む', () => {
   const ctx = makeCtx(seededRng(5));
   const old = newGame(7);
   delete old.firstRun;

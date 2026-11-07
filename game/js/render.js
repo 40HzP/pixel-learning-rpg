@@ -157,7 +157,7 @@ export function createRenderer(canvas, app) {
       } else if (e.type === 'spawn') {
         anim.spawnAt = now;
       } else if (e.type === 'misbelief' && e.swapped) {
-        // 常識チェックで間違えた問題のザコが、群れの中にその場で現れた
+        // 前世の記憶をたどるで間違えた問題のザコが、群れの中にその場で現れた
         const p = enemyBox(e.monsterId, e.slot);
         fx.push({ type: 'burst', cx: p.cx, cy: p.cy, t0: now, big: true });
       } else if (e.type === 'defeat' || e.type === 'partDown') {

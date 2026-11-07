@@ -204,36 +204,6 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
   background-image: repeating-linear-gradient(to right, transparent 0, transparent calc(100% / var(--years, 80) - 1px),
     rgba(26, 22, 38, .35) calc(100% / var(--years, 80) - 1px), rgba(26, 22, 38, .35) calc(100% / var(--years, 80)));
 }
-/* 常識チェック（ui/firstcheck.js）：出している間はステータスを短くする（detail の行を隠す）。用紙は今日の1問の札と同じ白い紙 */
-#hud.checking .detail { display: none !important; }
-#hud .first-check {
-  margin-top: 6px; padding: 5px 8px 7px; background: #fbfaf4; color: #1a1626; border: 2px solid #a9a7b8;
-  text-shadow: none; pointer-events: auto; white-space: normal; line-height: 1.4; box-shadow: 2px 2px 0 rgba(26, 22, 38, .6);
-}
-#hud .fc-head { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; }
-#hud .fc-head b { color: #c4313b; }
-#hud .fc-head span { color: #6e6b80; }
-#hud .fc-time { height: 4px; background: #e2dfd3; margin: 3px 0 4px; }
-#hud .fc-time i { display: block; height: 100%; background: #357a3a; }
-#hud .fc-time.low i { background: #c4313b; }
-#hud .fc-time.stop i { background: #a9a7b8; }
-#hud .fc-q { margin: 0 0 5px; font-size: 13px; }
-#hud .fc-choices { display: flex; flex-direction: column; gap: 4px; }
-#hud .fc-choice {
-  display: block; width: 100%; min-height: 30px; padding: 3px 8px; text-align: left; font-size: 12px; line-height: 1.3;
-  background: #fff; color: #1a1626; border: 1px solid #a9a7b8; text-shadow: none; box-shadow: none;
-}
-#hud .fc-choice:disabled { opacity: 1; }
-#hud .fc-choice.right { background: #d8efc8; border-color: #357a3a; }
-#hud .fc-choice.wrong { background: #f6d2d6; border-color: #c4313b; }
-#hud .fc-result { margin: 5px 0 0; font-size: 12px; font-weight: bold; }
-#hud .fc-result.good { color: #357a3a; }
-#hud .fc-result.bad { color: #c4313b; }
-#hud .fc-msg { margin: 4px 0; font-size: 13px; }
-#hud .fc-note { display: block; color: #6e6b80; font-size: 11px; }
-#hud.big .fc-head, #hud.big .fc-result, #hud.big .fc-choice { font-size: 14px; }
-#hud.big .fc-q, #hud.big .fc-msg { font-size: 15px; }
-#hud.big .fc-note { font-size: 12px; }
 
 /* ---------- 通知 ---------- */
 #notices {
@@ -253,11 +223,12 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .notice.card { pointer-events: auto; cursor: pointer; display: flex; flex-direction: column; gap: 2px; white-space: normal; }
 .notice .nt-title { display: block; }
 .notice small { display: block; font-size: 12px; color: var(--muted); }
-/* あなたが信じていた誤解（常識チェックで誤答1を選んだ問題のザコが出てきた）：白い紙に赤い見出し */
+/* 前世で魔物に吹き込まれた噂（前世の記憶をたどるで間違えた問題のザコが出てきた）：白い紙に赤い見出し */
 .notice.myth { background: #fbfaf4; color: #1a1626; border-color: #c4313b; box-shadow: 2px 2px 0 rgba(26, 22, 38, .6); }
 .notice.myth .nt-title { color: #c4313b; font-size: 13px; }
-.notice.myth .nt-myth { font-size: 15px; }
-.notice.myth .nt-myth small { display: inline; margin-left: 6px; color: #6e6b80; }
+.notice.myth .nt-myth { font-size: 14px; line-height: 1.4; }
+.notice.myth .nt-myth small { display: inline; margin-left: 4px; font-size: 11px; color: #6e6b80; }
+.notice.myth .nt-myth.gone { text-decoration: line-through; color: #a9a7b8; }
 .notice.truth { border-color: var(--good); }
 .notice.truth .nt-title { color: var(--good); }
 /* 図鑑の1体目（初めてザコを倒した） */
@@ -328,6 +299,36 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .prologue-log .when { grid-row: auto; }
 .prologue-log li.end .how { color: var(--muted); }
 .prologue-white { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+
+/* 前世の記憶をたどる（ui/recall.js）：前世の最期のすぐあと。暗い画面に、今日の1問の札と同じ白い紙で1問ずつ */
+.overlay.recall { gap: 12px; cursor: default; overflow-y: auto; justify-content: center; }
+.recall-title { margin: 0; color: #e8e6f0; font-size: 18px; letter-spacing: .15em; font-weight: normal; }
+.recall-card {
+  width: 100%; max-width: 420px; padding: 8px 12px 12px; background: #fbfaf4; color: #1a1626;
+  border: 2px solid #a9a7b8; box-shadow: 3px 3px 0 rgba(169, 167, 184, .35); line-height: 1.45;
+}
+.recall .fc-head { display: flex; justify-content: space-between; gap: 6px; font-size: 14px; }
+.recall .fc-head b { color: #c4313b; }
+.recall .fc-head span { color: #6e6b80; }
+.recall .fc-time { height: 5px; background: #e2dfd3; margin: 4px 0 8px; }
+.recall .fc-time i { display: block; height: 100%; background: #357a3a; }
+.recall .fc-time.low i { background: #c4313b; }
+.recall .fc-time.stop i { background: #a9a7b8; }
+.recall .fc-q { margin: 0 0 8px; font-size: 16px; }
+.recall .fc-choices { display: flex; flex-direction: column; gap: 6px; }
+.recall .fc-choice {
+  display: block; width: 100%; min-height: 40px; padding: 6px 10px; text-align: left; font-size: 15px; line-height: 1.35;
+  background: #fff; color: #1a1626; border: 1px solid #a9a7b8; box-shadow: none;
+}
+.recall .fc-choice:disabled { opacity: 1; }
+.recall .fc-choice.right { background: #d8efc8; border-color: #357a3a; }
+.recall .fc-choice.wrong { background: #f6d2d6; border-color: #c4313b; }
+.recall .fc-result { margin: 8px 0 0; font-size: 14px; font-weight: bold; }
+.recall .fc-result.good { color: #357a3a; }
+.recall .fc-result.bad { color: #c4313b; }
+.recall .fc-msg { margin: 8px 0; font-size: 16px; }
+.recall .fc-note { display: block; color: #6e6b80; font-size: 12px; }
+.recall .recall-go { display: block; width: 100%; margin-top: 12px; min-height: 44px; }
 
 /* ---------- 孫の「なんで？」 ---------- */
 .overlay.nande { z-index: 40; opacity: 0; transition: opacity .3s; }

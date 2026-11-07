@@ -568,7 +568,7 @@ export function fooledAnalysis(state, ctx) {
   };
 }
 
-/* ================= 最初の3分：常識チェック（設計ページ「最初の3分：あなたの誤解が魔物になる」） ================= */
+/* ================= 最初の3分：前世の記憶をたどる（設計ページ「最初の3分」。前の名前は常識チェック） ================= */
 // 初めて遊ぶ人の最初の人生だけ、起動するとすぐ冒険画面の横で5問出す（ゲームは止めない。ui/firstcheck.js）。
 // 誤答1（誤解）を選んだ問題のザコは「あなたが信じていた誤解」として、誤答2・3と時間切れの問題のザコはそのまま、
 // 最初の人生の1〜10階層で優先して出る（sim.js の rememberedZako・pickZakoGroup）。全問正解ならいつもの草原のザコ
@@ -576,7 +576,7 @@ export function fooledAnalysis(state, ctx) {
 export const FIRST_CHECK_SIZE = 5;
 
 /**
- * 常識チェックに出せる問題：候補（data/first-check.json の questions。問題リストの「☆」・ザコとつながっている・裏取りが「出典確認済」）のうち、
+ * 前世の記憶をたどるに出せる問題：候補（data/first-check.json の questions。問題リストの「☆」・ザコとつながっている・裏取りが「出典確認済」）のうち、
  * 今の questions.json にあって、☆で、関連する魔物が地球のザコ（⚠の議論中でない）のもの
  */
 export function firstCheckCandidates(ctx) {
@@ -588,7 +588,7 @@ export function firstCheckCandidates(ctx) {
   });
 }
 
-/** 常識チェックの5問を選ぶ：候補を混ぜて、まだ選んでいないジャンルの問題から取り（ジャンルを散らす）、足りなければ残りから */
+/** 前世の記憶をたどる5問を選ぶ：候補を混ぜて、まだ選んでいないジャンルの問題から取り（ジャンルを散らす）、足りなければ残りから */
 export function pickFirstCheck(ctx, size = FIRST_CHECK_SIZE) {
   const pool = firstCheckCandidates(ctx);
   for (let i = pool.length - 1; i > 0; i--) {
@@ -602,13 +602,13 @@ export function pickFirstCheck(ctx, size = FIRST_CHECK_SIZE) {
   return picked.map((q) => q.id);
 }
 
-/** 初めて遊ぶ人が最初の人生を始めた（main.js。生まれ変わったあとと前のセーブでは呼ばない）：常識チェックの問題を決める */
+/** 初めて遊ぶ人が最初の人生を始めた（main.js。生まれ変わったあとと前のセーブでは呼ばない）：前世の記憶をたどる問題を決める */
 export function beginFirstRun(state, ctx) {
   state.firstRun = { check: { questions: pickFirstCheck(ctx), answers: [] }, introduced: [], zukanShown: false };
   return state.firstRun;
 }
 
-/** 常識チェックの進み具合：{ index（次は何問目。0から）, total, done } */
+/** 前世の記憶をたどるの進み具合：{ index（次は何問目。0から）, total, done } */
 export function firstCheckProgress(state) {
   const c = state.firstRun && state.firstRun.check;
   const total = c ? c.questions.length : 0;
@@ -617,7 +617,7 @@ export function firstCheckProgress(state) {
 }
 
 /**
- * 常識チェックの次の問題を出す（1問ずつのセッション。answerFirstCheck で答える）。もう無ければ null。
+ * 前世の記憶をたどるの次の問題を出す（1問ずつのセッション。answerFirstCheck で答える）。もう無ければ null。
  * 選択肢には誤答1（誤解）を必ず入れる（ふつうの出題と同じく4択）
  */
 export function nextFirstCheck(state, ctx) {
@@ -635,7 +635,7 @@ export function nextFirstCheck(state, ctx) {
 }
 
 /**
- * 常識チェックに答える（choiceIndex が null なら時間切れ）。数え方はふつうの勉強と同じ（answer）。
+ * 前世の記憶をたどるの問題に答える（choiceIndex が null なら時間切れ）。数え方はふつうの勉強と同じ（answer）。
  * どう答えたか（correct・myth＝誤答1・wrong＝誤答2と3・timeout）とザコを firstRun に残す。返り値は answer と同じで、check に { kind, monsterId }
  */
 export function answerFirstCheck(state, session, choiceIndex, ctx) {

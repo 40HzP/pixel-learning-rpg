@@ -5,7 +5,7 @@ import {
   launchRocket, returnToEarth, ADVISOR_PLACES, heroSnapshot, compareSnapshots,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
-import { forgetMissingQuestions, ensureAuthorCode, takeNewAdoptions, refreshDaily, dayKey, beginFirstRun } from './quiz.js';
+import { forgetMissingQuestions, ensureAuthorCode, takeNewAdoptions, refreshDaily, dayKey, beginFirstRun, firstCheckProgress } from './quiz.js';
 import { MAJOR_SLOTS } from './fields.js';
 import { loadPalette, loadSprite, spriteCanvas, buildSprite } from './sprites.js';
 import { outfitOf, outfitKey, dressFrames } from './outfit.js';
@@ -26,7 +26,7 @@ import { playLaunch } from './ui/launch.js';
 import { profChangeText } from './ui/proflog.js';
 import { openFloors } from './ui/floors.js';
 import { playPrologue } from './ui/prologue.js';
-import { showing as checkShowing } from './ui/firstcheck.js';
+import { recallPastLife } from './ui/recall.js';
 
 const PIXEL = '../pixel/';
 const SPRITES = PIXEL + 'sprites/';
@@ -84,7 +84,7 @@ async function boot() {
       fetchJSON('data/stages.json'), fetchJSON('data/business.json'),
       fetchJSON('data/fields.json'), fetchJSON('data/submit.json'),
       fetchJSON('data/genre-groups.json'),
-      fetchJSON('data/first-check.json'), // 常識チェック（最初の3分）の候補
+      fetchJSON('data/first-check.json'), // 前世の記憶をたどる（最初の3分）の問題の候補
     ]);
   } catch (e) {
     document.querySelector('#loading .dialog').textContent = 'ゲームのデータを読めませんでした。\n' + e.message;
@@ -191,7 +191,7 @@ async function boot() {
     if (sp) b.prepend(spriteCanvas(sp, 2, palette));
   }));
 
-  // radio：月面の街の裏側の電波望遠鏡で開く図鑑の頁（town.json の moon.radio）。firstCheck：常識チェックの候補（data/first-check.json）
+  // radio：月面の街の裏側の電波望遠鏡で開く図鑑の頁（town.json の moon.radio）。firstCheck：前世の記憶をたどる問題の候補（data/first-check.json）
   const ctx = { balance, monsters, items, questions, recruits, business, fields, stages, radio: town.moon.radio, firstCheck, rng: Math.random };
   const app = {
     ctx, palette, monsterSprites, recruitSprites,
@@ -229,12 +229,12 @@ async function boot() {
       refreshActive(true);
       return r;
     },
-    // デバッグ：最初の3分（前世の最期・常識チェック・起動から3分の比較）を試す
+    // デバッグ：最初の3分（前世の最期・前世の記憶をたどる・起動から3分の比較）を試す
     playPrologue: () => runOverlay(() => playPrologue(app)),
     restartFirstCheck() {
-      beginFirstRun(app.state, ctx); // 新しい5問。覚えたザコと図鑑の1体目の札も最初から
-      adventure.reset();
+      beginFirstRun(app.state, ctx); // 新しい5問。覚えたザコと図鑑の1体目の札も最初から（ザコの群れと戦っていれば、間違えたザコがすぐ現れる）
       showTab('adventure');
+      runOverlay(() => recallPastLife(app));
     },
     launchCompareNow() {
       countLaunch(0);
@@ -309,6 +309,7 @@ async function boot() {
     while (cards.length >= 2) cards.shift().remove(); // 札は2枚まで（古いほうから閉じる）
     box.append(n);
     setTimeout(close, ms);
+    return n;
   }
   /** やられたとき：1つ手前の階層の最初からやり直す（全回復。熟練の判定はしない） */
   function notifyDefeat(e) {
@@ -423,33 +424,74 @@ async function boot() {
     return r;
   }
 
-  /* ---------- 最初の3分：常識チェックで覚えたザコ・図鑑の1体目 ---------- */
-  const rememberedUids = new Map(); // 常識チェックで覚えたザコの敵 uid → 魔物（倒したら正体を知らせる）
-  /** 常識チェックで誤解を選んだ問題のザコが出てきた：「あなたが信じていた誤解」の札（同じ群れの分はまとめて1枚） */
+  /* ---------- 最初の3分：前世で魔物に吹き込まれた噂（前世の記憶をたどるで間違えた問題のザコ）・図鑑の1体目 ---------- */
+  // 噂のザコが出たら、群れの噂を1枚の札に並べる。倒すたびにその行に線を引き、「正体」の札を出す。
+  // 正体と図鑑の1体目の札は、続けて倒しても読めるように1枚ずつ順に出す（cardQueue）
+  const TRUTH_MS = 4500;
+  const rumors = new Map(); // 噂のザコの敵 uid → 魔物
+  let rumorCard = null;
   function notifyMisbeliefs(list) {
-    for (const e of list) rememberedUids.set(e.uid, monsters.find((m) => m.id === e.monsterId));
-    const believed = list.filter((e) => e.believed);
-    if (!believed.length) return;
-    notifyCard([
-      el('b', { class: 'nt-title' }, 'あなたが信じていた誤解'),
-      ...believed.map((e) => el('span', { class: 'nt-myth' }, `「${e.myth}」`, el('small', {}, `――${e.name}`))),
-    ], 'myth', 9000);
+    for (const e of list) rumors.set(e.uid, monsters.find((m) => m.id === e.monsterId));
+    if (rumorCard) rumorCard.remove();
+    rumorCard = notifyCard([
+      el('b', { class: 'nt-title' }, '前世で魔物に吹き込まれた噂'),
+      ...list.map((e) => el('span', { class: 'nt-myth', 'data-uid': String(e.uid) }, `「${e.myth}」`, el('small', {}, e.name))),
+    ], 'myth', 20000);
   }
-  /** 覚えたザコを倒した：正しい知識（正体）を知らせる */
-  function notifyTruth(m) {
-    notifyCard([el('b', { class: 'nt-title' }, `${m.name}を倒した！`), el('span', {}, `正体：${m.truth}`)], 'truth', 6000);
+  /**
+   * 噂のザコを倒した：噂の行に線を引き（全部倒したら札を閉じる）、正しい知識（正体）の札を順に出す。
+   * 初めて倒したザコなら、図鑑の1体目の札と1枚にまとめる（firstZukan。まとめたら true）
+   */
+  function rumorDefeated(uid, firstZukan) {
+    const m = rumors.get(uid);
+    if (!m) return false;
+    rumors.delete(uid);
+    const card = rumorCard;
+    if (card) {
+      const line = card.querySelector(`[data-uid="${uid}"]`);
+      if (line) line.classList.add('gone');
+      if (![...card.querySelectorAll('.nt-myth')].some((x) => !x.classList.contains('gone'))) setTimeout(() => card.remove(), 1500);
+    }
+    if (firstZukan && firstZukan.monsterId === m.id) {
+      queueCard(() => zukanCard(m, firstZukan, `${m.name}を倒した！`, `正体：${m.truth}`));
+      return true;
+    }
+    queueCard(() => ({ node: [el('b', { class: 'nt-title' }, `${m.name}を倒した！`), el('span', {}, `正体：${m.truth}`)], kind: 'truth', ms: TRUTH_MS }));
+    return false;
+  }
+  const cardQueue = [];
+  let queueSeq = 0, queueBusy = 0;
+  /** 札を順番待ちに入れる（前の札が閉じてから出す。タップで次へ） */
+  function queueCard(make) {
+    cardQueue.push(make);
+    if (!queueBusy) nextQueued();
+  }
+  function nextQueued() {
+    const make = cardQueue.shift();
+    if (!make) { queueBusy = 0; return; }
+    const token = queueBusy = ++queueSeq;
+    const { node, kind, ms, onTap } = make();
+    const advance = () => { if (queueBusy === token) nextQueued(); };
+    notifyCard(node, kind, ms, () => { if (onTap) onTap(); advance(); });
+    setTimeout(advance, ms);
   }
   /** 初めてザコを倒した：図鑑の札が開いて「1／171」（一度だけ）。タップで図鑑へ */
   function notifyFirstZukan(e) {
     const m = monsters.find((x) => x.id === e.monsterId);
-    if (!m) return;
+    if (m) queueCard(() => zukanCard(m, e, `${m.name}の正体が載った`, null));
+  }
+  function zukanCard(m, e, line, sub) {
     const sp = (monsterSprites[m.id] || {}).idle;
-    notifyCard(el('div', { class: 'zukan-first' },
-      sp ? spriteCanvas(sp, 3, palette) : null,
-      el('div', {},
-        el('b', { class: 'nt-title' }, `図鑑　${e.opened}／${e.total}`),
-        el('span', { class: 'nt-name' }, `${m.name}の正体が載った`),
-        el('small', { class: 'nt-tap' }, 'タップで図鑑へ'))), 'zukan-card', 9000, () => showTab('zukan'));
+    return {
+      node: el('div', { class: 'zukan-first' },
+        sp ? spriteCanvas(sp, 3, palette) : null,
+        el('div', {},
+          el('b', { class: 'nt-title' }, `図鑑　${e.opened}／${e.total}`),
+          el('span', { class: 'nt-name' }, line),
+          sub ? el('small', {}, sub) : null,
+          el('small', { class: 'nt-tap' }, 'タップで図鑑へ'))),
+      kind: 'zukan-card', ms: 6500, onTap: () => showTab('zukan'),
+    };
   }
 
   function handleEvents(events) {
@@ -457,19 +499,20 @@ async function boot() {
     const met = [];
     const found = []; // 新しく解放した学際分野（まとめて知らせる）
     const misbelief = [];
+    // 初めて倒したザコが噂のザコなら、正体の札と図鑑の1体目の札を1枚にする
+    let firstZukan = events.find((e) => e.type === 'firstZukan') || null;
     for (const e of events) {
       if (e.type === 'defeat') {
         trackGain(app.rate, e.exp, e.gold);
         if (e.kind === 'midboss') startMovie(monsters.find((m) => m.id === e.monsterId));
-        if (rememberedUids.has(e.uid)) { notifyTruth(rememberedUids.get(e.uid)); rememberedUids.delete(e.uid); }
+        if (rumorDefeated(e.uid, firstZukan)) firstZukan = null;
       }
       else if (e.type === 'misbelief') misbelief.push(e);
-      else if (e.type === 'firstZukan') notifyFirstZukan(e);
+      else if (e.type === 'firstZukan') { if (firstZukan) notifyFirstZukan(e); }
       else if (e.type === 'nande') runOverlay(() => askNande(app));
       else if (e.type === 'reincarnated') onReincarnated(e);
       else if (e.type === 'ailment') startAilmentMovie(e.age);
-      // 常識チェックを出している間は、レベルアップと「図鑑に載った」は知らせない（最初は次々に来て、問題と戦いの様子を隠すため）
-      else if (e.type === 'levelUp') { if (!checkShowing()) notify(`${app.state.hero.name}のレベルが上がった！　Lv ${e.level}`, 'good'); }
+      else if (e.type === 'levelUp') notify(`${app.state.hero.name}のレベルが上がった！　Lv ${e.level}`, 'good');
       else if (e.type === 'floorUp') {
         // 10階層ごとに世界が変わる。新しい世界の最初の階層では世界の名前を出す（月面の階層は「月面◯階層」）
         const st = stageFor(e.floor, app.stages, e.world);
@@ -529,8 +572,9 @@ async function boot() {
       }
     }
     if (misbelief.length) notifyMisbeliefs(misbelief);
-    // 群れで初めて会った魔物は1つの知らせにまとめる
-    if (met.length && !checkShowing()) notify(`図鑑に載った：${met.join('・')}`);
+    // 群れで初めて会った魔物は1つの知らせにまとめる（噂のザコは噂の札で出すので、ここには入れない）
+    const metOthers = met.filter((name) => !misbelief.some((e) => e.name === name));
+    if (metOthers.length) notify(`図鑑に載った：${metOthers.join('・')}`);
     // 学際分野の解放（前のセーブで、もう条件を満たしていたときは一度にいくつも来る）
     if (found.length === 1 && found[0].hidden) notify(`隠しの学際分野「${found[0].name}」を見つけた！\n称号「${found[0].title}」を手に入れた`, 'good');
     else if (found.length === 1) notify(`学際分野「${found[0].name}」を解放した！（${found[0].genres.join('＋')}）\n称号「${found[0].title}」を手に入れた。街の「学校・研究室」で専攻にすると効果が出る`, 'good');
@@ -636,8 +680,6 @@ async function boot() {
     b.addEventListener('click', () => {
       if (!canStartAt(app.state, Number(b.dataset.age))) return;
       startGame(app.state, Number(b.dataset.age), document.getElementById('hero-name').value, lifespanFor(balance, Math.random), gender);
-      // 初めて遊ぶ人の最初の人生：常識チェックの5問を決める（生まれ変わったあとと、前のセーブでは出さない）
-      if (app.state.life.generation === 1 && !app.state.firstRun) beginFirstRun(app.state, ctx);
       intro.hidden = true;
       saveNow();
       refreshActive(true);
@@ -648,11 +690,21 @@ async function boot() {
     await Promise.race([document.fonts.load('16px "DotGothic16"'), new Promise((ok) => setTimeout(ok, FONT_WAIT_MS))]);
   } catch { /* 標準のフォントで続ける */ }
   document.getElementById('loading').hidden = true;
-  // 初めての起動は、前世の最期（10秒ほど）から始めて、最初の案内へ
+  // 初めての起動は、前世の最期（10秒ほど）→ 前世の記憶をたどる（5問）→ 最初の案内（生まれ変わる）。
+  // 5問の途中で読み込み直したときは、残りの問題から（前のセーブ・生まれ変わったあとは出ない）
+  const recallLeft = () => app.state.firstRun && app.state.life.generation === 1 && !firstCheckProgress(app.state).done;
   if (app.state.meta.startAge == null) {
-    if (firstLaunch) runOverlay(() => playPrologue(app).then(showIntro));
+    if (firstLaunch) {
+      runOverlay(async () => {
+        await playPrologue(app);
+        beginFirstRun(app.state, ctx);
+        saveNow();
+        await recallPastLife(app);
+        showIntro();
+      });
+    } else if (recallLeft()) runOverlay(() => recallPastLife(app).then(showIntro));
     else showIntro();
-  }
+  } else if (recallLeft()) runOverlay(() => recallPastLife(app));
 
   /* ---------- 新しい版が公開されたら知らせる ---------- */
   // 開きっぱなしのタブや、ブラウザに残った古い版のままにならないように
@@ -724,7 +776,6 @@ async function boot() {
       const events = tick(app.state, dt, ctx);
       if (events.length) handleEvents(events);
       study.frame(app, realDt);
-      adventure.frame(app, realDt); // 常識チェックの制限時間
       if (visible) countLaunch(realDt);
     }
     const now = nowMs / 1000;

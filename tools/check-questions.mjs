@@ -3,7 +3,7 @@
 // 誤り（止める）：出題日（date）が MM-DD の形でない・ありえない日付
 // 警告（止めない）：関連する魔物が monsters.json に無い・サブジャンルが問題ジャンル以外・作問者コードの形がちがう・
 //   出題日の無い日（その日の今日の1問は、出題日の無い問題から選ぶ）・同じ出題日の問題が2問以上（その日はどちらか1問）・
-//   常識チェック（最初の3分）の候補（first-check.json）の問題が無い・☆でない・地球のザコ（⚠でない）とつながっていない・候補が10問より少ない
+//   前世の記憶をたどる（最初の3分）の問題の候補（first-check.json）の問題が無い・☆でない・地球のザコ（⚠でない）とつながっていない・候補が10問より少ない
 // 作問（ユーザーの問題）から採用した問題は author: { code: 作問者コードか null, name: ペンネームか null } を持つ（どちらかはある。無い問題は author が無いか null）
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -72,19 +72,19 @@ const missingDays = allDays.filter((d) => !byDate[d]);
 console.log(`今日の1問：出題日のある問題 ${Object.values(byDate).flat().length}問・${Object.keys(byDate).length}/366日`);
 if (Object.keys(byDate).length && missingDays.length) warnings.push(`出題日の問題が無い日（${missingDays.length}日）：${missingDays.slice(0, 10).join('・')}${missingDays.length > 10 ? '…' : ''}（その日は出題日の無い問題から選ぶ）`);
 for (const [d, list] of Object.entries(byDate)) if (list.length > 1) warnings.push(`出題日 ${d} の問題が${list.length}問：${list.join('・')}（その日はどれか1問）`);
-// 常識チェック（最初の3分）の候補：同期で外れたり変わったりした問題は、ゲームも使わない（quiz.js の firstCheckCandidates）
+// 前世の記憶をたどる（最初の3分）の問題の候補：同期で外れたり変わったりした問題は、ゲームも使わない（quiz.js の firstCheckCandidates）
 const { questions: checkList } = read('game/data/first-check.json');
 let usable = 0;
 for (const c of checkList) {
   const q = questions.find((x) => x.id === c.id);
   const m = q && monsters.find((x) => x.name === q.monster);
-  if (!q) warnings.push(`常識チェックの候補 ${c.monster}（${c.id}）が questions.json にありません`);
-  else if (q.difficulty !== 1) warnings.push(`常識チェックの候補 ${c.monster} の問題が☆ではなくなりました`);
-  else if (!m || m.kind !== 'monster' || (m.world || 'earth') !== 'earth' || m.debated) warnings.push(`常識チェックの候補 ${c.monster} の問題が、地球のザコ（⚠でない）とつながっていません`);
+  if (!q) warnings.push(`前世の記憶をたどるの候補 ${c.monster}（${c.id}）が questions.json にありません`);
+  else if (q.difficulty !== 1) warnings.push(`前世の記憶をたどるの候補 ${c.monster} の問題が☆ではなくなりました`);
+  else if (!m || m.kind !== 'monster' || (m.world || 'earth') !== 'earth' || m.debated) warnings.push(`前世の記憶をたどるの候補 ${c.monster} の問題が、地球のザコ（⚠でない）とつながっていません`);
   else usable++;
 }
-console.log(`常識チェック：候補 ${usable}問（使える問題）`);
-if (usable < 10) warnings.push(`常識チェックの候補が${usable}問です。10〜15問になるよう、問題リストの☆の問題の裏取りを進めて first-check.json に足す`);
+console.log(`前世の記憶をたどる：候補 ${usable}問（使える問題）`);
+if (usable < 10) warnings.push(`前世の記憶をたどるの候補が${usable}問です。10〜15問になるよう、問題リストの☆の問題の裏取りを進めて first-check.json に足す`);
 for (const w of warnings) console.log('警告：' + w);
 for (const e of errors) console.log('誤り：' + e);
 if (errors.length) {
