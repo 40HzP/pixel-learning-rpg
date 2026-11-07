@@ -156,6 +156,10 @@ export function createRenderer(canvas, app) {
         anim.heroAt = now;
       } else if (e.type === 'spawn') {
         anim.spawnAt = now;
+      } else if (e.type === 'misbelief' && e.swapped) {
+        // 常識チェックで間違えた問題のザコが、群れの中にその場で現れた
+        const p = enemyBox(e.monsterId, e.slot);
+        fx.push({ type: 'burst', cx: p.cx, cy: p.cy, t0: now, big: true });
       } else if (e.type === 'defeat' || e.type === 'partDown') {
         dying.push({ monsterId: e.monsterId, slot: e.slot, marks: e.marks, t0: now });
         enemyAttackAt.delete(e.uid);

@@ -1,0 +1,19 @@
+{
+  "note": "常識チェック（初めて遊ぶ人の最初の人生で、起動するとすぐ出る5問）の候補。問題リストの「☆」で、地球のザコ（⚠でない）とつながっていて、裏取りが「出典確認済」の問題。毎回この中からジャンルを散らして5問を選ぶ。問題を同期するときに一緒に書き直す（CLAUDE.md「最初の3分」）。monster と genre は読みやすくするための控え（ゲームは id だけを使う）",
+  "questions": [
+    { "id": "3f8bafd0-61fe-8124-b299-e6c15d2f31bd", "monster": "ニドオチズ", "genre": "物理" },
+    { "id": "3f8bafd0-61fe-8126-ac49-f72a62f2f88c", "monster": "ジュッパーノウ", "genre": "生物" },
+    { "id": "3f8bafd0-61fe-81bb-8f9b-f425d7062064", "monster": "キンジツナツ", "genre": "地学" },
+    { "id": "3f8bafd0-61fe-81d8-9ca0-d781928aff39", "monster": "ツギハクロ", "genre": "統計学" },
+    { "id": "3f9bafd0-61fe-8133-b651-dfbb1c481439", "monster": "デカグリーンランド", "genre": "地政学" },
+    { "id": "3f9bafd0-61fe-813c-a773-d776ddcd13e1", "monster": "カゼコウセイ", "genre": "微生物" },
+    { "id": "3f9bafd0-61fe-8148-928e-cfda56aabfe4", "monster": "キイロタイヨウ", "genre": "宇宙物理学" },
+    { "id": "3ffbafd0-61fe-81d6-ad2c-c8154c1eda14", "monster": "ナミダツブ", "genre": "気象学" },
+    { "id": "408bafd0-61fe-8146-b439-e70bd5006258", "monster": "ラクダミズブクロ", "genre": "生物" },
+    { "id": "408bafd0-61fe-816e-a8f9-e76ed5003abe", "monster": "サンビョウルール", "genre": "微生物" },
+    { "id": "408bafd0-61fe-819d-94d7-d75cae8c05e1", "monster": "ニヒキミミズ", "genre": "生物" },
+    { "id": "408bafd0-61fe-81bf-b758-fbe8d29e6419", "monster": "スナカクレダチョウ", "genre": "生物" },
+    { "id": "408bafd0-61fe-81d8-a56e-e9da2a4b738a", "monster": "ヨミカエシ", "genre": "勉強法" },
+    { "id": "408bafd0-61fe-81ef-a2a1-ee7bf5ecfff4", "monster": "イチヤヅケ", "genre": "勉強法" }
+  ]
+}

@@ -2,10 +2,10 @@
 import {
   createState, startGame, canStartAt, tick, clockFrame, createClock, HOURS_PER_YEAR,
   createRateTracker, trackTime, trackGain, moveToFloor, birthday, stageFor, fitParty, lifespanFor, generationMultiplier, heroStats, forgetPastLifeBosses,
-  launchRocket, returnToEarth, ADVISOR_PLACES,
+  launchRocket, returnToEarth, ADVISOR_PLACES, heroSnapshot, compareSnapshots,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
-import { forgetMissingQuestions, ensureAuthorCode, takeNewAdoptions, refreshDaily, dayKey } from './quiz.js';
+import { forgetMissingQuestions, ensureAuthorCode, takeNewAdoptions, refreshDaily, dayKey, beginFirstRun } from './quiz.js';
 import { MAJOR_SLOTS } from './fields.js';
 import { loadPalette, loadSprite, spriteCanvas, buildSprite } from './sprites.js';
 import { outfitOf, outfitKey, dressFrames } from './outfit.js';
@@ -25,6 +25,8 @@ import { playOogiri } from './ui/oogiri.js';
 import { playLaunch } from './ui/launch.js';
 import { profChangeText } from './ui/proflog.js';
 import { openFloors } from './ui/floors.js';
+import { playPrologue } from './ui/prologue.js';
+import { showing as checkShowing } from './ui/firstcheck.js';
 
 const PIXEL = '../pixel/';
 const SPRITES = PIXEL + 'sprites/';
@@ -33,6 +35,10 @@ const UI_MS = 200;
 const UPDATE_CHECK_MS = 3 * 60_000;
 const DAY_CHECK_MS = 30_000; // 日付が変わったか（今日の1問）を見る間隔
 const FONT_WAIT_MS = 3000;
+// 起動から3分で「起動したとき」と「今」の主人公を比べる（設計ページ「最初の3分」。40HzP の依頼で毎回）。
+// 数えるのはゲームの時間が進んでいる間だけ。ほかのアプリなどに切り替えて10分以上たってから戻ってきたときも、起動したことにする
+const LAUNCH_COMPARE_SEC = 180;
+const AWAY_RELAUNCH_MS = 10 * 60_000;
 
 const screens = { adventure, study, facility, zukan, settings, debug };
 
@@ -43,6 +49,11 @@ async function fetchJSON(url) {
 }
 
 /* ================= セーブ ================= */
+
+/** セーブがあるか（無ければ初めての起動。前世の最期から始める） */
+function hasSave() {
+  try { return !!localStorage.getItem(SAVE_KEY); } catch { return false; }
+}
 
 function loadSave(balance, notify) {
   let text = null;
@@ -64,15 +75,16 @@ const cryptoRng = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
 
 async function boot() {
   const params = new URLSearchParams(location.search);
-  let balance, monsters, items, questions, recruits, town, stages, business, fields, submit, genreGroups;
+  let balance, monsters, items, questions, recruits, town, stages, business, fields, submit, genreGroups, firstCheck;
   try {
-    [balance, { monsters }, { items }, { questions }, { recruits }, town, { stages }, business, fields, submit, { groups: genreGroups }] = await Promise.all([
+    [balance, { monsters }, { items }, { questions }, { recruits }, town, { stages }, business, fields, submit, { groups: genreGroups }, { questions: firstCheck }] = await Promise.all([
       fetchJSON('data/balance.json'), fetchJSON('data/monsters.json'),
       fetchJSON('data/items.json'), fetchJSON('data/questions.json'),
       fetchJSON('data/recruits.json'), fetchJSON('data/town.json'),
       fetchJSON('data/stages.json'), fetchJSON('data/business.json'),
       fetchJSON('data/fields.json'), fetchJSON('data/submit.json'),
       fetchJSON('data/genre-groups.json'),
+      fetchJSON('data/first-check.json'), // 常識チェック（最初の3分）の候補
     ]);
   } catch (e) {
     document.querySelector('#loading .dialog').textContent = 'ゲームのデータを読めませんでした。\n' + e.message;
@@ -179,8 +191,8 @@ async function boot() {
     if (sp) b.prepend(spriteCanvas(sp, 2, palette));
   }));
 
-  // radio：月面の街の裏側の電波望遠鏡で開く図鑑の頁（town.json の moon.radio）
-  const ctx = { balance, monsters, items, questions, recruits, business, fields, stages, radio: town.moon.radio, rng: Math.random };
+  // radio：月面の街の裏側の電波望遠鏡で開く図鑑の頁（town.json の moon.radio）。firstCheck：常識チェックの候補（data/first-check.json）
+  const ctx = { balance, monsters, items, questions, recruits, business, fields, stages, radio: town.moon.radio, firstCheck, rng: Math.random };
   const app = {
     ctx, palette, monsterSprites, recruitSprites,
     submit,           // 作問フォーム（data/submit.json）
@@ -217,9 +229,22 @@ async function boot() {
       refreshActive(true);
       return r;
     },
+    // デバッグ：最初の3分（前世の最期・常識チェック・起動から3分の比較）を試す
+    playPrologue: () => runOverlay(() => playPrologue(app)),
+    restartFirstCheck() {
+      beginFirstRun(app.state, ctx); // 新しい5問。覚えたザコと図鑑の1体目の札も最初から
+      adventure.reset();
+      showTab('adventure');
+    },
+    launchCompareNow() {
+      countLaunch(0);
+      Object.assign(launchMark, { sec: LAUNCH_COMPARE_SEC, done: false });
+      countLaunch(0);
+    },
     // デバッグ：誕生日の処理（全回復・熟練の判定）を今する
     birthdayNow() { handleEvents((() => { const ev = []; birthday(app.state, ctx, ev); return ev; })()); saveNow(); },
     showTab,
+    refresh: () => refreshActive(true),
     placeNotices: () => placeNotices(),
     overlay: false,   // ミニムービー・孫の「なんで？」を出している間は true（ゲームの時間を止め、知らせを後回しにする）
     playMovie: (monsterId) => startMovie(monsters.find((m) => m.id === monsterId)),
@@ -234,6 +259,7 @@ async function boot() {
     launch: () => launch(),          // ロケットを打ち上げる（地球 → 月面。失敗することもある）
     returnHome: () => returnHome(),  // 帰還ロケットで地球に帰る（無料）
   };
+  const firstLaunch = !hasSave(); // 初めての起動（前世の最期から始める）
   app.state = loadSave(balance, notify);
   ensureAuthorCode(app.state, cryptoRng); // 作問者コード（作った問題が採用されたら知らせるため）
   const adoptedOnLoad = takeNewAdoptions(app.state, ctx); // 採用された問題があれば、起動したときに一度だけ知らせる
@@ -261,11 +287,28 @@ async function boot() {
     if (app.overlay) { heldNotices.push([text, kind]); return; }
     placeNotices();
     const box = document.getElementById('notices');
-    if (box.lastElementChild && box.lastElementChild.textContent === text) return;
+    const plain = [...box.children].filter((x) => !x.classList.contains('card'));
+    if (plain.length && plain[plain.length - 1].textContent === text) return;
     const n = el('div', { class: 'notice ' + kind }, text);
     box.append(n);
-    while (box.children.length > 2) box.firstElementChild.remove();
+    while (plain.length >= 2) plain.shift().remove(); // ふつうの知らせは2つまで（札は数えない）
     setTimeout(() => n.remove(), kind === 'bad' ? 6000 : 3500);
+  }
+  /**
+   * 札の知らせ（あなたが信じていた誤解・図鑑の1体目・起動から3分の比較）。ふつうの知らせに押し出されず、ms 秒たつかタップで閉じる。
+   * onTap を渡すとタップでそれをする（閉じたあとで）
+   */
+  function notifyCard(node, kind, ms, onTap = null) {
+    if (app.overlay) { heldNotices.push([node, kind, ms, onTap]); return; }
+    placeNotices();
+    const box = document.getElementById('notices');
+    const n = el('div', { class: `notice card ${kind}`, role: 'status' }, node);
+    const close = () => n.remove();
+    n.addEventListener('click', () => { close(); if (onTap) onTap(); });
+    const cards = [...box.children].filter((x) => x.classList.contains('card'));
+    while (cards.length >= 2) cards.shift().remove(); // 札は2枚まで（古いほうから閉じる）
+    box.append(n);
+    setTimeout(close, ms);
   }
   /** やられたとき：1つ手前の階層の最初からやり直す（全回復。熟練の判定はしない） */
   function notifyDefeat(e) {
@@ -292,7 +335,10 @@ async function boot() {
     (async () => {
       while (overlays.length) await overlays.shift()();
       app.overlay = false;
-      for (const [text, kind] of heldNotices.splice(0)) notify(text, kind);
+      for (const [text, kind, ms, onTap] of heldNotices.splice(0)) {
+        if (typeof text === 'string') notify(text, kind);
+        else notifyCard(text, kind, ms, onTap);
+      }
     })();
   }
 
@@ -332,6 +378,7 @@ async function boot() {
     afterAnswering(() => reincarnationMovie(e));
   }
   function reincarnationMovie(e) {
+    launchMark = null; // 新しい人生が始まったら、そこから3分を数え直す
     const p = e.life;
     const m = generationMultiplier(app.state, balance);
     app.rate = createRateTracker();
@@ -376,19 +423,53 @@ async function boot() {
     return r;
   }
 
+  /* ---------- 最初の3分：常識チェックで覚えたザコ・図鑑の1体目 ---------- */
+  const rememberedUids = new Map(); // 常識チェックで覚えたザコの敵 uid → 魔物（倒したら正体を知らせる）
+  /** 常識チェックで誤解を選んだ問題のザコが出てきた：「あなたが信じていた誤解」の札（同じ群れの分はまとめて1枚） */
+  function notifyMisbeliefs(list) {
+    for (const e of list) rememberedUids.set(e.uid, monsters.find((m) => m.id === e.monsterId));
+    const believed = list.filter((e) => e.believed);
+    if (!believed.length) return;
+    notifyCard([
+      el('b', { class: 'nt-title' }, 'あなたが信じていた誤解'),
+      ...believed.map((e) => el('span', { class: 'nt-myth' }, `「${e.myth}」`, el('small', {}, `――${e.name}`))),
+    ], 'myth', 9000);
+  }
+  /** 覚えたザコを倒した：正しい知識（正体）を知らせる */
+  function notifyTruth(m) {
+    notifyCard([el('b', { class: 'nt-title' }, `${m.name}を倒した！`), el('span', {}, `正体：${m.truth}`)], 'truth', 6000);
+  }
+  /** 初めてザコを倒した：図鑑の札が開いて「1／171」（一度だけ）。タップで図鑑へ */
+  function notifyFirstZukan(e) {
+    const m = monsters.find((x) => x.id === e.monsterId);
+    if (!m) return;
+    const sp = (monsterSprites[m.id] || {}).idle;
+    notifyCard(el('div', { class: 'zukan-first' },
+      sp ? spriteCanvas(sp, 3, palette) : null,
+      el('div', {},
+        el('b', { class: 'nt-title' }, `図鑑　${e.opened}／${e.total}`),
+        el('span', { class: 'nt-name' }, `${m.name}の正体が載った`),
+        el('small', { class: 'nt-tap' }, 'タップで図鑑へ'))), 'zukan-card', 9000, () => showTab('zukan'));
+  }
+
   function handleEvents(events) {
     app.renderer.onEvents(events, performance.now() / 1000);
     const met = [];
     const found = []; // 新しく解放した学際分野（まとめて知らせる）
+    const misbelief = [];
     for (const e of events) {
       if (e.type === 'defeat') {
         trackGain(app.rate, e.exp, e.gold);
         if (e.kind === 'midboss') startMovie(monsters.find((m) => m.id === e.monsterId));
+        if (rememberedUids.has(e.uid)) { notifyTruth(rememberedUids.get(e.uid)); rememberedUids.delete(e.uid); }
       }
+      else if (e.type === 'misbelief') misbelief.push(e);
+      else if (e.type === 'firstZukan') notifyFirstZukan(e);
       else if (e.type === 'nande') runOverlay(() => askNande(app));
       else if (e.type === 'reincarnated') onReincarnated(e);
       else if (e.type === 'ailment') startAilmentMovie(e.age);
-      else if (e.type === 'levelUp') notify(`${app.state.hero.name}のレベルが上がった！　Lv ${e.level}`, 'good');
+      // 常識チェックを出している間は、レベルアップと「図鑑に載った」は知らせない（最初は次々に来て、問題と戦いの様子を隠すため）
+      else if (e.type === 'levelUp') { if (!checkShowing()) notify(`${app.state.hero.name}のレベルが上がった！　Lv ${e.level}`, 'good'); }
       else if (e.type === 'floorUp') {
         // 10階層ごとに世界が変わる。新しい世界の最初の階層では世界の名前を出す（月面の階層は「月面◯階層」）
         const st = stageFor(e.floor, app.stages, e.world);
@@ -447,8 +528,9 @@ async function boot() {
         if (m && !met.includes(m.name)) met.push(m.name);
       }
     }
+    if (misbelief.length) notifyMisbeliefs(misbelief);
     // 群れで初めて会った魔物は1つの知らせにまとめる
-    if (met.length) notify(`図鑑に載った：${met.join('・')}`);
+    if (met.length && !checkShowing()) notify(`図鑑に載った：${met.join('・')}`);
     // 学際分野の解放（前のセーブで、もう条件を満たしていたときは一度にいくつも来る）
     if (found.length === 1 && found[0].hidden) notify(`隠しの学際分野「${found[0].name}」を見つけた！\n称号「${found[0].title}」を手に入れた`, 'good');
     else if (found.length === 1) notify(`学際分野「${found[0].name}」を解放した！（${found[0].genres.join('＋')}）\n称号「${found[0].title}」を手に入れた。街の「学校・研究室」で専攻にすると効果が出る`, 'good');
@@ -546,7 +628,6 @@ async function boot() {
     if (sp) b.prepend(spriteCanvas(sp, 2, palette));
     b.addEventListener('click', () => pickGender(b.dataset.gender));
   }
-  if (app.state.meta.startAge == null) showIntro();
   // 7歳まで現実でどのくらいかかるか（balance.json の時間の速さから出す）
   const untilSeven = (7 * HOURS_PER_YEAR) / balance.time.gameHoursPerRealSecond;
   const span = untilSeven >= 90 * 60 ? `約${Math.round(untilSeven / 3600)}時間` : `約${Math.max(1, Math.round(untilSeven / 60))}分`;
@@ -555,6 +636,8 @@ async function boot() {
     b.addEventListener('click', () => {
       if (!canStartAt(app.state, Number(b.dataset.age))) return;
       startGame(app.state, Number(b.dataset.age), document.getElementById('hero-name').value, lifespanFor(balance, Math.random), gender);
+      // 初めて遊ぶ人の最初の人生：常識チェックの5問を決める（生まれ変わったあとと、前のセーブでは出さない）
+      if (app.state.life.generation === 1 && !app.state.firstRun) beginFirstRun(app.state, ctx);
       intro.hidden = true;
       saveNow();
       refreshActive(true);
@@ -565,6 +648,11 @@ async function boot() {
     await Promise.race([document.fonts.load('16px "DotGothic16"'), new Promise((ok) => setTimeout(ok, FONT_WAIT_MS))]);
   } catch { /* 標準のフォントで続ける */ }
   document.getElementById('loading').hidden = true;
+  // 初めての起動は、前世の最期（10秒ほど）から始めて、最初の案内へ
+  if (app.state.meta.startAge == null) {
+    if (firstLaunch) runOverlay(() => playPrologue(app).then(showIntro));
+    else showIntro();
+  }
 
   /* ---------- 新しい版が公開されたら知らせる ---------- */
   // 開きっぱなしのタブや、ブラウザに残った古い版のままにならないように
@@ -593,11 +681,34 @@ async function boot() {
   /* ---------- ループ ---------- */
   const clock = createClock();
   let lastUi = 0, lastSave = performance.now();
+  /* ---------- 起動から3分で、起動したときの自分と比べる（毎回） ---------- */
+  let launchMark = null; // { snap: 起動したときの主人公, sec: ゲームの時間が進んだ秒数, done }
+  let hiddenAt = 0;
+  function countLaunch(realDt) {
+    if (!launchMark) launchMark = { snap: heroSnapshot(app.state, ctx), sec: 0, done: false };
+    if (launchMark.done) return;
+    launchMark.sec += realDt;
+    if (launchMark.sec < LAUNCH_COMPARE_SEC) return;
+    launchMark.done = true;
+    const cmp = compareSnapshots(launchMark.snap, heroSnapshot(app.state, ctx));
+    if (!cmp || (!cmp.rows.length && !cmp.zukan && !cmp.correct)) return; // 伸びたものだけを出す
+    const extra = [cmp.zukan ? `図鑑 +${cmp.zukan}体` : '', cmp.correct ? `正解 +${cmp.correct}問` : ''].filter(Boolean).join('・');
+    notifyCard([
+      el('b', { class: 'nt-title' }, '起動したときの自分と比べると'),
+      el('div', { class: 'cmp-rows' }, cmp.rows.map((r) => {
+        const unit = r.key.endsWith('loor') ? '階層' : '';
+        return el('span', { class: r.key.endsWith('loor') ? 'wide' : '' }, `${r.label} ${fmt(r.from)}${unit} → `, el('b', {}, `${fmt(r.to)}${unit}`));
+      })),
+      extra ? el('small', {}, extra) : null,
+    ], 'compare', 12000);
+  }
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') {
       clockFrame(clock, performance.now(), false);   // 戻っても止まっていた分を取り戻さない
+      hiddenAt = Date.now();
       saveNow();
     } else {
+      if (hiddenAt && Date.now() - hiddenAt >= AWAY_RELAUNCH_MS) launchMark = null; // しばらく離れていたら、起動し直したことにする
       checkUpdate();
       checkDay();
     }
@@ -613,6 +724,8 @@ async function boot() {
       const events = tick(app.state, dt, ctx);
       if (events.length) handleEvents(events);
       study.frame(app, realDt);
+      adventure.frame(app, realDt); // 常識チェックの制限時間
+      if (visible) countLaunch(realDt);
     }
     const now = nowMs / 1000;
     app.renderer.draw(app.state, now);

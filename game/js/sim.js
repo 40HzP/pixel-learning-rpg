@@ -61,7 +61,11 @@ export function createState(balance) {
     midbosses: {},                                  // 中ボスid → { status: waiting|appeared|broken|defeated, announced }
     bosses: {},                                     // ボスid → { status: waiting|appeared|defeated }（一度倒したボスは、その人生ではもう出ない。生まれ変わるとまた出る）
     scaffold: {},                                   // 足場（構造工学）：ボスid → 前の挑戦で与えたダメージ（次の挑戦に持ち越す。その人生だけ）
-    legacy: {                                       // 転生しても残るもの
+    // 最初の3分（初めて遊ぶ人だけ。quiz.js の beginFirstRun で作る。前のセーブは null のまま＝常識チェックも覚えたザコも無い）：
+    // check：常識チェックの問題id（5問）と答え（{ id, monsterId, kind: correct|myth|wrong|timeout }）・
+    // introduced：最初の人生の1〜10階層で、もう優先して出した覚えたザコ・zukanShown：初めてザコを倒したときの図鑑の札を出したか
+    firstRun: null,
+    legacy: {                                     // 転生しても残るもの
       titles: [],                                   // 前世までにもらった称号
       lives: [],                                    // 前世のまとめ：{ generation, name, age, level, maxFloor, gold }
       rocket: { buildCostPaid: false, steps: {} },  // ロケット計画の工程（建造費を払ったか・工程ごとに進んだゲーム内の時間）
@@ -747,7 +751,8 @@ export function spawnGroup(state, ctx, events, monsterIds = null) {
   const b = ctx.balance;
   let list;
   let minions = [];
-  if (monsterIds) list = monsterIds.map((id) => ctx.monsters.find((m) => m.id === id)).filter(Boolean);
+  const misbelief = []; // 常識チェックで覚えたザコのうち、この群れで初めて出したもの
+  if (monsterIds) list =monsterIds.map((id) => ctx.monsters.find((m) => m.id === id)).filter(Boolean);
   else {
     const mb = pendingBoss(state, ctx);
     if (mb) {
@@ -756,10 +761,13 @@ export function spawnGroup(state, ctx, events, monsterIds = null) {
       list = [...minions, mb];
       if ((mb.minions || []).length) events.push({ type: 'minions', monsterId: mb.id, name: mb.name, called: minions.map((m) => m.name), known: mb.minions.length - minions.length });
     } else {
-      const pool = zakoPool(state, ctx);
       const n = Math.max(1, b.floor.monstersPerFloor - adv.kills);
-      list = [];
-      for (let i = 0; i < n && pool.length; i++) list.push(pool[Math.floor(ctx.rng() * pool.length)]);
+      if (state.firstRun) list = pickZakoGroup(state, ctx, n, misbelief); // 最初の人生は、常識チェックで覚えたザコを先に
+      else {
+        const pool = zakoPool(state, ctx);
+        list = [];
+        for (let i = 0; i < n && pool.length; i++) list.push(pool[Math.floor(ctx.rng() * pool.length)]);
+      }
     }
   }
   if (!list.length) return [];
@@ -783,6 +791,11 @@ export function spawnGroup(state, ctx, events, monsterIds = null) {
       }
     }
     events.push({ type: 'spawn', monsterId: e.monsterId, name: e.name, kind: e.kind, uid: e.uid, slot: e.slot, floor: adv.floor, first });
+  }
+  // 常識チェックで間違えた問題のザコが出てきた（誤解を選んでいたら「あなたが信じていた誤解」と添える）
+  for (const r of misbelief) {
+    const e = adv.enemies.find((x) => x.monsterId === r.monster.id);
+    events.push({ type: 'misbelief', monsterId: r.monster.id, name: r.monster.name, myth: r.monster.myth, believed: r.believed, uid: e ? e.uid : null });
   }
   return adv.enemies;
 }
@@ -1030,6 +1043,11 @@ function defeatEnemy(state, e, ctx, events) {
   events.push({ type: 'defeat', uid: e.uid, slot: e.slot, monsterId: e.monsterId, kind: e.kind, exp, gold, ...(e.part ? { part: e.part } : {}), ...(e.marks != null ? { marks: e.marks } : {}) });
   gainExp(state, exp, ctx, events);
   const learned = raiseZukan(state, e.monsterId, 2, events);
+  // 初めて遊ぶ人が初めてザコを倒した：図鑑の札が開いて「1／171」（一度だけ）
+  if (e.kind === 'monster' && state.firstRun && !state.firstRun.zukanShown) {
+    state.firstRun.zukanShown = true;
+    events.push({ type: 'firstZukan', monsterId: e.monsterId, ...zakoZukanCount(state, ctx) });
+  }
   if (e.kind === 'midboss') {
     midbossState(state, e.monsterId).status = 'defeated';
     const m = ctx.monsters.find((x) => x.id === e.monsterId) || {};
@@ -1851,4 +1869,127 @@ export function equipItem(state, itemId, ctx) {
   if (state.equipment[it.slot] === it.id) return { ok: false, reason: 'もう装備しています' };
   state.equipment[it.slot] = it.id;
   return { ok: true };
+}
+
+/* ================= 最初の3分（設計ページ「最初の3分：あなたの誤解が魔物になる」） ================= */
+// 常識チェックの出題と答えは quiz.js（beginFirstRun・answerFirstCheck）。ここは冒険のほう
+
+/** 覚えたザコを優先して出すのは、最初の人生の地球のこの階層まで */
+export const FIRST_LIFE_FLOORS = 10;
+
+/**
+ * 常識チェックで覚えたザコ：正解しなかった問題のザコ（答えた順。{ monster, believed }）。
+ * believed は誤答1（誤解）を選んだとき（「あなたが信じていた誤解」と添える）。誤答2・3と時間切れは false
+ */
+export function rememberedZako(state, ctx) {
+  const check = state.firstRun && state.firstRun.check;
+  const out = [];
+  for (const a of (check && check.answers) || []) {
+    if (a.kind === 'correct' || !a.monsterId || out.some((x) => x.monster.id === a.monsterId)) continue;
+    const m = ctx.monsters.find((x) => x.id === a.monsterId);
+    if (m) out.push({ monster: m, believed: a.kind === 'myth' });
+  }
+  return out;
+}
+
+/** 今いる場所で覚えたザコを出すか（最初の人生の、地球の1〜10階層） */
+function rememberedHere(state, ctx) {
+  const adv = state.adventure;
+  if (state.life.generation !== 1 || worldOf(adv) !== 'earth' || adv.floor > FIRST_LIFE_FLOORS) return [];
+  return rememberedZako(state, ctx);
+}
+
+/**
+ * ザコの群れを選ぶ。最初の人生の1〜10階層では、常識チェックで覚えたザコのうちまだ出していないものを先頭に並べ、
+ * 残りは今いる世界のザコ（と覚えたザコ）から選ぶ。出したザコは introduced に入れ、misbelief に積む
+ */
+function pickZakoGroup(state, ctx, n, misbelief) {
+  const remembered = rememberedHere(state, ctx);
+  const pool = zakoPool(state, ctx);
+  for (const r of remembered) if (!pool.includes(r.monster)) pool.push(r.monster);
+  const list = [];
+  for (const r of remembered) {
+    if (list.length >= n || state.firstRun.introduced.includes(r.monster.id)) continue;
+    state.firstRun.introduced.push(r.monster.id);
+    list.push(r.monster);
+    misbelief.push(r);
+  }
+  while (list.length < n && pool.length) list.push(pool[Math.floor(ctx.rng() * pool.length)]);
+  return list;
+}
+
+/**
+ * 常識チェックで間違えた問題のザコを、答えてすぐ今の群れに出す（誤解がその場で魔物になって現れる）。
+ * 最初の人生の1〜10階層で、ザコの群れと戦っているときだけ。そのザコがもう群れにいればそれに印を付け、
+ * いなければ群れのいちばん後ろのザコ（先頭以外）と入れ替える（強さは同じ階層の強さで、HPは満タン）。
+ * 入れ替えられる相手がいなければ（先頭の1体だけ）、次の群れの先頭で出る（pickZakoGroup）。出したザコを misbelief の知らせに積む
+ */
+export function summonRemembered(state, ctx, events) {
+  const adv = state.adventure;
+  if (!state.firstRun || !adv.enemies.length || adv.enemies.some((e) => e.kind !== 'monster' || e.minion)) return [];
+  const introduced = state.firstRun.introduced;
+  const out = [];
+  for (const r of rememberedHere(state, ctx)) {
+    if (introduced.includes(r.monster.id)) continue;
+    let e = adv.enemies.find((x) => x.monsterId === r.monster.id);
+    let swapped = false;
+    if (!e) {
+      let i = adv.enemies.length - 1;
+      while (i > 0 && introduced.includes(adv.enemies[i].monsterId)) i--;
+      if (i <= 0) break;
+      const old = adv.enemies[i];
+      e = makeEnemy(r.monster, state, ctx, old.slot);
+      e.cd = old.cd;
+      adv.enemies[i] = e;
+      raiseZukan(state, e.monsterId, 1, events);
+      swapped = true;
+    }
+    introduced.push(r.monster.id);
+    events.push({ type: 'misbelief', monsterId: r.monster.id, name: r.monster.name, myth: r.monster.myth, believed: r.believed, uid: e.uid, slot: e.slot, swapped });
+    out.push(e);
+  }
+  return out;
+}
+
+/** 図鑑のザコ（地球と月面）のうち、正体まで開いた数と全数（初めてザコを倒したときの「1／171」） */
+export function zakoZukanCount(state, ctx) {
+  const zako = ctx.monsters.filter((m) => m.kind === 'monster');
+  const z = state.knowledge.zukan;
+  return { opened: zako.filter((m) => (z[m.id] || {}).stage >= 2).length, total: zako.length };
+}
+
+/** 寿命の帯（数字は出さない。40HzP の依頼）：今の年齢（誕生日ごとに1つ進む）と寿命（治療で延びた分も） */
+export function lifeBar(state, balance) {
+  const lifespan = lifespanOf(state, balance);
+  return { age: Math.min(ageYears(state), lifespan), lifespan };
+}
+
+/**
+ * 起動したときの主人公を覚えておく（起動から3分で「今」と比べる。40HzP の依頼で毎回）。
+ * floor・moonFloor はこの人生の最高到達、zukan は図鑑に載った（出会った）魔物の数、correct は累計の正解数
+ */
+export function heroSnapshot(state, ctx) {
+  const hs = heroStats(state, ctx);
+  return {
+    generation: state.life.generation, level: state.hero.level,
+    maxHp: hs.maxHp, maxMp: hs.maxMp, atk: hs.atk, def: hs.def, wis: hs.wis, agi: hs.agi, luck: hs.luck,
+    floor: state.life.maxFloor, moonFloor: state.life.moonMaxFloor || 0,
+    zukan: Object.values(state.knowledge.zukan).filter((e) => e.stage >= 1).length,
+    correct: state.knowledge.totalCorrect,
+  };
+}
+
+const SNAPSHOT_ROWS = [
+  ['level', 'Lv'], ['maxHp', 'HP'], ['maxMp', 'MP'], ['atk', '攻撃'], ['def', '防御'], ['wis', '賢さ'], ['agi', 'すばやさ'], ['luck', '運の良さ'],
+  ['floor', '最高到達'], ['moonFloor', '最高到達（月面）'],
+];
+
+/**
+ * 起動したとき（before）と今（after）を比べる：伸びたものだけ（{ key, label, from, to }）と、図鑑に加わった数・正解した数。
+ * 間に生まれ変わっていたら比べられない（null）
+ */
+export function compareSnapshots(before, after) {
+  if (!before || !after || before.generation !== after.generation) return null;
+  const rows = SNAPSHOT_ROWS.filter(([k]) => after[k] > before[k]).map(([key, label]) => ({ key, label, from: before[key], to: after[key] }));
+  return { rows, zukan: Math.max(0, after.zukan - before.zukan), correct: Math.max(0, after.correct - before.correct) };
 }

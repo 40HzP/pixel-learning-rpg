@@ -2,7 +2,7 @@
 // ctx = { balance, monsters, items, questions, rng }（questions は questions.json の questions 配列）
 
 import { GENRES } from './genres.js';
-import { genreState, raiseZukan, zukanEntry, breakMidbosses, healEnemy, proficiencyCap, markSmooth, hearRadio, advisorActive, citationsLeft, logProficiency } from './sim.js';
+import { genreState, raiseZukan, zukanEntry, breakMidbosses, healEnemy, proficiencyCap, markSmooth, hearRadio, advisorActive, citationsLeft, logProficiency, worldOf, summonRemembered } from './sim.js';
 import { fieldActive, fieldById } from './fields.js';
 
 export { GENRES };
@@ -566,4 +566,86 @@ export function fooledAnalysis(state, ctx) {
     genres: count(myths.flatMap((x) => (x.monster.genres || []).map((g) => [g, x.fooled]))),
     review: count(reviewQs.map((q) => [q.genre, 1])),
   };
+}
+
+/* ================= 最初の3分：常識チェック（設計ページ「最初の3分：あなたの誤解が魔物になる」） ================= */
+// 初めて遊ぶ人の最初の人生だけ、起動するとすぐ冒険画面の横で5問出す（ゲームは止めない。ui/firstcheck.js）。
+// 誤答1（誤解）を選んだ問題のザコは「あなたが信じていた誤解」として、誤答2・3と時間切れの問題のザコはそのまま、
+// 最初の人生の1〜10階層で優先して出る（sim.js の rememberedZako・pickZakoGroup）。全問正解ならいつもの草原のザコ
+
+export const FIRST_CHECK_SIZE = 5;
+
+/**
+ * 常識チェックに出せる問題：候補（data/first-check.json の questions。問題リストの「☆」・ザコとつながっている・裏取りが「出典確認済」）のうち、
+ * 今の questions.json にあって、☆で、関連する魔物が地球のザコ（⚠の議論中でない）のもの
+ */
+export function firstCheckCandidates(ctx) {
+  const ids = (ctx.firstCheck || []).map((c) => (typeof c === 'string' ? c : c.id));
+  return ids.map((id) => ctx.questions.find((q) => q.id === id)).filter((q, i, all) => {
+    if (!q || all.indexOf(q) !== i || q.difficulty !== 1 || !q.monster) return false;
+    const m = ctx.monsters.find((x) => x.name === q.monster);
+    return !!m && m.kind === 'monster' && worldOf(m) === 'earth' && !m.debated;
+  });
+}
+
+/** 常識チェックの5問を選ぶ：候補を混ぜて、まだ選んでいないジャンルの問題から取り（ジャンルを散らす）、足りなければ残りから */
+export function pickFirstCheck(ctx, size = FIRST_CHECK_SIZE) {
+  const pool = firstCheckCandidates(ctx);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(ctx.rng() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const picked = [];
+  const genres = new Set();
+  for (const q of pool) if (picked.length < size && !genres.has(q.genre)) { picked.push(q); genres.add(q.genre); }
+  for (const q of pool) if (picked.length < size && !picked.includes(q)) picked.push(q);
+  return picked.map((q) => q.id);
+}
+
+/** 初めて遊ぶ人が最初の人生を始めた（main.js。生まれ変わったあとと前のセーブでは呼ばない）：常識チェックの問題を決める */
+export function beginFirstRun(state, ctx) {
+  state.firstRun = { check: { questions: pickFirstCheck(ctx), answers: [] }, introduced: [], zukanShown: false };
+  return state.firstRun;
+}
+
+/** 常識チェックの進み具合：{ index（次は何問目。0から）, total, done } */
+export function firstCheckProgress(state) {
+  const c = state.firstRun && state.firstRun.check;
+  const total = c ? c.questions.length : 0;
+  const index = c ? c.answers.length : 0;
+  return { index, total, done: index >= total };
+}
+
+/**
+ * 常識チェックの次の問題を出す（1問ずつのセッション。answerFirstCheck で答える）。もう無ければ null。
+ * 選択肢には誤答1（誤解）を必ず入れる（ふつうの出題と同じく4択）
+ */
+export function nextFirstCheck(state, ctx) {
+  const p = firstCheckProgress(state);
+  if (p.done) return null;
+  const id = state.firstRun.check.questions[p.index];
+  const q = ctx.questions.find((x) => x.id === id);
+  if (!q) { // 同期で外れた問題は飛ばす
+    state.firstRun.check.answers.push({ id, monsterId: null, kind: 'skipped' });
+    return nextFirstCheck(state, ctx);
+  }
+  const session = { mode: 'check', genre: null, pool: [id], total: 1, index: 0, asked: [], current: null, results: [], daily: null };
+  presentQuestion(session, q, ctx);
+  return session;
+}
+
+/**
+ * 常識チェックに答える（choiceIndex が null なら時間切れ）。数え方はふつうの勉強と同じ（answer）。
+ * どう答えたか（correct・myth＝誤答1・wrong＝誤答2と3・timeout）とザコを firstRun に残す。返り値は answer と同じで、check に { kind, monsterId }
+ */
+export function answerFirstCheck(state, session, choiceIndex, ctx) {
+  const q = session.current.question;
+  const res = answer(state, session, choiceIndex, ctx);
+  const kind = res.correct ? 'correct' : res.timeout ? 'timeout' : res.chose;
+  const m = ctx.monsters.find((x) => x.name === q.monster);
+  state.firstRun.check.answers.push({ id: q.id, monsterId: m ? m.id : null, kind });
+  res.check = { kind, monsterId: m ? m.id : null };
+  // 間違えた問題のザコは、答えてすぐ今の群れに現れる（入れ替えられなければ次の群れで）
+  if (kind !== 'correct') summonRemembered(state, ctx, res.events);
+  return res;
 }
