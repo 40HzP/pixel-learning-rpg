@@ -50,6 +50,7 @@ export function createState(balance) {
       history: [],                                  // 過去問復習の「最近解いた問題」：{ id, correct, chosen, oogiri? } の新しい順（正誤を問わず10問まで）
       favorites: [],                                // 過去問復習の「お気に入り」：問題id（5問まで）
       torn: [],                                     // 破りすてたテストの問題id（小学校教師の補習で出す。正解すると外れる）
+      solved: [],                                   // 正解したことがある問題id（前世の記憶をたどるで、まだ正解したことのない問題を優先する）
       recent: [],                                   // 直近に出した問題id
       zukan: {},                                    // 魔物id → { stage: 0|1|2, fooled }
       fields: {},                                   // 解放した学際分野：学際分野id → { at, generation, dormant }（fields.js）
@@ -61,9 +62,9 @@ export function createState(balance) {
     midbosses: {},                                  // 中ボスid → { status: waiting|appeared|broken|defeated, announced }
     bosses: {},                                     // ボスid → { status: waiting|appeared|defeated }（一度倒したボスは、その人生ではもう出ない。生まれ変わるとまた出る）
     scaffold: {},                                   // 足場（構造工学）：ボスid → 前の挑戦で与えたダメージ（次の挑戦に持ち越す。その人生だけ）
-    // 最初の3分（初めて遊ぶ人だけ。quiz.js の beginFirstRun で作る。前のセーブは null のまま＝前世の記憶をたどる問題も覚えたザコも無い）：
-    // check：前世の記憶をたどる問題id（5問）と答え（{ id, monsterId, kind: correct|myth|wrong|timeout }）・
-    // introduced：最初の人生の1〜10階層で、もう優先して出した覚えたザコ・zukanShown：初めてザコを倒したときの図鑑の札を出したか
+    // 前世の記憶をたどる（初めて遊ぶ人と、生まれ変わるたび。quiz.js の beginRecall で作る。前のセーブは null のまま＝生まれ変わるまで出ない）：
+    // check：どの世代の分か・5問の問題id・答え（{ id, monsterId, kind: correct|myth|wrong|timeout }）・
+    // introduced：その人生の1〜10階層で、もう優先して出した覚えたザコ・zukanShown：初めてザコを倒したときの図鑑の札を出したか（一度だけ）
     firstRun: null,
     legacy: {                                     // 転生しても残るもの
       titles: [],                                   // 前世までにもらった称号
@@ -1240,6 +1241,18 @@ export function logProficiency(state, entry) {
 }
 
 /**
+ * 終わったばかりの人生（generation）の熟練の記録から、生まれ変わりの場面に流す数行を選ぶ（設計ページ「生まれ変わるたびの『前世の記憶をたどる』」の案）。
+ * 古い順に、その人生の始まり・終わりを含めて均等に max 件まで（記録が無ければ空）
+ */
+export function lifeLogHighlights(state, generation, max = 4) {
+  const life = (state.knowledge.profLog || []).filter((c) => c.gen === generation).reverse(); // 古い順
+  if (life.length <= max) return life;
+  const picks = [];
+  for (let i = 0; i < max; i++) picks.push(life[Math.round((i * (life.length - 1)) / (max - 1))]);
+  return picks;
+}
+
+/**
  * 誕生日（ゲーム内で1歳年を取るたび）：HP・MPを全回復し、ジャンルごとに熟練を判定し、学会の査読者の「要出典」の回数を戻す。
  * 熟練の判定（balance.birthday）：前の誕生日から勉強したジャンルは upChance で+1（上限に届いていれば上がらない）。
  * 勉強していないジャンルは、勉強していない年数（idle）が idleYears 以上で Lv1 以上なら downChance で−1。
@@ -1874,7 +1887,7 @@ export function equipItem(state, itemId, ctx) {
 /* ================= 最初の3分（設計ページ「最初の3分：あなたの誤解が魔物になる」） ================= */
 // 前世の記憶をたどる（前の名前は常識チェック）の出題と答えは quiz.js（beginFirstRun・answerFirstCheck）。ここは冒険のほう
 
-/** 覚えたザコを優先して出すのは、最初の人生の地球のこの階層まで */
+/** 覚えたザコ（前世で魔物に吹き込まれた噂）を優先して出すのは、その人生の地球のこの階層まで */
 export const FIRST_LIFE_FLOORS = 10;
 
 /**
@@ -1892,10 +1905,11 @@ export function rememberedZako(state, ctx) {
   return out;
 }
 
-/** 今いる場所で覚えたザコを出すか（最初の人生の、地球の1〜10階層） */
+/** 今いる場所で覚えたザコを出すか（前世の記憶をたどった人生の、地球の1〜10階層。生まれ変わるたびに入れ替わる） */
 function rememberedHere(state, ctx) {
   const adv = state.adventure;
-  if (state.life.generation !== 1 || worldOf(adv) !== 'earth' || adv.floor > FIRST_LIFE_FLOORS) return [];
+  const check = state.firstRun && state.firstRun.check;
+  if (!check || (check.generation || 1) !== state.life.generation || worldOf(adv) !== 'earth' || adv.floor > FIRST_LIFE_FLOORS) return [];
   return rememberedZako(state, ctx);
 }
 

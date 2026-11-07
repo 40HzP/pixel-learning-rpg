@@ -5,11 +5,12 @@ import {
   spawnGroup, tick, rememberedZako, zakoZukanCount, lifeBar, heroSnapshot, compareSnapshots, reincarnate, FIRST_LIFE_FLOORS, HOURS_PER_YEAR,
 } from '../js/sim.js';
 import {
-  FIRST_CHECK_SIZE, firstCheckCandidates, pickFirstCheck, beginFirstRun, firstCheckProgress, nextFirstCheck, answerFirstCheck,
+  RECALL_SIZE, firstCheckCandidates, recallCandidates, pickRecall, beginRecall, recallProgress, nextRecall, answerRecall, everSolved,
 } from '../js/quiz.js';
 import { serialize, deserialize } from '../js/save.js';
 import { balance, monsters, questions, firstCheck, makeCtx, newGame, seededRng, constRng } from './helpers.js';
-import { createState, startGame } from '../js/sim.js';
+import { createState, startGame, genreState, lifeLogHighlights, logProficiency } from '../js/sim.js';
+import { forgetMissingQuestions } from '../js/quiz.js';
 
 const byName = (name) => monsters.find((m) => m.name === name);
 const grassland = monsters.filter((m) => m.kind === 'monster' && (m.areas || []).includes('はじまりの草原'));
@@ -18,16 +19,16 @@ const grassland = monsters.filter((m) => m.kind === 'monster' && (m.areas || [])
 function firstRunGame(ids = null, rng = seededRng(3)) {
   const ctx = makeCtx(rng);
   const s = newGame(0);
-  beginFirstRun(s, ctx);
+  beginRecall(s, ctx);
   if (ids) s.firstRun.check.questions = ids;
   return { s, ctx };
 }
 
 /** 次の問題に kind（answer・myth・wrong・timeout）で答える */
 function reply(s, ctx, kind) {
-  const session = nextFirstCheck(s, ctx);
+  const session = nextRecall(s, ctx);
   const i = kind === 'timeout' ? null : session.current.choices.findIndex((c) => c.kind === kind);
-  return answerFirstCheck(s, session, i, ctx);
+  return answerRecall(s, session, i, ctx);
 }
 
 const idOf = (monsterName) => firstCheck.find((c) => c.monster === monsterName).id;
@@ -45,36 +46,36 @@ test('データ：前世の記憶をたどる問題の候補は10〜15問。ど�
     assert.ok(m && m.kind === 'monster' && (m.world || 'earth') === 'earth' && !m.debated, `${c.monster} は地球のザコで⚠でない`);
   }
   assert.equal(firstCheckCandidates(makeCtx()).length, firstCheck.length, 'ゲームもすべて候補にする');
-  assert.ok(new Set(firstCheck.map((c) => c.genre)).size >= FIRST_CHECK_SIZE, 'ジャンルを散らせるだけの数がある');
+  assert.ok(new Set(firstCheck.map((c) => c.genre)).size >= RECALL_SIZE, 'ジャンルを散らせるだけの数がある');
 });
 
 test('前世の記憶をたどる5問：ジャンルを散らして選び、毎回同じにはならない', () => {
   const sets = new Set();
   for (let seed = 1; seed <= 20; seed++) {
-    const ids = pickFirstCheck(makeCtx(seededRng(seed)));
-    assert.equal(ids.length, FIRST_CHECK_SIZE);
-    assert.equal(new Set(ids).size, FIRST_CHECK_SIZE);
+    const ids = pickRecall(newGame(0), makeCtx(seededRng(seed)));
+    assert.equal(ids.length, RECALL_SIZE);
+    assert.equal(new Set(ids).size, RECALL_SIZE);
     const genres = ids.map((id) => questions.find((q) => q.id === id).genre);
-    assert.equal(new Set(genres).size, FIRST_CHECK_SIZE, `ジャンルが重ならない（${genres.join('・')}）`);
+    assert.equal(new Set(genres).size, RECALL_SIZE, `ジャンルが重ならない（${genres.join('・')}）`);
     sets.add([...ids].sort().join());
   }
   assert.ok(sets.size >= 10, '選び方が毎回ちがう');
   // 候補が少ないとき（ジャンルが足りない）は、同じジャンルからも取って5問にする
   const few = makeCtx(seededRng(1));
   few.firstCheck = firstCheck.filter((c) => ['生物', '勉強法'].includes(c.genre));
-  assert.equal(pickFirstCheck(few).length, FIRST_CHECK_SIZE);
+  assert.equal(pickRecall(newGame(0), few).length, RECALL_SIZE);
 });
 
 test('前世の記憶をたどる問題の答えはふつうの勉強と同じに数え、どう答えたか（正解・誤解・誤答2と3・時間切れ）を覚える', () => {
   const ids = ['ジュッパーノウ', 'イチヤヅケ', 'ニドオチズ', 'カゼコウセイ', 'ラクダミズブクロ'].map(idOf);
   const { s, ctx } = firstRunGame(ids);
-  assert.deepEqual(firstCheckProgress(s), { index: 0, total: 5, done: false });
-  const first = nextFirstCheck(s, ctx);
+  assert.deepEqual(recallProgress(s), { index: 0, total: 5, done: false });
+  const first = nextRecall(s, ctx);
   assert.equal(first.current.question.id, ids[0]);
   assert.equal(first.current.choices.length, 4);
   assert.ok(first.current.choices.some((c) => c.kind === 'myth'), '誤答1（誤解）は必ず選択肢にある');
   assert.equal(first.current.timeLimit, balance.quiz.timeLimitSec[0], '☆の制限時間');
-  const r1 = answerFirstCheck(s, first, first.current.choices.findIndex((c) => c.kind === 'myth'), ctx);
+  const r1 = answerRecall(s, first, first.current.choices.findIndex((c) => c.kind === 'myth'), ctx);
   assert.deepEqual([r1.correct, r1.check], [false, { kind: 'myth', monsterId: byName('ジュッパーノウ').id }]);
   reply(s, ctx, 'wrong');
   reply(s, ctx, 'timeout');
@@ -82,8 +83,8 @@ test('前世の記憶をたどる問題の答えはふつうの勉強と同じ�
   assert.equal(r4.correct, true);
   assert.equal(s.knowledge.totalCorrect, 1, '正解は累計の正解数に入る');
   reply(s, ctx, 'answer');
-  assert.deepEqual(firstCheckProgress(s), { index: 5, total: 5, done: true });
-  assert.equal(nextFirstCheck(s, ctx), null, '5問で終わり');
+  assert.deepEqual(recallProgress(s), { index: 5, total: 5, done: true });
+  assert.equal(nextRecall(s, ctx), null, '5問で終わり');
   assert.deepEqual(s.firstRun.check.answers.map((a) => a.kind), ['myth', 'wrong', 'timeout', 'correct', 'correct']);
   assert.equal(s.knowledge.history.length, 5, '過去問復習の最近解いた問題にも入る');
   assert.ok(s.knowledge.review.includes(ids[0]), '間違えた問題は間違えたままの問題に');
@@ -186,27 +187,9 @@ test('まだ出していない覚えたザコは、10階層までのどこで答
   }
 });
 
-test('前世の最期のすぐあと（最初の案内の前）に答えた5問：間違えた問題のザコは、冒険を始めた最初の群れの先頭に出る', () => {
-  const ctx = makeCtx(seededRng(9));
-  const s = createState(balance);
-  beginFirstRun(s, ctx); // 前世の最期が終わったところ（まだ年齢を選んでいない）
-  s.firstRun.check.questions = ['ジュッパーノウ', 'キンジツナツ', 'ニドオチズ', 'カゼコウセイ', 'ラクダミズブクロ'].map(idOf);
-  const r = reply(s, ctx, 'myth');
-  assert.ok(!r.events.some((e) => e.type === 'misbelief'), 'まだ冒険が始まっていないので、その場には出ない');
-  reply(s, ctx, 'wrong');
-  reply(s, ctx, 'timeout');
-  reply(s, ctx, 'answer');
-  reply(s, ctx, 'answer');
-  assert.equal(s.knowledge.totalCorrect, 2, '答えは数える（生まれ変わった最初の人生に持ち越す）');
-  startGame(s, 0, '主人公', 80, 'male'); // 最初の案内で年齢を選んだ
-  const ev = tick(s, 0.05, ctx);
-  assert.deepEqual(s.adventure.enemies.slice(0, 3).map((e) => e.name), ['ジュッパーノウ', 'キンジツナツ', 'ニドオチズ']);
-  assert.deepEqual(ev.filter((e) => e.type === 'misbelief').map((e) => e.name), ['ジュッパーノウ', 'キンジツナツ', 'ニドオチズ'], '3つとも「前世で魔物に吹き込まれた噂」として出る');
-});
-
 test('全問正解なら、覚えたザコは無く、いつもの草原のザコが出る', () => {
   const { s, ctx } = firstRunGame();
-  for (let i = 0; i < FIRST_CHECK_SIZE; i++) reply(s, ctx, 'answer');
+  for (let i = 0; i < RECALL_SIZE; i++) reply(s, ctx, 'answer');
   assert.deepEqual(rememberedZako(s, ctx), []);
   for (let k = 0; k < 20; k++) {
     s.adventure.enemies = []; s.adventure.kills = 0;
@@ -243,8 +226,8 @@ test('前のセーブ（firstRun が無い）は、前世の記憶をたどる�
   delete old.firstRun;
   const s = deserialize(serialize(old, 0), balance);
   assert.equal(s.firstRun, null);
-  assert.deepEqual(firstCheckProgress(s), { index: 0, total: 0, done: true });
-  assert.equal(nextFirstCheck(s, ctx), null);
+  assert.deepEqual(recallProgress(s), { index: 0, total: 0, done: true });
+  assert.equal(nextRecall(s, ctx), null);
   assert.deepEqual(rememberedZako(s, ctx), []);
   s.hero.level = 50;
   const ev = [];
@@ -289,4 +272,139 @@ test('寿命の帯：誕生日ごとに1目盛り進み、寿命は病院の治�
   assert.equal(lifeBar(s, balance).lifespan, 80 + 2 * balance.hospital.extendYears);
   s.life.gameHours = 200 * HOURS_PER_YEAR;
   assert.equal(lifeBar(s, balance).age, lifeBar(s, balance).lifespan, '帯からはみ出さない');
+});
+
+/* ---------- 生まれ変わるたびの「前世の記憶をたどる」（設計ページの節） ---------- */
+
+/** 1世代目を終えて生まれ変わり、最初の案内で年齢を選んだところ（beginRecall まで） */
+function reborn(rng = seededRng(4)) {
+  const ctx = makeCtx(rng);
+  const s = newGame(0);
+  beginRecall(s, ctx);
+  for (let i = 0; i < RECALL_SIZE; i++) reply(s, ctx, 'answer');
+  reincarnate(s, ctx);
+  startGame(s, 0, '主人公', 80, 'female');
+  beginRecall(s, ctx);
+  return { s, ctx };
+}
+
+test('生まれ変わるたびに新しい5問：この世代の分として決め、覚えたザコは入れ替え、図鑑の1体目の札はもう出さない', () => {
+  const ctx = makeCtx(seededRng(4));
+  const s = newGame(0);
+  beginRecall(s, ctx);
+  reply(s, ctx, 'myth');
+  s.firstRun.zukanShown = true;
+  const first = s.firstRun.check.questions;
+  reincarnate(s, ctx);
+  assert.deepEqual(recallProgress(s), { index: 0, total: 0, done: true }, '前の世代の分は、生まれ変わったら終わったことにする');
+  assert.deepEqual(rememberedZako(s, ctx).length, 1, '覚えたザコの記録は残るが…');
+  startGame(s, 0, '主人公', 80, 'male');
+  s.adventure.enemies = [];
+  const ev0 = [];
+  spawnGroup(s, ctx, ev0);
+  assert.ok(!ev0.some((e) => e.type === 'misbelief'), '…前の世代の覚えたザコは、次の人生では優先しない');
+  beginRecall(s, ctx);
+  assert.equal(s.firstRun.check.generation, 2);
+  assert.deepEqual(recallProgress(s), { index: 0, total: RECALL_SIZE, done: false });
+  assert.notDeepEqual(s.firstRun.check.questions, first);
+  assert.deepEqual([s.firstRun.introduced, s.firstRun.zukanShown], [[], true]);
+  // この人生で誤答1を選んだザコは、この人生の1〜10階層で優先して出る（群れがいない間に答えたので、次の群れの先頭に）
+  s.adventure.enemies = []; s.adventure.kills = 0;
+  const r = reply(s, ctx, 'myth');
+  const ev = [];
+  spawnGroup(s, ctx, ev);
+  assert.equal(s.adventure.enemies[0].monsterId, r.check.monsterId);
+  assert.deepEqual(ev.filter((e) => e.type === 'misbelief').map((e) => [e.monsterId, e.believed]), [[r.check.monsterId, true]]);
+});
+
+test('生まれ変わったあとの問題は、ザコ（地球・⚠でない）とつながっている問題すべてから（出典確認済に限るのは最初の人生だけ）', () => {
+  const { s, ctx } = reborn();
+  const cands = recallCandidates(s, ctx);
+  assert.ok(cands.length > 100, `候補 ${cands.length}問`);
+  assert.ok(cands.length > firstCheckCandidates(ctx).length);
+  for (const q of cands) {
+    const m = byName(q.monster);
+    assert.ok(m && m.kind === 'monster' && (m.world || 'earth') === 'earth' && !m.debated, `${q.monster} は地球のザコで⚠でない`);
+  }
+  assert.ok(cands.some((q) => q.difficulty >= 3), '☆だけに限らない');
+  for (const id of s.firstRun.check.questions) assert.ok(cands.some((q) => q.id === id));
+  assert.equal(new Set(s.firstRun.check.questions.map((id) => questions.find((q) => q.id === id).genre)).size, RECALL_SIZE, 'ジャンルを散らす');
+  // 最初の人生は出典確認済の候補だけ
+  assert.deepEqual(recallCandidates(newGame(0), ctx).map((q) => q.id), firstCheckCandidates(ctx).map((q) => q.id));
+});
+
+test('難易度は遊ぶ人の実力に合わせる：問題ごとに、そのジャンルの熟練Lvで勉強と同じ難易度の配分を使う', () => {
+  const avg = (level) => {
+    let sum = 0, n = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+      const { s, ctx } = reborn(seededRng(seed));
+      for (const g of Object.keys(s.knowledge.genres)) genreState(s, g).level = level;
+      for (const q of recallCandidates(s, ctx)) genreState(s, q.genre).level = level;
+      for (const id of pickRecall(s, ctx)) { sum += questions.find((q) => q.id === id).difficulty; n++; }
+    }
+    return sum / n;
+  };
+  // ザコとつながっている問題には難しい問題が少ない（☆4・☆5は合わせて20問足らず）ので、無い難易度は近い難易度から出る
+  const low = avg(0), high = avg(5);
+  assert.ok(low < 1.9, `熟練Lv0なら☆中心（平均☆${low.toFixed(2)}）`);
+  assert.ok(high > low + 0.8, `熟練Lv5なら難しい問題が増える（平均☆${high.toFixed(2)}）`);
+});
+
+test('まだ正解したことのない問題を優先し、そのジャンルに無ければ正解済みの問題から出す', () => {
+  const { s, ctx } = reborn();
+  const cands = recallCandidates(s, ctx);
+  const keep = cands.find((q) => q.genre === '生物');
+  s.knowledge.solved = cands.filter((q) => q !== keep).map((q) => q.id); // 生物の1問だけ正解したことがない
+  let sawBio = 0;
+  for (let seed = 1; seed <= 40; seed++) {
+    const picked = pickRecall(s, makeCtx(seededRng(seed)));
+    assert.equal(picked.length, RECALL_SIZE, 'ほかのジャンルは正解済みの問題から出す');
+    const bio = picked.map((id) => questions.find((q) => q.id === id)).filter((q) => q.genre === '生物');
+    if (bio.length) { sawBio++; assert.equal(bio[0].id, keep.id, '生物は正解したことのない1問を出す'); }
+  }
+  assert.ok(sawBio > 0);
+});
+
+test('正解したことがある問題を覚える（knowledge.solved）：正解で入り、間違いでは入らない。同期で外れた問題は消す', () => {
+  const ctx = makeCtx(seededRng(2));
+  const s = newGame(0);
+  beginRecall(s, ctx);
+  const [q1, q2] = s.firstRun.check.questions;
+  reply(s, ctx, 'wrong');
+  reply(s, ctx, 'answer');
+  assert.deepEqual([everSolved(s, q1), everSolved(s, q2)], [false, true]);
+  s.knowledge.solved.push('gone-question');
+  forgetMissingQuestions(s, ctx);
+  assert.deepEqual(s.knowledge.solved, [q2]);
+  // 前のセーブ（記録が無い）も読める
+  const old = newGame(7);
+  delete old.knowledge.solved;
+  assert.deepEqual(deserialize(serialize(old, 0), balance).knowledge.solved, []);
+});
+
+test('前のセーブ（1世代目で前世の記憶をたどるが無い）も、生まれ変わると5問が出る。図鑑の1体目の札は、もう正体を開いたザコがいれば出さない', () => {
+  const ctx = makeCtx(seededRng(6));
+  const s = newGame(7);
+  s.firstRun = null;
+  s.knowledge.zukan[byName('ジュッパーノウ').id] = { stage: 2, fooled: 0 };
+  reincarnate(s, ctx);
+  startGame(s, 0, '主人公', 80, 'male');
+  beginRecall(s, ctx);
+  assert.equal(recallProgress(s).total, RECALL_SIZE);
+  assert.equal(s.firstRun.zukanShown, true);
+});
+
+test('生まれ変わりの場面に流す熟練の記録：終わった人生の分だけを、古い順に始まりと終わりを含めて4行まで', () => {
+  const s = newGame(0);
+  for (let age = 1; age <= 10; age++) {
+    s.life.gameHours = age * HOURS_PER_YEAR;
+    logProficiency(s, { genre: '数学', from: age - 1, to: age, reason: 'year' });
+  }
+  s.life.generation = 2;
+  logProficiency(s, { genre: '生物', from: 0, to: 1, reason: 'study' });
+  const h = lifeLogHighlights(s, 1);
+  assert.deepEqual(h.map((c) => c.age), [1, 4, 7, 10]);
+  assert.ok(h.every((c) => c.gen === 1));
+  assert.deepEqual(lifeLogHighlights(s, 2).map((c) => c.genre), ['生物'], '少なければあるだけ');
+  assert.deepEqual(lifeLogHighlights(s, 3), [], '記録が無ければ空');
 });

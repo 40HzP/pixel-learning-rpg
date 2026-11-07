@@ -2,10 +2,10 @@
 import {
   createState, startGame, canStartAt, tick, clockFrame, createClock, HOURS_PER_YEAR,
   createRateTracker, trackTime, trackGain, moveToFloor, birthday, stageFor, fitParty, lifespanFor, generationMultiplier, heroStats, forgetPastLifeBosses,
-  launchRocket, returnToEarth, ADVISOR_PLACES, heroSnapshot, compareSnapshots,
+  launchRocket, returnToEarth, ADVISOR_PLACES, heroSnapshot, compareSnapshots, lifeLogHighlights,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
-import { forgetMissingQuestions, ensureAuthorCode, takeNewAdoptions, refreshDaily, dayKey, beginFirstRun, firstCheckProgress } from './quiz.js';
+import { forgetMissingQuestions, ensureAuthorCode, takeNewAdoptions, refreshDaily, dayKey, beginRecall } from './quiz.js';
 import { MAJOR_SLOTS } from './fields.js';
 import { loadPalette, loadSprite, spriteCanvas, buildSprite } from './sprites.js';
 import { outfitOf, outfitKey, dressFrames } from './outfit.js';
@@ -26,7 +26,7 @@ import { playLaunch } from './ui/launch.js';
 import { profChangeText } from './ui/proflog.js';
 import { openFloors } from './ui/floors.js';
 import { playPrologue } from './ui/prologue.js';
-import { recallPastLife } from './ui/recall.js';
+import { showing as recallShowing } from './ui/recall.js';
 
 const PIXEL = '../pixel/';
 const SPRITES = PIXEL + 'sprites/';
@@ -231,10 +231,18 @@ async function boot() {
     },
     // デバッグ：最初の3分（前世の最期・前世の記憶をたどる・起動から3分の比較）を試す
     playPrologue: () => runOverlay(() => playPrologue(app)),
+    // 生まれ変わりの場面を、今の人生の熟練の記録で流す（生まれ変わりはしない）
+    playRebirthScene: () => {
+      const s = app.state;
+      runOverlay(() => playPrologue(app, rebirthScene({
+        generation: s.life.generation, name: s.hero.name, age: Math.floor(s.life.gameHours / HOURS_PER_YEAR),
+        level: s.hero.level, maxFloor: s.life.maxFloor || 1, moonFloor: s.life.moonMaxFloor || 0, gold: Math.floor(s.gold),
+      })));
+    },
     restartFirstCheck() {
-      beginFirstRun(app.state, ctx); // 新しい5問。覚えたザコと図鑑の1体目の札も最初から（ザコの群れと戦っていれば、間違えたザコがすぐ現れる）
+      beginRecall(app.state, ctx); // この人生の新しい5問（覚えたザコも入れ替える。ザコの群れと戦っていれば、間違えたザコがすぐ現れる）
+      adventure.reset();
       showTab('adventure');
-      runOverlay(() => recallPastLife(app));
     },
     launchCompareNow() {
       countLaunch(0);
@@ -381,18 +389,26 @@ async function boot() {
   function reincarnationMovie(e) {
     launchMark = null; // 新しい人生が始まったら、そこから3分を数え直す
     const p = e.life;
-    const m = generationMultiplier(app.state, balance);
     app.rate = createRateTracker();
     for (const sc of Object.values(screens)) sc.reset && sc.reset(app);
-    runOverlay(() => playMovie(app, {
-      lines: [
-        `${p.name}は${p.age}歳で天寿を全うした。`,
-        `Lv${p.level}・最高${p.maxFloor}階層${p.moonFloor ? `（月面は${p.moonFloor}階層）` : ''}まで進み、${fmt(p.gold)}ゴールドを残した。`,
-        `前世の記憶を受け継いで、新しい命に生まれ変わる。${e.generation}世代目は、ステータスの伸び・経験値・ゴールドが${m}倍になる。`,
-      ],
-      otherId: null,
-      hero: 'old',
-    }).then(() => { showIntro(); saveNow(); refreshActive(true); }));
+    runOverlay(() => playPrologue(app, rebirthScene(p)).then(() => { showIntro(); saveNow(); refreshActive(true); }));
+  }
+  /**
+   * 生まれ変わりの場面：終わったばかりの人生の本物の熟練の記録から数行を流す（設計ページ「生まれ変わるたびの『前世の記憶をたどる』」の案。
+   * 初回の作り話の前世と同じ場面）。p は前世のまとめ（reincarnate の返り値）。その人生のまとめ（Lv・最高到達・残したゴールド）を下に添える
+   */
+  function rebirthScene(p) {
+    const log = lifeLogHighlights(app.state, p.generation).map((c) => ({
+      when: `${c.age}歳`, what: c.field ? `学際分野「${c.field}」` : c.genre, how: profChangeText(c),
+      kind: c.field ? 'field' : c.to > c.from ? 'up' : c.to < c.from ? 'down' : 'same',
+    }));
+    log.push({ when: `${p.age}歳`, what: '', how: 'ここで記録が途切れている', kind: 'end' });
+    return {
+      log,
+      head: `${p.name}の熟練の記録`,
+      sub: `Lv${p.level}・最高到達${p.maxFloor}階層${p.moonFloor ? `（月面${p.moonFloor}階層）` : ''}・${fmt(p.gold)}ゴールドを残した`,
+      gender: app.state.hero.gender,
+    };
   }
 
   /**
@@ -424,18 +440,21 @@ async function boot() {
     return r;
   }
 
-  /* ---------- 最初の3分：前世で魔物に吹き込まれた噂（前世の記憶をたどるで間違えた問題のザコ）・図鑑の1体目 ---------- */
-  // 噂のザコが出たら、群れの噂を1枚の札に並べる。倒すたびにその行に線を引き、「正体」の札を出す。
+  /* ---------- 前世の記憶をたどるで間違えた問題のザコ（前世で魔物に吹き込まれた噂）・図鑑の1体目 ---------- */
+  // 誤答1を選んだ問題のザコが出たら、群れの噂を1枚の札に並べる。倒すたびにその行に線を引き、「正体」の札を出す（間違えた問題のザコはどれも）。
   // 正体と図鑑の1体目の札は、続けて倒しても読めるように1枚ずつ順に出す（cardQueue）
   const TRUTH_MS = 4500;
   const rumors = new Map(); // 噂のザコの敵 uid → 魔物
   let rumorCard = null;
   function notifyMisbeliefs(list) {
     for (const e of list) rumors.set(e.uid, monsters.find((m) => m.id === e.monsterId));
+    // 「前世で魔物に吹き込まれた噂」と添えるのは誤答1を選んだ問題のザコだけ（誤答2・3と時間切れは、知らなかっただけなので添えない）
+    const believed = list.filter((e) => e.believed);
+    if (!believed.length) return;
     if (rumorCard) rumorCard.remove();
     rumorCard = notifyCard([
       el('b', { class: 'nt-title' }, '前世で魔物に吹き込まれた噂'),
-      ...list.map((e) => el('span', { class: 'nt-myth', 'data-uid': String(e.uid) }, `「${e.myth}」`, el('small', {}, e.name))),
+      ...believed.map((e) => el('span', { class: 'nt-myth', 'data-uid': String(e.uid) }, `「${e.myth}」`, el('small', {}, e.name))),
     ], 'myth', 20000);
   }
   /**
@@ -512,7 +531,8 @@ async function boot() {
       else if (e.type === 'nande') runOverlay(() => askNande(app));
       else if (e.type === 'reincarnated') onReincarnated(e);
       else if (e.type === 'ailment') startAilmentMovie(e.age);
-      else if (e.type === 'levelUp') notify(`${app.state.hero.name}のレベルが上がった！　Lv ${e.level}`, 'good');
+      // 前世の記憶をたどるを出している間は、レベルアップと「図鑑に載った」は知らせない（最初は次々に来て、問題と戦いの様子を隠すため）
+      else if (e.type === 'levelUp') { if (!recallShowing()) notify(`${app.state.hero.name}のレベルが上がった！　Lv ${e.level}`, 'good'); }
       else if (e.type === 'floorUp') {
         // 10階層ごとに世界が変わる。新しい世界の最初の階層では世界の名前を出す（月面の階層は「月面◯階層」）
         const st = stageFor(e.floor, app.stages, e.world);
@@ -573,8 +593,8 @@ async function boot() {
     }
     if (misbelief.length) notifyMisbeliefs(misbelief);
     // 群れで初めて会った魔物は1つの知らせにまとめる（噂のザコは噂の札で出すので、ここには入れない）
-    const metOthers = met.filter((name) => !misbelief.some((e) => e.name === name));
-    if (metOthers.length) notify(`図鑑に載った：${metOthers.join('・')}`);
+    const metOthers = met.filter((name) => !misbelief.some((e) => e.believed && e.name === name));
+    if (metOthers.length && !recallShowing()) notify(`図鑑に載った：${metOthers.join('・')}`);
     // 学際分野の解放（前のセーブで、もう条件を満たしていたときは一度にいくつも来る）
     if (found.length === 1 && found[0].hidden) notify(`隠しの学際分野「${found[0].name}」を見つけた！\n称号「${found[0].title}」を手に入れた`, 'good');
     else if (found.length === 1) notify(`学際分野「${found[0].name}」を解放した！（${found[0].genres.join('＋')}）\n称号「${found[0].title}」を手に入れた。街の「学校・研究室」で専攻にすると効果が出る`, 'good');
@@ -680,6 +700,9 @@ async function boot() {
     b.addEventListener('click', () => {
       if (!canStartAt(app.state, Number(b.dataset.age))) return;
       startGame(app.state, Number(b.dataset.age), document.getElementById('hero-name').value, lifespanFor(balance, Math.random), gender);
+      // 前世の記憶をたどる5問を決める：初めて遊ぶ人の最初の人生と、生まれ変わるたび（前のセーブの1世代目は出さない）。
+      // 出すのは冒険画面の横（ui/recall.js。冒険が始まると出る）
+      if (app.state.life.generation > 1 || !app.state.firstRun) beginRecall(app.state, ctx);
       intro.hidden = true;
       saveNow();
       refreshActive(true);
@@ -690,21 +713,11 @@ async function boot() {
     await Promise.race([document.fonts.load('16px "DotGothic16"'), new Promise((ok) => setTimeout(ok, FONT_WAIT_MS))]);
   } catch { /* 標準のフォントで続ける */ }
   document.getElementById('loading').hidden = true;
-  // 初めての起動は、前世の最期（10秒ほど）→ 前世の記憶をたどる（5問）→ 最初の案内（生まれ変わる）。
-  // 5問の途中で読み込み直したときは、残りの問題から（前のセーブ・生まれ変わったあとは出ない）
-  const recallLeft = () => app.state.firstRun && app.state.life.generation === 1 && !firstCheckProgress(app.state).done;
+  // 初めての起動は、前世の最期（10秒ほど）から始めて、最初の案内へ。前世の記憶をたどる5問は、年齢を選んで冒険が始まってから出す
   if (app.state.meta.startAge == null) {
-    if (firstLaunch) {
-      runOverlay(async () => {
-        await playPrologue(app);
-        beginFirstRun(app.state, ctx);
-        saveNow();
-        await recallPastLife(app);
-        showIntro();
-      });
-    } else if (recallLeft()) runOverlay(() => recallPastLife(app).then(showIntro));
+    if (firstLaunch) runOverlay(() => playPrologue(app).then(showIntro));
     else showIntro();
-  } else if (recallLeft()) runOverlay(() => recallPastLife(app));
+  }
 
   /* ---------- 新しい版が公開されたら知らせる ---------- */
   // 開きっぱなしのタブや、ブラウザに残った古い版のままにならないように
@@ -776,6 +789,7 @@ async function boot() {
       const events = tick(app.state, dt, ctx);
       if (events.length) handleEvents(events);
       study.frame(app, realDt);
+      adventure.frame(app, realDt); // 前世の記憶をたどるの制限時間
       if (visible) countLaunch(realDt);
     }
     const now = nowMs / 1000;

@@ -2,7 +2,7 @@
 // ctx = { balance, monsters, items, questions, rng }（questions は questions.json の questions 配列）
 
 import { GENRES } from './genres.js';
-import { genreState, raiseZukan, zukanEntry, breakMidbosses, healEnemy, proficiencyCap, markSmooth, hearRadio, advisorActive, citationsLeft, logProficiency, worldOf, summonRemembered } from './sim.js';
+import { genreState, raiseZukan, zukanEntry, breakMidbosses, healEnemy, proficiencyCap, markSmooth, hearRadio, advisorActive, citationsLeft, logProficiency, worldOf, summonRemembered, zakoZukanCount } from './sim.js';
 import { fieldActive, fieldById } from './fields.js';
 
 export { GENRES };
@@ -22,6 +22,7 @@ export function forgetMissingQuestions(state, ctx) {
   k.recent = k.recent.filter((id) => ids.has(id));
   k.history = (k.history || []).filter((h) => ids.has(h.id));
   k.favorites = (k.favorites || []).filter((id) => ids.has(id));
+  k.solved = (k.solved || []).filter((id) => ids.has(id));
   return before - k.review.length;
 }
 
@@ -381,6 +382,9 @@ export function answer(state, session, choiceIndex, ctx) {
   if (correct) {
     g.correct++;
     k.totalCorrect++;
+    // 正解したことがある問題（前世の記憶をたどるで、まだ正解したことのない問題を優先するため）
+    if (!k.solved) k.solved = [];
+    if (!k.solved.includes(q.id)) k.solved.push(q.id);
     res.levelUp = addProgress(state, q.genre, ctx);
     for (let i = 1; daily && i < qb.dailyProgress; i++) res.levelUp = addProgress(state, q.genre, ctx) || res.levelUp;
     const ri = k.review.indexOf(q.id);
@@ -568,84 +572,118 @@ export function fooledAnalysis(state, ctx) {
   };
 }
 
-/* ================= 最初の3分：前世の記憶をたどる（設計ページ「最初の3分」。前の名前は常識チェック） ================= */
-// 初めて遊ぶ人の最初の人生だけ、起動するとすぐ冒険画面の横で5問出す（ゲームは止めない。ui/firstcheck.js）。
-// 誤答1（誤解）を選んだ問題のザコは「あなたが信じていた誤解」として、誤答2・3と時間切れの問題のザコはそのまま、
-// 最初の人生の1〜10階層で優先して出る（sim.js の rememberedZako・pickZakoGroup）。全問正解ならいつもの草原のザコ
+/* ================= 前世の記憶をたどる（設計ページ「最初の3分」と「生まれ変わるたびの『前世の記憶をたどる』」） ================= */
+// 初めて遊ぶ人の最初の人生と、生まれ変わるたびに、始まりの画面のあと冒険画面の横で5問出す（ゲームは止めない。ui/recall.js）。
+// 誤答1を選んだ問題のザコは「前世で魔物に吹き込まれた噂」として、誤答2・3と時間切れの問題のザコは札なしで、
+// その人生の1〜10階層で優先して出る（sim.js の rememberedZako・pickZakoGroup）。全問正解ならいつもの草原のザコ。前の名前は常識チェック
 
-export const FIRST_CHECK_SIZE = 5;
+export const RECALL_SIZE = 5;
+
+/** その問題の関連する魔物が、地球のザコ（⚠の議論中でない）か */
+function linkedEarthZako(q, ctx) {
+  if (!q || !q.monster) return false;
+  const m = ctx.monsters.find((x) => x.name === q.monster);
+  return !!m && m.kind === 'monster' && worldOf(m) === 'earth' && !m.debated;
+}
 
 /**
- * 前世の記憶をたどるに出せる問題：候補（data/first-check.json の questions。問題リストの「☆」・ザコとつながっている・裏取りが「出典確認済」）のうち、
- * 今の questions.json にあって、☆で、関連する魔物が地球のザコ（⚠の議論中でない）のもの
+ * 最初の人生の候補：data/first-check.json の questions（問題リストの「☆」・ザコとつながっている・裏取りが「出典確認済」）のうち、
+ * 今の questions.json にあって、☆で、関連する魔物が地球のザコ（⚠でない）のもの（最初の印象で間違った情報を出さないため）
  */
 export function firstCheckCandidates(ctx) {
   const ids = (ctx.firstCheck || []).map((c) => (typeof c === 'string' ? c : c.id));
-  return ids.map((id) => ctx.questions.find((q) => q.id === id)).filter((q, i, all) => {
-    if (!q || all.indexOf(q) !== i || q.difficulty !== 1 || !q.monster) return false;
-    const m = ctx.monsters.find((x) => x.name === q.monster);
-    return !!m && m.kind === 'monster' && worldOf(m) === 'earth' && !m.debated;
-  });
+  return ids.map((id) => ctx.questions.find((q) => q.id === id)).filter((q, i, all) =>
+    q && all.indexOf(q) === i && q.difficulty === 1 && linkedEarthZako(q, ctx));
 }
 
-/** 前世の記憶をたどる5問を選ぶ：候補を混ぜて、まだ選んでいないジャンルの問題から取り（ジャンルを散らす）、足りなければ残りから */
-export function pickFirstCheck(ctx, size = FIRST_CHECK_SIZE) {
-  const pool = firstCheckCandidates(ctx);
-  for (let i = pool.length - 1; i > 0; i--) {
+/** 前世の記憶をたどるに出せる問題：最初の人生は出典確認済の候補だけ、生まれ変わったあとはザコ（地球・⚠でない）とつながっている問題すべて */
+export function recallCandidates(state, ctx) {
+  if (state.life.generation <= 1) return firstCheckCandidates(ctx);
+  return ctx.questions.filter((q) => linkedEarthZako(q, ctx));
+}
+
+/** 正解したことがある問題か（knowledge.solved。前のセーブは記録が無いので、どれもまだ） */
+export const everSolved = (state, id) => (state.knowledge.solved || []).includes(id);
+
+/**
+ * 前世の記憶をたどる5問を選ぶ（40HzP の依頼で、難易度は遊ぶ人の実力に合わせる）：
+ * ジャンルを散らし（混ぜた順に、まだ選んでいないジャンルから）、問題ごとにそのジャンルの熟練Lvで勉強と同じ難易度の配分（pickQuestion）を使う。
+ * まだ正解したことのない問題を優先し、そのジャンルに無ければ正解済みの問題から。ジャンルが足りなければ同じジャンルから2問目
+ */
+export function pickRecall(state, ctx, size = RECALL_SIZE) {
+  const pool = recallCandidates(state, ctx);
+  const genres = [...new Set(pool.map((q) => q.genre))];
+  for (let i = genres.length - 1; i > 0; i--) {
     const j = Math.floor(ctx.rng() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+    [genres[i], genres[j]] = [genres[j], genres[i]];
   }
   const picked = [];
-  const genres = new Set();
-  for (const q of pool) if (picked.length < size && !genres.has(q.genre)) { picked.push(q); genres.add(q.genre); }
-  for (const q of pool) if (picked.length < size && !picked.includes(q)) picked.push(q);
-  return picked.map((q) => q.id);
+  for (let round = 0; picked.length < size && round < size; round++) {
+    for (const g of genres) {
+      if (picked.length >= size) break;
+      const inGenre = pool.filter((q) => q.genre === g && !picked.includes(q.id));
+      if (!inGenre.length) continue;
+      const unsolved = inGenre.filter((q) => !everSolved(state, q.id));
+      const q = pickQuestion(unsolved.length ? unsolved : inGenre, genreState(state, g).level, [], ctx);
+      if (q) picked.push(q.id);
+    }
+  }
+  return picked;
 }
 
-/** 初めて遊ぶ人が最初の人生を始めた（main.js。生まれ変わったあとと前のセーブでは呼ばない）：前世の記憶をたどる問題を決める */
-export function beginFirstRun(state, ctx) {
-  state.firstRun = { check: { questions: pickFirstCheck(ctx), answers: [] }, introduced: [], zukanShown: false };
+/**
+ * 前世の記憶をたどる5問を決める（main.js。最初の案内で年齢を選んだとき：初めて遊ぶ人の最初の人生と、生まれ変わるたび）。
+ * 覚えたザコは生まれ変わるたびに入れ替える。図鑑の1体目の札は一度だけ（前のセーブで、もう正体を開いたザコがいれば出さない）
+ */
+export function beginRecall(state, ctx) {
+  const prev = state.firstRun;
+  state.firstRun = {
+    check: { generation: state.life.generation, questions: pickRecall(state, ctx), answers: [] },
+    introduced: [],
+    zukanShown: prev ? !!prev.zukanShown : zakoZukanCount(state, ctx).opened > 0,
+  };
   return state.firstRun;
 }
 
-/** 前世の記憶をたどるの進み具合：{ index（次は何問目。0から）, total, done } */
-export function firstCheckProgress(state) {
+/** 前世の記憶をたどるの進み具合：{ index（次は何問目。0から）, total, done }。この人生の分でなければ終わったことにする */
+export function recallProgress(state) {
   const c = state.firstRun && state.firstRun.check;
-  const total = c ? c.questions.length : 0;
-  const index = c ? c.answers.length : 0;
+  const current = c && (c.generation || 1) === state.life.generation;
+  const total = current ? c.questions.length : 0;
+  const index = current ? c.answers.length : 0;
   return { index, total, done: index >= total };
 }
 
 /**
- * 前世の記憶をたどるの次の問題を出す（1問ずつのセッション。answerFirstCheck で答える）。もう無ければ null。
- * 選択肢には誤答1（誤解）を必ず入れる（ふつうの出題と同じく4択）
+ * 前世の記憶をたどるの次の問題を出す（1問ずつのセッション。answerRecall で答える）。もう無ければ null。
+ * 選択肢には誤答1を必ず入れる（ふつうの出題と同じく4択）
  */
-export function nextFirstCheck(state, ctx) {
-  const p = firstCheckProgress(state);
+export function nextRecall(state, ctx) {
+  const p = recallProgress(state);
   if (p.done) return null;
   const id = state.firstRun.check.questions[p.index];
   const q = ctx.questions.find((x) => x.id === id);
   if (!q) { // 同期で外れた問題は飛ばす
     state.firstRun.check.answers.push({ id, monsterId: null, kind: 'skipped' });
-    return nextFirstCheck(state, ctx);
+    return nextRecall(state, ctx);
   }
-  const session = { mode: 'check', genre: null, pool: [id], total: 1, index: 0, asked: [], current: null, results: [], daily: null };
+  const session = { mode: 'recall', genre: null, pool: [id], total: 1, index: 0, asked: [], current: null, results: [], daily: null };
   presentQuestion(session, q, ctx);
   return session;
 }
 
 /**
  * 前世の記憶をたどるの問題に答える（choiceIndex が null なら時間切れ）。数え方はふつうの勉強と同じ（answer）。
- * どう答えたか（correct・myth＝誤答1・wrong＝誤答2と3・timeout）とザコを firstRun に残す。返り値は answer と同じで、check に { kind, monsterId }
+ * どう答えたか（correct・myth＝誤答1・wrong＝誤答2と3・timeout）とザコを firstRun に残す。返り値は answer と同じで、check に { kind, monsterId }。
+ * 間違えた問題のザコは、答えてすぐ今の群れに現れる（入れ替えられなければ次の群れで。sim.js の summonRemembered）
  */
-export function answerFirstCheck(state, session, choiceIndex, ctx) {
+export function answerRecall(state, session, choiceIndex, ctx) {
   const q = session.current.question;
   const res = answer(state, session, choiceIndex, ctx);
   const kind = res.correct ? 'correct' : res.timeout ? 'timeout' : res.chose;
   const m = ctx.monsters.find((x) => x.name === q.monster);
   state.firstRun.check.answers.push({ id: q.id, monsterId: m ? m.id : null, kind });
   res.check = { kind, monsterId: m ? m.id : null };
-  // 間違えた問題のザコは、答えてすぐ今の群れに現れる（入れ替えられなければ次の群れで）
   if (kind !== 'correct') summonRemembered(state, ctx, res.events);
   return res;
 }
