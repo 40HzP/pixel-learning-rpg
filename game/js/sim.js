@@ -26,24 +26,25 @@ export const GENDERS = ['male', 'female'];
 export function createState(balance) {
   return {
     meta: { startAge: null },                       // 開始年齢の選択（null＝まだ選んでいない）
-    // 何世代目か・0歳1月1日0時からの経過時間・生まれたときに決まった寿命（歳）・この人生で一番深い階層（地球）・月面で一番深い階層（0＝まだ行っていない）・体の不調を感じ始めたか・病院で治療を受けた回数
-    life: { generation: 1, gameHours: 0, lifespan: balance.life.lifespanYears, maxFloor: 1, moonMaxFloor: 0, ailing: false, treatments: 0 },
+    // 何世代目か・0歳1月1日0時からの経過時間・生まれたときに決まった寿命（歳）・この人生で一番深い階層（地球）・月面で一番深い階層（0＝まだ行っていない）・体の不調を感じ始めたか・病院で治療を受けた回数・
+    // 誕生日：前に誕生日の処理（全回復・熟練の判定）をした年齢
+    life: { generation: 1, gameHours: 0, lifespan: balance.life.lifespanYears, maxFloor: 1, moonMaxFloor: 0, ailing: false, treatments: 0, birthday: 0 },
     hero: { name: DEFAULT_HERO_NAME, gender: 'male', level: 1, exp: 0, totalExp: 0, hp: balance.hero.base.hp, mp: balance.hero.base.mp },
     gold: 0,
     equipment: { weapon: null, armor: null, accessory: null }, // 武器・防具・装飾品（品物のid）
     owned: [],                                      // 買った品物のid
     allies: [],                                     // 中ボス：{ id, name, atk, maxHp, hp, cd, benched?（控え）, advisor?（顧問） }／契約：{ id, name, hired: true, cd, paidUntil }
-    citationsUsed: 0,                               // 学会の査読者（顧問）の「要出典」を、前に眠ってから使った回数
+    citationsUsed: 0,                               // 学会の査読者（顧問）の「要出典」を、前の誕生日から使った回数
     companies: [],                                  // 起業した会社：{ uid, industry, foundedAt, staff: [{ id, grade, paidUntil }], corp?（法人化した）, incorporatedAt? }（業種ごとに1社まで）
     nextCompanyUid: 1,
     // 法人税（法と経済学で法人化した会社）：今年の法人の利益（決算で税を計算する元）・払いきれなかった法人税・前に決算した年齢
     tax: { earned: 0, owed: 0, year: 0 },
-    // enemies：今出ている群れ（先頭が狙う相手）。baseFloor：拠点（構造工学）。evadeAcc：ためた回避率。
+    // enemies：今出ている群れ（先頭が狙う相手）。evadeAcc：ためた回避率。
     // world：今いる世界（earth＝地球、moon＝月面）。floor は今いる世界の階層で、もう片方の世界の階層は earthFloor・moonFloor に取っておく
-    // moonBaseFloor：月面の拠点（前線基地。地球の拠点とは別に1つ持つ）
-    adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1, baseFloor: null, moonBaseFloor: null, evadeAcc: 0, world: 'earth', earthFloor: null, moonFloor: 1 },
+    adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1, evadeAcc: 0, world: 'earth', earthFloor: null, moonFloor: 1 },
     knowledge: {                                    // 転生で引き継ぐ前提のもの（第2段階）
-      genres: {},                                   // ジャンル名 → { level, progress, correct, studied }
+      genres: {},                                   // ジャンル名 → { level, progress, correct, studied（前の誕生日から勉強した）, idle（勉強していない年数） }
+      profLog: [],                                  // 熟練の記録（新しい順。PROF_LOG_MAX 件まで。logProficiency）
       totalCorrect: 0,
       review: [],                                   // 間違えたままの問題id（正解すると外れる。心理統計学で見る）
       history: [],                                  // 過去問復習の「最近解いた問題」：{ id, correct, chosen, oogiri? } の新しい順（正誤を問わず10問まで）
@@ -59,7 +60,7 @@ export function createState(balance) {
     },
     midbosses: {},                                  // 中ボスid → { status: waiting|appeared|broken|defeated, announced }
     bosses: {},                                     // ボスid → { status: waiting|appeared|defeated }（一度倒したボスは、その人生ではもう出ない。生まれ変わるとまた出る）
-    lastSleep: null,                                // 直近の睡眠のまとめ
+    scaffold: {},                                   // 足場（構造工学）：ボスid → 前の挑戦で与えたダメージ（次の挑戦に持ち越す。その人生だけ）
     legacy: {                                       // 転生しても残るもの
       titles: [],                                   // 前世までにもらった称号
       lives: [],                                    // 前世のまとめ：{ generation, name, age, level, maxFloor, gold }
@@ -96,6 +97,7 @@ export function setHeroLevel(state, level, ctx) {
 export function startGame(state, startAge, name, lifespan, gender) {
   state.meta.startAge = startAge;
   state.life.gameHours = startAge * HOURS_PER_YEAR;
+  state.life.birthday = startAge; // 次の誕生日（startAge＋1歳）から処理する
   if (name !== undefined) renameHero(state, name);
   if (lifespan !== undefined) state.life.lifespan = lifespan;
   if (GENDERS.includes(gender)) state.hero.gender = gender;
@@ -157,7 +159,7 @@ export const generationMultiplier = (state, balance) => balance.reincarnation.mu
  * 寿命で亡くなり、次の世代に生まれ変わる。
  * 最初からになるもの：Lv・経験値・ゴールド・品物と装備・仲間（契約も）・会社・中ボス・ボス（倒したボスにもまた会う。40HzP の依頼）・階層（月面にいても地球の1階層から）・年齢。
  * 引き継ぐもの：知識（熟練・累計正解数・間違えたままの問題・過去問復習・図鑑・学際分野と専攻）・称号・名前・ロケット計画の工程。
- * 拠点（adventure.baseFloor）は階層と一緒に無くなる。
+ * 足場（構造工学。ボスに与えたダメージ）はボスと一緒に最初から。
  * 年齢を選ぶまで（meta.startAge＝null）時間は止まる。前世のまとめを返す
  */
 export function reincarnate(state, ctx) {
@@ -182,7 +184,7 @@ export function reincarnate(state, ctx) {
   state.adventure = fresh.adventure;
   state.midbosses = {};
   state.bosses = {};
-  state.lastSleep = null;
+  state.scaffold = {};
   return prev;
 }
 
@@ -206,7 +208,7 @@ export function forgetPastLifeBosses(state, ctx) {
 
 export function genreState(state, genre) {
   const g = state.knowledge.genres;
-  if (!g[genre]) g[genre] = { level: 0, progress: 0, correct: 0, studied: false };
+  if (!g[genre]) g[genre] = { level: 0, progress: 0, correct: 0, studied: false, idle: 0 };
   return g[genre];
 }
 
@@ -686,6 +688,7 @@ export function challengeableMidboss(state, ctx) {
 export function challengeMidboss(state, ctx, events) {
   const m = challengeableMidboss(state, ctx);
   if (!m) return null;
+  stashScaffold(state, ctx);
   state.adventure.enemies = [];
   return spawnGroup(state, ctx, events, [m.id])[0] || null;
 }
@@ -768,6 +771,7 @@ export function spawnGroup(state, ctx, events, monsterIds = null) {
   for (const e of adv.enemies) {
     raiseZukan(state, e.monsterId, 1, events);
     let first = false;
+    if (e.kind === 'boss') applyScaffold(state, ctx, e, events);
     if (e.kind === 'midboss' || e.kind === 'boss') {
       const st = e.kind === 'midboss' ? midbossState(state, e.monsterId) : bossState(state, e.monsterId);
       first = st.status === 'waiting';
@@ -805,10 +809,15 @@ export function tick(state, dt, ctx) {
     state.life.ailing = true;
     events.push({ type: 'ailment', age: ageYears(state) });
   }
+  birthdays(state, ctx, events);
   payContracts(state, ctx, events);
   earnCompany(state, dt, ctx);
   settleTaxes(state, ctx, events);
-  updateFields(state, ctx, events);
+  const fieldEvents = [];
+  updateFields(state, ctx, fieldEvents);
+  // 学際分野の休眠と復活も熟練の記録に残す（知らせは main.js が、専攻に入れているものだけ出す）
+  for (const e of fieldEvents) if (e.type === 'fieldDormant' || e.type === 'fieldAwake') logProficiency(state, { field: e.name, reason: e.type === 'fieldDormant' ? 'dormant' : 'awake' });
+  events.push(...fieldEvents);
   updateAuthorRights(state, ctx, events);
   advanceRocket(state, dt, ctx, events);
   announceMidbosses(state, ctx, events);
@@ -1039,6 +1048,7 @@ function defeatEnemy(state, e, ctx, events) {
     }
   } else if (e.kind === 'boss') {
     bossState(state, e.monsterId).status = 'defeated';
+    delete state.scaffold[e.monsterId];
     events.push({ type: 'bossDefeated', monsterId: e.monsterId, name: e.name, floor: adv.floor, world: adv.world || 'earth', learned }); // learned：図鑑に正体が初めて載った
     // ボスが倒れると、残っていた手下は逃げていく
     const fled = adv.enemies.filter((x) => x.minion);
@@ -1087,9 +1097,10 @@ export function gainExp(state, amount, ctx, events) {
   }
 }
 
-/** その階層の最初からやり直す（撃破数0。戦っていた敵の群れや中ボスは退き、少しして新しい群れが出る） */
+/** その階層の最初からやり直す（撃破数0。戦っていた敵の群れや中ボスは退き、少しして新しい群れが出る。ボスに与えたダメージは足場に残す） */
 function restartFloor(state, floor, ctx) {
   const adv = state.adventure;
+  stashScaffold(state, ctx);
   adv.floor = floor;
   adv.kills = 0;
   adv.enemies = [];
@@ -1097,85 +1108,163 @@ function restartFloor(state, floor, ctx) {
   adv.spawnTimer = spawnDelay(adv, ctx.balance);
 }
 
-/** やられたとき：階層だけ戻る（1階層か、拠点の階層）。強さ・装備・仲間はそのまま。睡眠と同じ処理が起きる */
-function heroDefeated(state, ctx, events) {
-  restartFloor(state, respawnFloor(state, ctx), ctx);
-  const summary = sleep(state, ctx, 'defeated');
-  events.push({ type: 'heroDefeated', sleep: summary });
-}
-
-/* ---------- 拠点（構造工学） ---------- */
-
-const STRUCTURAL = 'structural_engineering';
-
-/**
- * 今いる世界の拠点の階層（なければ null）。拠点だけは地球と月面で1つずつ持つ（設計ページ「月面の街」）：
- * 地球は adventure.baseFloor（街の「拠点」）、月面は adventure.moonBaseFloor（月面の街の「前線基地」）
- */
-export const baseFloorHere = (state) => (onMoon(state) ? state.adventure.moonBaseFloor : state.adventure.baseFloor);
-
-/** 今いる世界の拠点が働いているか：拠点があり、構造工学を専攻にしていて休眠していない */
-export const baseActive = (state, ctx) => baseFloorHere(state) != null && fieldActive(state, ctx, STRUCTURAL);
-
-/** 今いる階層に拠点を建てる（構造工学を専攻にしているとき）。拠点は世界ごとに1つで、建て直すと移る */
-export function buildBase(state, ctx) {
-  if (!fieldActive(state, ctx, STRUCTURAL)) return { ok: false, reason: `${(fieldById(ctx, STRUCTURAL) || {}).name || '構造工学'}を専攻にすると建てられる` };
-  const floor = state.adventure.floor;
-  const key = onMoon(state) ? 'moonBaseFloor' : 'baseFloor';
-  if (state.adventure[key] === floor) return { ok: false, reason: `もう${onMoon(state) ? '月面' : ''}${floor}階層に拠点がある` };
-  state.adventure[key] = floor;
-  return { ok: true, floor, moon: onMoon(state) };
-}
-
-/**
- * やられたときに戻る階層：今いる世界の拠点が働いていて、拠点より深い階層でやられたら拠点の階層。それ以外は1階層
- * （拠点の階層そのものでやられたら1階層。勝てない階層でやられ続けないように）。月面は月面の拠点（前線基地）で決まる
- */
-export function respawnFloor(state, ctx) {
-  const b = baseFloorHere(state);
-  return baseActive(state, ctx) && state.adventure.floor > b ? b : 1;
-}
-
-/** 寝床（テント）で眠ったときに戻る階層：1つ手前（1階層なら1階層） */
-export const bedFloor = (state) => Math.max(1, state.adventure.floor - 1);
-
-/**
- * 寝床（テント）で眠る：1つ手前の階層に戻り、その最初から始める（1階層なら1階層の最初から）。
- * 戦っていた敵の群れや中ボスは退く。そのあと睡眠の処理（全回復・熟練の判定）が起きる
- */
-export function sleepAtBed(state, ctx) {
-  restartFloor(state, bedFloor(state), ctx);
-  return sleep(state, ctx, 'bed');
-}
-
-/* ================= 睡眠 ================= */
-
-/**
- * ゲーム内時間を進めてHP・MPを全回復し、ジャンルごとに熟練を判定する。
- * 前回の睡眠以降に解いたジャンル：upChance で+1。解いていないジャンル（Lv1以上）：downChance で−1。
- * 乱数はジャンルの並び順（GENRES）に、判定するジャンルごとに1回ずつ使う。
- */
-export function sleep(state, ctx, reason = 'bed') {
-  const s = ctx.balance.sleep;
-  state.life.gameHours += s.gameHours;
+/** HP・MPと仲間のHPを全回復する（誕生日・やられたとき） */
+function healAll(state, ctx) {
   const hs = heroStats(state, ctx);
   state.hero.hp = hs.maxHp;
   state.hero.mp = hs.maxMp;
   for (const a of state.allies) a.hp = a.maxHp;
-  const up = [], down = [];
+}
+
+/**
+ * やられたとき：1つ手前の階層の最初からやり直し（1階層なら1階層の最初から）、全回復する（設計ページ「誕生日の熟練判定と階層の移動」）。
+ * 熟練の判定はしない。強さ・装備・仲間はそのまま。一度倒したボスは出ない
+ */
+function heroDefeated(state, ctx, events) {
+  const from = state.adventure.floor;
+  restartFloor(state, Math.max(1, from - 1), ctx);
+  healAll(state, ctx);
+  events.push({ type: 'heroDefeated', from, floor: state.adventure.floor, world: state.adventure.world || 'earth' });
+}
+
+/* ================= 階層の移動 ================= */
+
+/** 今いる世界で、この人生で到達した一番深い階層（地球は life.maxFloor、月面は life.moonMaxFloor） */
+export const reachedFloor = (state) => Math.max(1, (onMoon(state) ? state.life.moonMaxFloor : state.life.maxFloor) || 1);
+
+/**
+ * 階層の移動の行き先：今いる世界の、この人生で到達した階層を、エリア（10階層ごと）に分けて返す。
+ * 地球のエリアは10階層ごとの世界（stages.json。101階層から先は天空の神殿が10階層ずつ続く）、月面は月面の10階層ずつ。
+ * エリアごとに、出るザコのうち図鑑でまだ出会っていない数（unmet）と、そのエリアのボスを付ける
+ */
+export function floorAreas(state, ctx) {
+  const world = state.adventure.world || 'earth';
+  const max = reachedFloor(state);
+  const zk = state.knowledge.zukan;
+  const met = (m) => (zk[m.id] || {}).stage >= 1;
+  const zakoAll = ctx.monsters.filter((m) => m.kind === 'monster' && worldOf(m) === world);
+  const areas = [];
+  for (let from = 1; from <= max; from += 10) {
+    const to = from + 9;
+    const stage = world === 'earth' && ctx.stages ? stageFor(from, ctx.stages, 'earth') : null;
+    let zako = stage ? zakoAll.filter((m) => (m.areas || []).includes(stage.name)) : zakoAll;
+    if (!zako.length) zako = zakoAll;
+    const boss = ctx.monsters.find((m) => m.kind === 'boss' && worldOf(m) === world && m.floor >= from && m.floor <= to) || null;
+    areas.push({
+      from, to, last: Math.min(to, max),
+      name: stage ? stage.name : '月面',
+      zako: zako.length, unmet: zako.filter((m) => !met(m)).length,
+      boss: boss ? { id: boss.id, name: boss.name, floor: boss.floor, defeated: bossState(state, boss.id).status === 'defeated' } : null,
+    });
+  }
+  return areas;
+}
+
+/**
+ * この人生で到達した階層（今いる世界）に移動する。その階層の最初から始める（戦っていた群れや中ボスは退く）。
+ * 一度倒したボスの階層は、ボスの代わりにその世界のザコが出る（いつもと同じ）
+ */
+export function moveToFloor(state, ctx, floor) {
+  const f = Math.floor(floor);
+  const max = reachedFloor(state);
+  if (!(f >= 1 && f <= max)) return { ok: false, reason: `${onMoon(state) ? '月面' : ''}${max}階層より先には、まだ行ったことがない` };
+  if (f === state.adventure.floor && !state.adventure.enemies.some((e) => e.kind === 'midboss')) return { ok: false, reason: `もう${onMoon(state) ? '月面' : ''}${f}階層にいる` };
+  restartFloor(state, f, ctx);
+  return { ok: true, floor: f, world: state.adventure.world || 'earth' };
+}
+
+/* ================= 足場（構造工学） ================= */
+
+const STRUCTURAL = 'structural_engineering';
+
+/** 今出ているボスに与えたダメージ（分かれたブンレツセツは、分かれた2体の残りのHPから） */
+function bossDamage(state, monsterId) {
+  const es = state.adventure.enemies.filter((e) => e.kind === 'boss' && e.monsterId === monsterId);
+  if (!es.length) return 0;
+  const whole = es[0].part ? es[0].wholeMaxHp : es[0].maxHp;
+  return Math.max(0, whole - es.reduce((n, e) => n + Math.max(0, e.hp), 0));
+}
+
+/**
+ * 足場を組む（構造工学を専攻にしていて休眠していないとき）：倒しきれずにボスの前を離れる（やられた・階層を移った・中ボスに挑んだ・ロケットで移った）とき、
+ * 与えたダメージを覚えておく。次にそのボスが出たとき、そのダメージを受けた状態で出る（applyScaffold）
+ */
+function stashScaffold(state, ctx) {
+  if (!fieldActive(state, ctx, STRUCTURAL)) return;
+  for (const id of new Set(state.adventure.enemies.filter((e) => e.kind === 'boss').map((e) => e.monsterId))) {
+    const dmg = bossDamage(state, id);
+    if (dmg > 0) state.scaffold[id] = Math.max(state.scaffold[id] || 0, dmg);
+  }
+}
+
+/** ボスが出たとき、足場に覚えたダメージを受けた状態にする（構造工学が働いているときだけ） */
+function applyScaffold(state, ctx, e, events) {
+  const dmg = state.scaffold[e.monsterId];
+  if (!dmg || !fieldActive(state, ctx, STRUCTURAL)) return;
+  e.hp = Math.max(1, e.maxHp - dmg);
+  events.push({ type: 'scaffold', monsterId: e.monsterId, name: e.name, damage: Math.round(dmg), left: e.hp / e.maxHp });
+}
+
+/* ================= 誕生日 ================= */
+
+/** 熟練の記録の件数の上限（新しい順に残す。1件はセーブで60字ほど） */
+export const PROF_LOG_MAX = 200;
+
+/**
+ * 熟練の記録（knowledge.profLog）に1件足す。世代と年齢を付ける。
+ * entry：{ genre, from, to, reason: 'study'（勉強で正解）| 'year'（この1年に勉強した）| 'cap'（上限に届いている）| 'idle'（years 年勉強していない） }
+ * または { field: 学際分野の名前, reason: 'dormant'（休眠）| 'awake'（復活） }
+ */
+export function logProficiency(state, entry) {
+  const log = state.knowledge.profLog || (state.knowledge.profLog = []);
+  log.unshift({ gen: state.life.generation, age: ageYears(state), ...entry });
+  if (log.length > PROF_LOG_MAX) log.length = PROF_LOG_MAX;
+}
+
+/**
+ * 誕生日（ゲーム内で1歳年を取るたび）：HP・MPを全回復し、ジャンルごとに熟練を判定し、学会の査読者の「要出典」の回数を戻す。
+ * 熟練の判定（balance.birthday）：前の誕生日から勉強したジャンルは upChance で+1（上限に届いていれば上がらない）。
+ * 勉強していないジャンルは、勉強していない年数（idle）が idleYears 以上で Lv1 以上なら downChance で−1。
+ * 乱数はジャンルの並び順（GENRES）に、判定するジャンルごとに1回ずつ使う。変わったジャンルを返す（熟練の記録にも残す）
+ */
+export function birthday(state, ctx, events = []) {
+  const b = ctx.balance.birthday;
+  healAll(state, ctx);
+  state.citationsUsed = 0;
+  const cap = proficiencyCap(state, ctx.balance);
+  const changes = [];
   for (const genre of GENRES) {
     const g = state.knowledge.genres[genre];
     if (!g) continue;
     if (g.studied) {
-      if (ctx.rng() < s.upChance && g.level < proficiencyCap(state, ctx.balance)) { g.level++; up.push(genre); }
-    } else if (g.level >= 1) {
-      if (ctx.rng() < s.downChance) { g.level--; down.push(genre); }
+      g.idle = 0;
+      if (ctx.rng() < b.upChance) {
+        const c = g.level < cap ? { genre, from: g.level, to: g.level + 1, reason: 'year' } : { genre, from: g.level, to: g.level, reason: 'cap' };
+        g.level = c.to;
+        changes.push(c);
+      }
+    } else {
+      g.idle = (g.idle || 0) + 1;
+      if (g.level >= 1 && g.idle >= b.idleYears && ctx.rng() < b.downChance) {
+        changes.push({ genre, from: g.level, to: g.level - 1, reason: 'idle', years: g.idle });
+        g.level--;
+      }
     }
     g.studied = false;
   }
-  state.citationsUsed = 0; // 学会の査読者の「要出典」は眠ると戻る
-  state.lastSleep = { reason, up, down, hours: s.gameHours, at: state.life.gameHours, floor: state.adventure.floor, world: state.adventure.world || 'earth' };
-  return state.lastSleep;
+  for (const c of changes) logProficiency(state, c);
+  events.push({ type: 'birthday', age: ageYears(state), changes });
+  return changes;
+}
+
+/** 年を取っていたら誕生日の処理をする（tick から。何歳か飛んだときは、その数だけ） */
+function birthdays(state, ctx, events) {
+  const age = ageYears(state);
+  if (!(state.life.birthday >= 0)) state.life.birthday = age;
+  while (state.life.birthday < age) {
+    state.life.birthday++;
+    birthday(state, ctx, events);
+  }
 }
 
 /* ================= パーティー ================= */
@@ -1220,7 +1309,7 @@ export function fitParty(state, ctx) {
 /**
  * 作問権（設計ページ「作問権（いずれか2ジャンルをLv5）：そのジャンルの作問申請ができる。腕のある人だけが投稿するので審査の負担も減る」）。
  * 熟練が balance.authoring.rightsLevel（5）以上のジャンルが rightsGenres（2）つそろうと作問権がもらえ、Lv5 以上のジャンルの問題を作って送れる。
- * そのあと Lv5 に届いたジャンルも足していく。一度もらったジャンルは、睡眠で熟練が下がっても残る（knowledge なので生まれ変わっても残る）。
+ * そのあと Lv5 に届いたジャンルも足していく。一度もらったジャンルは、誕生日の判定で熟練が下がっても残る（knowledge なので生まれ変わっても残る）。
  * 新しくもらったら authorRights（first：はじめての作問権）
  */
 export function updateAuthorRights(state, ctx, events) {
@@ -1293,8 +1382,8 @@ export const hrFactor = (state, ctx) => 1 + (advisorActive(state, ctx, 'intervie
 export const rocketBuildCost = (state, ctx) =>
   Math.round(ctx.balance.rocket.buildCost * (1 - (advisorActive(state, ctx, 'politician') ? ctx.balance.advisor.rocketSubsidy : 0)));
 
-/** 学会の査読者（研究室の顧問）の「要出典」が、眠るまでにあと何回使えるか */
-export const citationsLeft = (state, ctx) => Math.max(0, ctx.balance.advisor.citationsPerSleep - (state.citationsUsed || 0));
+/** 学会の査読者（研究室の顧問）の「要出典」が、次の誕生日までにあと何回使えるか */
+export const citationsLeft = (state, ctx) => Math.max(0, ctx.balance.advisor.citationsPerYear - (state.citationsUsed || 0));
 
 /** 次に戦うボス（今いる世界で、この人生でまだ倒していないボスのうち、いちばん手前の階層）。大学教授（研究室の顧問）の予習で使う */
 export function nextBoss(state, ctx) {

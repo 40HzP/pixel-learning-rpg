@@ -31,37 +31,6 @@ test('倒すと経験値とゴールドが入り、レベルが上がるとス�
   assert.ok(events.some((e) => e.type === 'defeat' && e.exp > 0 && e.gold > 0));
 });
 
-test('やられたら階層だけ1に戻る。Lv・装備・仲間はそのまま。睡眠の処理が走る', () => {
-  const s = newGame(0);
-  const ctx = makeCtx(constRng(0.01));
-  Object.assign(s.adventure, { floor: 4, kills: 3 });
-  s.hero.level = 6;
-  s.equipment.weapon = 'wood_sword';
-  s.allies.push({ id: 'teacher_elementary', name: '小学校教師', atk: 3, maxHp: 30, hp: 5, cd: 99 });
-  Object.assign(genreState(s, '生物'), { level: 1, studied: true });
-  const e = spawnEnemy(s, ctx, []);
-  e.cd = 0.05;
-  assert.equal(s.adventure.enemies.length, 1);
-  s.adventure.heroCd = 99;
-  s.allies[0].cd = 99;
-  s.hero.hp = 1;
-  const hoursBefore = s.life.gameHours;
-  const events = tick(s, 0.1, ctx);
-  const dead = events.find((x) => x.type === 'heroDefeated');
-  assert.ok(dead, 'やられた');
-  assert.equal(s.adventure.floor, 1);
-  assert.equal(s.adventure.kills, 0);
-  assert.deepEqual(s.adventure.enemies, []);
-  assert.equal(s.hero.level, 6);
-  assert.equal(s.equipment.weapon, 'wood_sword');
-  assert.equal(s.allies.length, 1);
-  assert.equal(s.hero.hp, heroStats(s, ctx).maxHp, '全回復');
-  assert.equal(s.allies[0].hp, 30, '仲間も全回復');
-  assert.ok(s.life.gameHours - hoursBefore >= balance.sleep.gameHours, '10時間進む');
-  assert.deepEqual(dead.sleep.up, ['生物'], '熟練の判定が走る');
-  assert.equal(s.lastSleep.reason, 'defeated');
-});
-
 test('階層が上がるほど魔物が強くなる', () => {
   const f1 = monsterStats(1, balance), f5 = monsterStats(5, balance);
   const b = balance.monster.base;

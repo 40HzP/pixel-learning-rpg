@@ -31,11 +31,11 @@ test('セーブに無い項目は既定値で埋める（項目を足したと�
   const save = JSON.parse(serialize(s));
   delete save.state.life.generation;
   delete save.state.knowledge.zukan;
-  delete save.state.lastSleep;
+  delete save.state.knowledge.profLog;
   const back = deserialize(JSON.stringify(save), balance);
   assert.equal(back.life.generation, 1);
   assert.deepEqual(back.knowledge.zukan, {});
-  assert.equal(back.lastSleep, null);
+  assert.deepEqual(back.knowledge.profLog, []);
   assert.equal(back.hero.level, s.hero.level);
 });
 
@@ -68,13 +68,13 @@ test('版1のセーブ（敵が1体・名前やMPが無い）を版2に移行で
   assert.ok(s.hero.totalExp > 120);
 });
 
-test('移行は版ごとに順につながる（版4を足したと仮定）', () => {
+test('移行は版ごとに順につながる（版5を足したと仮定）', () => {
   const migrations = {
     ...MIGRATIONS,
-    3: (save) => { save.state.wallet = { gold: save.state.gold }; delete save.state.gold; save.version = 4; return save; },
+    4: (save) => { save.state.wallet = { gold: save.state.gold }; delete save.state.gold; save.version = 5; return save; },
   };
   const s = playedState();
-  const back = deserialize(serialize(s), balance, { migrations, version: 4 });
+  const back = deserialize(serialize(s), balance, { migrations, version: 5 });
   assert.equal(back.wallet.gold, s.gold);
   assert.equal(back.hero.totalExp, s.hero.totalExp);
 });
@@ -104,4 +104,21 @@ test('版2→3：会社1つ（company）と社員（staff）は、会社の並�
   const back2 = deserialize(JSON.stringify(v2b), balance);
   assert.deepEqual(back2.companies, []);
   assert.equal(back2.nextCompanyUid, 1);
+});
+
+test('版3→4：睡眠と拠点をやめた。拠点の階層と睡眠のまとめを消し、今の年齢の誕生日は済んだことにする（読み込んだとたんに判定しない）', () => {
+  const s = newGame(0);
+  s.life.gameHours = 25.5 * 8760;
+  const v3 = JSON.parse(serialize(s));
+  v3.version = 3;
+  delete v3.state.life.birthday;
+  delete v3.state.knowledge.profLog;
+  delete v3.state.scaffold;
+  Object.assign(v3.state.adventure, { baseFloor: 20, moonBaseFloor: 3 });
+  v3.state.lastSleep = { reason: 'bed', up: [], down: [] };
+  const back = deserialize(JSON.stringify(v3), balance);
+  assert.equal(back.life.birthday, 25);
+  assert.ok(!('baseFloor' in back.adventure) && !('moonBaseFloor' in back.adventure) && !('lastSleep' in back));
+  assert.deepEqual([back.knowledge.profLog, back.scaffold], [[], {}]);
+  assert.deepEqual(tick(back, 0.01, makeCtx()).filter((e) => e.type === 'birthday'), []);
 });

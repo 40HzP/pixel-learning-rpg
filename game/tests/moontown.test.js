@@ -158,11 +158,9 @@ test('裏側の電波望遠鏡：勉強で正解したときにたまる（間�
   assert.equal(s.knowledge.radio.charge, 1);
 });
 
-test('セーブ：前のセーブ（電波と月面の拠点が無い）は既定値で読める', () => {
+test('セーブ：前のセーブ（電波が無い）は既定値で読める', () => {
   const s = newGame(7);
   delete s.knowledge.radio;
-  delete s.adventure.moonBaseFloor;
   const back = deserialize(serialize(s, 0), balance);
   assert.deepEqual(back.knowledge.radio, { charge: 0, pages: 0 });
-  assert.equal(back.adventure.moonBaseFloor, null);
 });

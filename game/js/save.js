@@ -1,10 +1,10 @@
 // セーブの書き出し・読み込み・版の移行（ブラウザの機能に触らない）。
 // localStorage への読み書きは main.js が行い、ここは文字列⇔状態の変換だけを受け持つ。
 
-import { createState } from './sim.js';
+import { createState, HOURS_PER_YEAR } from './sim.js';
 
 export const SAVE_KEY = 'plrpg.save';
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 /**
  * 版の移行。MIGRATIONS[n] は「版 n のセーブ」を受け取り「版 n+1 のセーブ」を返す。
@@ -39,6 +39,17 @@ export const MIGRATIONS = {
     delete st.company;
     delete st.staff;
     save.version = 3;
+    return save;
+  },
+  // 版3→4：睡眠（寝床・月面基地）と拠点（拠点・前線基地）をやめ、誕生日に熟練を判定するようにした（2026-11-07）。
+  // 拠点の階層と直近の睡眠のまとめを消し、今の年齢の誕生日は済んだことにする（読み込んだとたんに判定しないように）。
+  // 熟練の記録（knowledge.profLog）と足場（scaffold）は fillDefaults が空で埋める
+  3: (save) => {
+    const st = save.state;
+    if (st.adventure) { delete st.adventure.baseFloor; delete st.adventure.moonBaseFloor; }
+    delete st.lastSleep;
+    if (st.life) st.life.birthday = Math.floor((st.life.gameHours || 0) / HOURS_PER_YEAR);
+    save.version = 4;
     return save;
   },
 };

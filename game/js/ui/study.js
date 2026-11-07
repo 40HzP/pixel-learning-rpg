@@ -8,6 +8,7 @@ import { el, stars } from './dom.js';
 import { teacherForAge } from './tear.js';
 import { createDoodle, attachDoodle } from './doodle.js';
 import { shareTest } from './share.js';
+import { profLogList, profLogNote } from './proflog.js';
 
 /** 選択肢の文。学会の査読者（研究室の顧問）が「要出典」の印を付けた俗説には印を出す */
 export const choiceText = (c) => (c.cited ? [c.text, el('span', { class: 'cite' }, '要出典')] : c.text);
@@ -145,12 +146,19 @@ function renderMenu(app) {
         ? `問題を作って送る${adoptedQuestions(app.state, app.ctx).length ? `・採用 ${adoptedQuestions(app.state, app.ctx).length}問` : ''}`
         : `作問権：どれか${app.ctx.balance.authoring.rightsGenres}つのジャンルを Lv${app.ctx.balance.authoring.rightsLevel} に`,
       { onclick: () => { view.phase = 'compose'; renderBody(app); scrollTop(); } })),
+    // 熟練の記録（誕生日の判定・勉強で上がった分・学際分野の休眠と復活。ui/proflog.js）
+    el('div', { class: 'prof-head' },
+      el('span', { class: 'muted' }, `熟練は誕生日（1歳年を取るたび）に判定する`),
+      el('button', { onclick: () => { view.phase = 'profLog'; renderBody(app); scrollTop(); } }, '熟練の記録')),
     el('div', { class: 'prof-list' },
       el('span', { class: 'head' }, 'ジャンル'), el('span', { class: 'head' }, '熟練'), el('span', { class: 'head' }, '次のLvまで'),
       prof.flatMap((g) => {
-        const s = k.genres[g] || { level: 0, progress: 0, studied: false };
+        const s = k.genres[g] || { level: 0, progress: 0, studied: false, idle: 0 };
+        const idleYears = app.ctx.balance.birthday.idleYears;
+        const mark = s.studied ? el('span', { class: 'muted' }, '（今年 勉強した）')
+          : s.level > 0 && (s.idle || 0) >= idleYears ? el('span', { class: 'bad' }, `（${s.idle}年勉強していない）`) : '';
         return [
-          el('span', {}, g, s.studied ? el('span', { class: 'muted' }, '（解いた）') : ''),
+          el('span', {}, g, mark),
           el('span', {}, `Lv ${s.level}`),
           el('span', {}, s.level >= cap ? '最大' : `${s.progress}/${per}`),
         ];
@@ -713,6 +721,17 @@ function renderCompose(app) {
   );
 }
 
+/** 熟練の記録（勉強画面の「熟練の記録」。街の図書館・月面の書庫と同じ中身） */
+function renderProfLog(app) {
+  const back = el('div', { class: 'btnrow' }, el('button', { onclick: () => { view.phase = 'menu'; renderBody(app); } }, '← もどる'));
+  refs.body.replaceChildren(
+    el('h3', { class: 'subhead' }, '熟練の記録'),
+    el('p', { class: 'muted', style: { fontSize: '13px' } }, profLogNote(app)),
+    back,
+    profLogList(app),
+    el('div', { class: 'btnrow' }, el('button', { onclick: () => { view.phase = 'menu'; renderBody(app); } }, '← もどる')));
+}
+
 function renderBody(app) {
   renderInfo(app);
   if (view.phase === 'question') renderQuestion(app);
@@ -723,6 +742,7 @@ function renderBody(app) {
   else if (view.phase === 'result') renderResult(app);
   else if (view.phase === 'summary') renderSummary(app);
   else if (view.phase === 'compose') renderCompose(app);
+  else if (view.phase === 'profLog') renderProfLog(app);
   else renderMenu(app);
 }
 

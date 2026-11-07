@@ -147,7 +147,7 @@ test('前の版のセーブ：2世代目以降で、この人生の最高階層�
   assert.equal(Object.keys(u.bosses).length, bosses.length);
 });
 
-test('ボスに負けると1階層に戻り、10階層に戻ってくるとまたボスが出る', () => {
+test('ボスに負けると1つ手前の9階層に戻り、10階層に戻ってくるとまたボスが出る', () => {
   const s = newGame(0);
   const ctx = makeCtx(constRng(0.5));
   s.adventure.floor = 10;
@@ -156,7 +156,7 @@ test('ボスに負けると1階層に戻り、10階層に戻ってくるとま�
   for (let i = 0; i < 60 && !ev.some((x) => x.type === 'heroDefeated'); i++) ev.push(...tick(s, 1, ctx));
   assert.ok(ev.some((x) => x.type === 'spawn' && x.kind === 'boss'));
   assert.ok(ev.some((x) => x.type === 'heroDefeated'));
-  assert.equal(s.adventure.floor, 1);
+  assert.equal(s.adventure.floor, 9);
   assert.equal(bossState(s, boss.id).status, 'appeared');
   s.adventure.floor = 10;
   s.adventure.enemies = [];

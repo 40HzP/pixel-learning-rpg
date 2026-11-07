@@ -163,6 +163,10 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 }
 #hud .retreat { margin-left: auto; flex-shrink: 0; min-height: 36px; padding: 2px 10px; text-shadow: none; pointer-events: auto; }
 #hud .enemy { color: #ffd0a8; }
+/* 階層の移動のボタン（今の階層の横） */
+#hud .floor-wrap { display: inline-flex; align-items: center; gap: 4px; }
+#hud .move-floor { pointer-events: auto; min-height: 0; padding: 0 6px; font-size: 11px; line-height: 1.6; text-shadow: none; border-width: 1px; }
+#hud.big .move-floor { font-size: 13px; }
 #hud .enemy span { min-width: 0; overflow: hidden; text-overflow: ellipsis; } /* 長い名前は「…」で切る */
 #hud .challenge {
   display: block; width: 100%; margin-top: 4px; min-height: 40px; padding: 3px 6px;
@@ -252,6 +256,31 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .overlay.nande { z-index: 40; opacity: 0; transition: opacity .3s; }
 .overlay.nande.show { opacity: 1; }
 .nande-box { max-height: calc(100% - 8px); overflow-y: auto; padding: 14px 16px; }
+/* 階層の移動（ui/floors.js）：エリアごとの札。押すと階層のボタンが開く */
+.floors-box { max-height: calc(100% - 8px); overflow-y: auto; padding: 14px 16px; }
+.floors-box h2 { margin: 0 0 6px; }
+.floors-box p { font-size: 13px; margin: 0 0 8px; line-height: 1.5; }
+.floor-areas { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.floor-area { display: block; width: 100%; text-align: left; padding: 6px 10px; line-height: 1.45; }
+.floor-area .name { display: block; font-weight: bold; }
+.floor-area .name small { font-weight: normal; margin-left: 6px; color: var(--muted); }
+.floor-area small { display: block; font-size: 12px; }
+.floor-area small.unmet { color: var(--accent); }
+.floor-area small.done { color: var(--good); }
+.floor-area.here { border-color: var(--accent); }
+.floor-btns { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 6px 0 2px; }
+.floor-btn { min-height: 38px; padding: 0; }
+.floor-btn.here { border-color: var(--accent); }
+.floor-btn.boss { box-shadow: inset 0 -3px 0 var(--bad); }
+/* 熟練の記録（ui/proflog.js） */
+.prof-log { list-style: none; margin: 6px 0; padding: 0; font-size: 13px; }
+.prof-log li { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.prof-log .when { color: var(--muted); grid-row: span 2; white-space: nowrap; }
+.prof-log .what { font-weight: bold; }
+.prof-log li.up .how { color: var(--good); }
+.prof-log li.down .how { color: var(--bad); }
+.prof-log li.field .how { color: var(--info); }
+.prof-log-empty { font-size: 13px; margin: 6px 0; }
 .nande-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .nande-head canvas { image-rendering: pixelated; flex: none; }
 .bubble {
@@ -315,7 +344,9 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .fav-btn.on { color: var(--fav-on-text); background: var(--fav-on-bg); border-color: var(--fav); }
 .paper .fav-btn { background: #fff; color: var(--ink); border: 2px solid #9a9686; }
 .paper .fav-btn.on { background: #fff1b8; border-color: #c27654; }
-.prof-list { margin-top: 14px; font-size: 13px; display: grid; grid-template-columns: 1fr auto auto; gap: 2px 10px; }
+.prof-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; }
+.prof-head button { flex-shrink: 0; min-height: 36px; padding: 2px 10px; font-size: 14px; }
+.prof-list { margin-top: 6px; font-size: 13px; display: grid; grid-template-columns: 1fr auto auto; gap: 2px 10px; }
 .prof-list .head { color: var(--muted); }
 /* 干渉の枠は、干渉が無いときも同じ高さで空けておく（敵が入れ替わっても解答ボタンの位置がずれないように） */
 .interfere {

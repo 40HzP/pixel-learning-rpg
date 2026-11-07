@@ -1,7 +1,7 @@
 // 起動・画面切り替え・ループ・セーブ
 import {
   createState, startGame, canStartAt, tick, clockFrame, createClock, HOURS_PER_YEAR,
-  createRateTracker, trackTime, trackGain, sleepAtBed, stageFor, fitParty, lifespanFor, generationMultiplier, heroStats, forgetPastLifeBosses,
+  createRateTracker, trackTime, trackGain, moveToFloor, birthday, stageFor, fitParty, lifespanFor, generationMultiplier, heroStats, forgetPastLifeBosses,
   launchRocket, returnToEarth, ADVISOR_PLACES,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
@@ -23,6 +23,8 @@ import { openDaily } from './ui/daily.js';
 import { playTear } from './ui/tear.js';
 import { playOogiri } from './ui/oogiri.js';
 import { playLaunch } from './ui/launch.js';
+import { profChangeText } from './ui/proflog.js';
+import { openFloors } from './ui/floors.js';
 
 const PIXEL = '../pixel/';
 const SPRITES = PIXEL + 'sprites/';
@@ -206,13 +208,17 @@ async function boot() {
     handleEvents,
     save: saveNow,
     replaceState(next) { app.state = next; ensureAuthorCode(next, cryptoRng); refreshDaily(next, ctx, app.today()); forgetMissingQuestions(next, ctx); forgetPastLifeBosses(next, ctx); fitParty(next, ctx); app.rate = createRateTracker(); for (const s of Object.values(screens)) s.reset && s.reset(app); refreshActive(true); },
-    sleepNow() {
-      const from = app.state.adventure.floor;
-      const r = sleepAtBed(app.state, ctx);
-      notifySleep(r, from);
+    // 階層の移動（冒険画面の「階層を移動」）：この人生で到達した階層（今いる世界）へ
+    moveFloor(floor) {
+      const r = moveToFloor(app.state, ctx, floor);
+      if (!r.ok) { notify(r.reason, 'bad'); return r; }
+      notify(`${r.world === 'moon' ? '月面' : ''}${r.floor}階層に移動した`);
       saveNow();
+      refreshActive(true);
       return r;
     },
+    // デバッグ：誕生日の処理（全回復・熟練の判定）を今する
+    birthdayNow() { handleEvents((() => { const ev = []; birthday(app.state, ctx, ev); return ev; })()); saveNow(); },
     showTab,
     placeNotices: () => placeNotices(),
     overlay: false,   // ミニムービー・孫の「なんで？」を出している間は true（ゲームの時間を止め、知らせを後回しにする）
@@ -220,6 +226,7 @@ async function boot() {
     playAilmentMovie: (age) => startAilmentMovie(age),
     askNande: () => runOverlay(() => askNande(app)),
     openDaily: () => runOverlay(() => openDaily(app).then(() => refreshActive(true))), // 今日の1問（冒険画面の札・街の掲示板）
+    openFloors: () => runOverlay(() => openFloors(app)), // 階層の移動（冒険画面の「移動」）
     debugDay: null,   // デバッグ画面で選んだ日付（今日の1問をその日の問題で試す）
     today: () => app.debugDay || dayKey(new Date()), // 今日の1問の日付（端末の時計の日付）
     tearTest: (teacherId) => runOverlay(() => playTear(app, teacherId)), // テスト用紙を破りすてた（先生が怒る）
@@ -260,17 +267,17 @@ async function boot() {
     while (box.children.length > 2) box.firstElementChild.remove();
     setTimeout(() => n.remove(), kind === 'bad' ? 6000 : 3500);
   }
-  function notifySleep(r, from = null) {
-    const name = app.state.hero.name;
-    const moon = r.world === 'moon';
-    const at = (floor) => `${moon ? '月面' : ''}${floor}階層`;
-    const bed = moon ? '月面基地' : 'テント';
-    const lines = [r.reason === 'defeated' ? (r.floor > 1 ? `${name}はやられた…　拠点のある${r.floor}階層に戻って眠った` : `${name}はやられた…　${at(1)}に戻って眠った`)
-      : from > r.floor ? `${name}は${bed}で眠った。${at(r.floor)}に戻って、HPとMPが全回復した`
-        : `${name}は${bed}で眠った。HPとMPが全回復した`];
-    lines.push(r.up.length ? `熟練が上がった：${r.up.join('・')}` : '熟練が上がったジャンルはなかった');
-    if (r.down.length) lines.push(`熟練が下がった：${r.down.join('・')}`);
-    notify(lines.join('\n'), r.reason === 'defeated' ? 'bad' : 'good');
+  /** やられたとき：1つ手前の階層の最初からやり直す（全回復。熟練の判定はしない） */
+  function notifyDefeat(e) {
+    const at = (floor) => `${e.world === 'moon' ? '月面' : ''}${floor}階層`;
+    notify(`${app.state.hero.name}はやられた…　${at(e.floor)}の最初からやり直す（HPとMPが全回復した）`, 'bad');
+  }
+  /** 誕生日：熟練が変わったときだけ知らせる（全回復は毎年。熟練の記録に残る） */
+  function notifyBirthday(e) {
+    if (!e.changes.length) return;
+    const lines = [`${e.age}歳の誕生日！　熟練の判定`];
+    for (const c of e.changes) lines.push(`${c.genre} ${profChangeText(c)}`);
+    notify(lines.join('\n'), e.changes.some((c) => c.to < c.from) ? '' : 'good');
   }
 
   /**
@@ -388,7 +395,9 @@ async function boot() {
         if (e.world === 'moon') notify(`月面${e.floor}階層に進んだ`);
         else notify(st && st.from === e.floor && e.floor > 1 ? `${e.floor}階層　${st.name}に入った` : `${e.floor}階層に進んだ`);
       }
-      else if (e.type === 'heroDefeated') notifySleep(e.sleep);
+      else if (e.type === 'heroDefeated') notifyDefeat(e);
+      else if (e.type === 'birthday') notifyBirthday(e);
+      else if (e.type === 'scaffold') notify(`足場（構造工学）：ボス「${e.name}」には前の挑戦のダメージが残っている（残りHP ${Math.round(e.left * 100)}%）`, 'good');
       else if (e.type === 'retreat') notify(`${e.name}から逃げた。また挑戦できる`);
       else if (e.type === 'midbossReady') notify(`${e.name}に挑戦できるようになった！\n冒険画面の「挑戦する」を押すと戦える`, 'good');
       else if (e.type === 'midbossBroken') notify(`${(monsters.find((m) => m.id === e.monsterId) || {}).name || '中ボス'}の防御が崩れた！`, 'good');
@@ -430,8 +439,8 @@ async function boot() {
       else if (e.type === 'titleGained') notify(`称号「${e.title}」を手に入れた！`, 'good');
       else if (e.type === 'contractEnded') notify(`ゴールドが足りず、${e.name}との契約が切れた`, 'bad');
       else if (e.type === 'fieldUnlocked') found.push(e);
-      else if (e.type === 'fieldDormant') notify(`${MAJOR_SLOTS[e.slot]}の${e.name}が休眠した（${e.low.map((x) => `${x.genre} Lv${x.level}`).join('・')}）\n熟練をLv${balance.fields.unlockLevel}に戻すと復活する`, 'bad');
-      else if (e.type === 'fieldAwake') notify(`${e.name}が休眠から復活した！`, 'good');
+      else if (e.type === 'fieldDormant' && e.slot >= 0) notify(`${MAJOR_SLOTS[e.slot]}の${e.name}が休眠した（${e.low.map((x) => `${x.genre} Lv${x.level}`).join('・')}）\n熟練をLv${balance.fields.unlockLevel}に戻すと復活する`, 'bad');
+      else if (e.type === 'fieldAwake' && e.slot >= 0) notify(`${e.name}が休眠から復活した！`, 'good');
       else if (e.type === 'rocketStepDone') notify(`ロケット計画：「${e.name}」が完了した！\n（生まれ変わっても残る）`, 'good');
       else if (e.type === 'zukan' && e.stage === 1) {
         const m = monsters.find((x) => x.id === e.monsterId);

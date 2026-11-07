@@ -138,15 +138,15 @@ test('賢さは勉強の正解数でも伸びる', () => {
   assert.equal(heroStats(s, ctx).wis, before + Math.floor(10 * balance.hero.wisPerCorrect));
 });
 
-test('レベルが上がるとMPも伸びる。眠るとMPも全回復', async () => {
+test('レベルが上がるとMPも伸びる。誕生日にMPも全回復', async () => {
   const s = newGame(0);
   const ctx = makeCtx();
   const l1 = heroStats(s, ctx).maxMp;
   s.hero.level = 5;
   assert.ok(heroStats(s, ctx).maxMp > l1);
   s.hero.mp = 0;
-  const { sleep } = await import('../js/sim.js');
-  sleep(s, ctx, 'bed');
+  const { birthday } = await import('../js/sim.js');
+  birthday(s, ctx);
   assert.equal(s.hero.mp, heroStats(s, ctx).maxMp);
 });
 

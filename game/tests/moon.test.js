@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   tick, spawnGroup, monsterStats, launchInfo, launchRocket, returnToEarth, onMoon, zakoPool, strengthFloor, stageFor, currentStage,
-  sleepAtBed, respawnFloor, buildBase, reincarnate, rocketSteps, genreState, HOURS_PER_YEAR,
+  moveToFloor, floorAreas, reachedFloor, reincarnate, rocketSteps, genreState, HOURS_PER_YEAR,
   damageEnemy, markSmooth, newspaperActive, heroStats, heroTitles, forgetPastLifeBosses, moonRamp,
   shopList, buyItem, recruitList, hireRecruit,
 } from '../js/sim.js';
@@ -148,26 +148,15 @@ test('月面の階層を進むと月面の最高階層が増える（地球の�
   assert.equal(s.life.maxFloor, 1);
 });
 
-test('拠点は地球と月面で1つずつ：月面でやられると月面の拠点（前線基地）から（地球の拠点は使わない）。月面基地で眠ると1つ手前の月面の階層へ', () => {
+test('月面でやられると、1つ手前の月面の階層の最初から（月面にいたまま）。階層の移動は今いる世界の、この人生で到達した階層へ', () => {
   const ctx = makeCtx(constRng(0.1));
   const s = newGame(7);
-  major(s, ctx, 'structural_engineering');
+  s.life.maxFloor = 50;
   s.adventure.floor = 50;
-  assert.equal(buildBase(s, ctx).ok, true);
   buildRocket(s);
   launchRocket(s, ctx);
   s.adventure.floor = 9;
-  assert.equal(respawnFloor(s, ctx), 1, '地球の拠点（50階層）は月面では使わない');
-  assert.deepEqual(buildBase(s, ctx), { ok: true, floor: 9, moon: true }, '月面の拠点は前線基地で建てる');
-  assert.deepEqual([s.adventure.baseFloor, s.adventure.moonBaseFloor], [50, 9], '地球の拠点はそのまま');
-  assert.match(buildBase(s, ctx).reason, /もう月面9階層に拠点がある/);
-  s.adventure.floor = 12;
-  assert.equal(respawnFloor(s, ctx), 9, '月面の拠点より深い月面の階層でやられたら月面の拠点から');
-  s.adventure.floor = 9;
-  const r = sleepAtBed(s, ctx);
-  assert.equal(s.adventure.floor, 8);
-  assert.equal(r.world, 'moon');
-  assert.equal(onMoon(s), true);
+  s.life.moonMaxFloor = 9;
   // やられる
   s.hero.hp = 1;
   s.hero.level = 1;
@@ -175,16 +164,42 @@ test('拠点は地球と月面で1つずつ：月面でやられると月面の�
   let defeated = null;
   for (let t = 0; t < 60 && !defeated; t++) defeated = tick(s, 0.5, ctx).find((e) => e.type === 'heroDefeated');
   assert.ok(defeated);
-  assert.equal(s.adventure.floor, 1);
+  assert.deepEqual([defeated.from, defeated.floor, defeated.world], [9, 8, 'moon']);
+  assert.equal(s.adventure.floor, 8);
   assert.equal(onMoon(s), true, 'やられても月面にいる');
-  assert.equal(defeated.sleep.world, 'moon');
-  // 地球に帰ると地球の拠点が働く
+  // 月面にいる間は、月面で到達した階層に移動できる（地球の階層へはロケットで帰ってから）
+  assert.equal(reachedFloor(s), 9);
+  const moonZako = monsters.filter((m) => m.kind === 'monster' && m.world === 'moon');
+  const areas = floorAreas(s, ctx);
+  assert.deepEqual(areas.map((a) => [a.name, a.from, a.last, a.zako]), [['月面', 1, 9, moonZako.length]]);
+  assert.equal(areas[0].boss.name, 'カンペキキュウ');
+  assert.deepEqual(moveToFloor(s, ctx, 3), { ok: true, floor: 3, world: 'moon' });
+  assert.match(moveToFloor(s, ctx, 30).reason, /月面9階層より先には/);
+  // 地球に帰ると、地球で到達した階層へ
   returnToEarth(s, ctx);
-  s.adventure.floor = 55;
-  assert.equal(respawnFloor(s, ctx), 50);
-  // 生まれ変わると、どちらの拠点も無くなる
-  reincarnate(s, ctx);
-  assert.deepEqual([s.adventure.baseFloor, s.adventure.moonBaseFloor], [null, null]);
+  assert.equal(s.adventure.floor, 50);
+  assert.equal(reachedFloor(s), 50);
+  assert.equal(moveToFloor(s, ctx, 49).ok, true);
+});
+
+test('足場（構造工学）：分かれたブンレツセツは、分かれた2体の残りのHPから与えたダメージを覚える', () => {
+  const ctx = makeCtx(constRng(0.5));
+  const s = onMoonFloor(60, ctx);
+  major(s, ctx, 'structural_engineering');
+  knowTruth(s, byId('bunretsusetsu').minions);
+  s.life.moonMaxFloor = 60;
+  spawnGroup(s, ctx, []);
+  const e = ofBoss(s, 'bunretsusetsu');
+  const whole = e.maxHp;
+  damageEnemy(s, Math.ceil(whole * 0.6), ctx, [], 'hero', e);
+  const parts = s.adventure.enemies.filter((x) => x.part);
+  assert.equal(parts.length, 2, '分かれた');
+  const left = parts.reduce((n, x) => n + x.hp, 0);
+  moveToFloor(s, ctx, 59);
+  assert.equal(s.scaffold.bunretsusetsu, whole - left);
+  moveToFloor(s, ctx, 60);
+  spawnGroup(s, ctx, []);
+  assert.equal(ofBoss(s, 'bunretsusetsu').hp, left, '1体で、前の挑戦のダメージを受けた状態で出る');
 });
 
 test('帰還ロケット：無料でいつでも地球に帰れ、地球は打ち上げた階層から。また打ち上げると月面は前の階層から', () => {

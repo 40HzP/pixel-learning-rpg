@@ -1,15 +1,17 @@
 // 施設画面＝街。bg_town の上に施設の外観を並べ（並べる位置は data/town.json）、建物をタップするとその施設に入る。
-// 入れる施設：店・仲間が集まる場所・寝床・会社・ロケット発射場・学校・研究室（専攻の付け替えと顧問）・拠点（構造工学を解放するまで準備中）・病院。
+// 入れる施設：店・仲間が集まる場所・図書館（熟練の記録）・会社・ロケット発射場・学校・研究室（専攻の付け替えと顧問）・病院。
+// 寝床と拠点は2026-11-07にやめた（設計ページ「誕生日の熟練判定と階層の移動」）。寝床の跡は図書館、拠点の跡は「準備中」（何にするかは未定）。
 // 仲間にした中ボスは、学校・研究室・会社・ロケット発射場に顧問として置ける（advisorSection）。
 // 月面にいる間は、地球の街の代わりに月面の街（town.json の moon）が出る。月面の街でも地球の街と同じことができる
-// （設計ページ「月面の街」の①）：通信基地＝仲間が集まる場所と会社、裏側の電波望遠鏡＝学校・研究室、前線基地＝拠点（月面の拠点）、
-// 補給所＝店（本体＋輸送費）、月面基地＝寝床、医務室＝病院、帰還ロケット、掲示板。中身は地球の画面を使い回し、月の一言（note）を付ける。
+// （設計ページ「月面の街」の①）：通信基地＝仲間が集まる場所と会社、裏側の電波望遠鏡＝学校・研究室、
+// 補給所＝店（本体＋輸送費）、月面の書庫＝図書館、医務室＝病院、帰還ロケット、掲示板。中身は地球の画面を使い回し、月の一言（note）を付ける。
+// 前線基地の跡は、地球の拠点の跡と同じく未定（準備中）。
 // 小さな広場に立っている主人公をタップすると、主人公のステータスと名前の変更
 import {
-  shopList, buyItem, equipItem, EQUIP_SLOTS, bedFloor, heroTitles, inParty, setInParty, partyAllies, partyMax, partyFull, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, evadeChance, expMultiplier,
+  shopList, buyItem, equipItem, EQUIP_SLOTS, heroTitles, inParty, setInParty, partyAllies, partyMax, partyFull, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, evadeChance, expMultiplier,
   recruitList, hireRecruit, dismissRecruit, monthlyContractCost, HOURS_PER_MONTH, HOURS_PER_YEAR,
   canFound, foundCompany, closeCompany, companiesProfit, industryList, industryOutlook, generationMultiplier, ageYears, payRocketBuildCost, rocketSteps,
-  hireStaff, dismissStaff, bestStaffGrade, staffCost, staffBonus, buildBase, baseActive, baseFloorHere, radioInfo,
+  hireStaff, dismissStaff, bestStaffGrade, staffCost, staffBonus, radioInfo,
   lifespanOf, treatmentInfo, receiveTreatment, onMoon, launchInfo,
   ADVISOR_PLACES, advisorDef, advisorSlots, advisorsAt, advisorActive, setAdvisor, citationsLeft, rocketBuildCost, hrFactor, nextBoss,
   canIncorporate, incorporate, corporateTax, LAW_ECONOMICS, farthestReached,
@@ -17,6 +19,7 @@ import {
 import { fieldList, fieldById, fieldActive, isUnlocked, setMajor, MAJOR_SLOTS } from '../fields.js';
 import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor } from '../sprites.js';
 import { el, fmt } from './dom.js';
+import { profLogList, profLogNote } from './proflog.js';
 
 const TOWN_W = 90;
 const TOWN_H = 160;
@@ -72,15 +75,7 @@ const LOCKS = {
     if (s.companies.length || canFound(s, app.ctx)) return null;
     return `今の${u.genre}の熟練レベル：${genreLv(s, u.genre)}（勉強で${u.genre}の問題に正解すると上がる）`;
   },
-  // 拠点：構造工学（学際分野）を解放するまで準備中
-  base: (app) => {
-    const f = fieldById(app.ctx, STRUCTURAL);
-    if (!f || isUnlocked(app.state, f.id)) return null;
-    return `今の熟練レベル：${f.genres.map((g) => `${g} Lv${genreLv(app.state, g)}`).join('・')}（どちらもLv${app.ctx.balance.fields.unlockLevel}で${f.name}が解放される）`;
-  },
 };
-LOCKS.moon_outpost = LOCKS.base; // 前線基地（月面の拠点）も構造工学で解放
-const STRUCTURAL = 'structural_engineering';
 const lockText = (app, id) => (LOCKS[id] ? LOCKS[id](app) : null);
 const isSoon = (app, id) => !PANELS[id] || !!lockText(app, id);
 // 街を作り直す目印：どちらの世界の街か＋準備中の施設
@@ -256,18 +251,17 @@ function shopPanel(app) {
   ];
 }
 
-/** 寝床（テント）：眠ると1つ手前の階層に戻って全回復する */
-function homePanel(app) {
-  const ls = app.state.lastSleep;
+/**
+ * 図書館（寝床の跡。月面は月面の書庫）：熟練の記録（誕生日の判定・勉強で上がった分・学際分野の休眠と復活。ui/proflog.js）。
+ * 設計ページの「放置で眺める暗記資料」はまだ無い（準備中）
+ */
+function libraryPanel(app) {
   return [
-    el('div', { style: { marginBottom: '8px' } }, 'HP ', live.hp, '　MP ', live.mp),
-    el('div', { style: { marginBottom: '8px' } }, live.bed),
-    el('button', { class: 'primary', onclick: () => { app.sleepNow(); update(app, true); } }, '眠る'),
-    ls
-      ? el('div', { class: 'muted', style: { fontSize: '14px', marginTop: '8px', whiteSpace: 'pre-line' } },
-        `前回：${formatDate(ls.at)}（${ls.reason === 'defeated' ? 'やられて眠った' : ls.world === 'moon' ? '月面基地で眠った' : 'テントで眠った'}）\n`
-        + `上がった熟練：${ls.up.length ? ls.up.join('・') : 'なし'}\n下がった熟練：${ls.down.length ? ls.down.join('・') : 'なし'}`)
-      : null,
+    el('h3', { class: 'subhead' }, '熟練の記録'),
+    note(profLogNote(app)),
+    profLogList(app),
+    el('h3', { class: 'subhead' }, '暗記資料'),
+    note('放置で眺める暗記資料は準備中'),
   ];
 }
 
@@ -388,7 +382,7 @@ function advisorText(app, m) {
   const extra = {
     teacher_elementary: () => `（破りすてた問題：${s.knowledge.torn.length}問）`,
     teacher_junior: () => `（${a.periodicTestProgress}問分）`,
-    reviewer: () => `（眠るまでに${a.citationsPerSleep}回。今はあと${citationsLeft(s, app.ctx)}回）`,
+    reviewer: () => `（誕生日までに${a.citationsPerYear}回。今はあと${citationsLeft(s, app.ctx)}回）`,
     interviewer: () => `（社員の効果 +${pct(a.hrStaffBonus)}）`,
     politician: () => `（建造費の${pct(a.rocketSubsidy)}：${fmt(Math.round(app.ctx.balance.rocket.buildCost * a.rocketSubsidy))}G）`,
   }[m.id];
@@ -738,40 +732,6 @@ function majorPanel(app, { telescope = false } = {}) {
   ];
 }
 
-/**
- * 拠点（構造工学）：今いる階層に拠点を建てる。拠点より深い階層でやられると、拠点の階層から再開する。
- * 拠点は地球と月面で1つずつ（地球の街の「拠点」と、月面の街の「前線基地」）
- */
-function basePanel(app) {
-  const s = app.state;
-  const ctx = app.ctx;
-  const f = fieldById(ctx, STRUCTURAL);
-  const on = fieldActive(s, ctx, f.id);
-  const moon = onMoon(s);
-  const w = moon ? '月面' : '';
-  const base = moon ? '月面の拠点' : '拠点';
-  const btn = el('button', {
-    class: 'primary',
-    onclick: () => {
-      const r = buildBase(app.state, ctx);
-      if (!r.ok) { say(app, r.reason, 'bad'); return; }
-      say(app, `${w}${r.floor}階層に拠点を建てた！`, 'good');
-      app.save();
-      update(app, true);
-    },
-  });
-  live.base = { btn };
-  const bf = baseFloorHere(s);
-  const other = moon ? s.adventure.baseFloor : s.adventure.moonBaseFloor;
-  return [
-    el('div', { class: 'profit' }, `${base} `, el('b', {}, bf ? `${w}${bf}階層` : 'まだない'), bf && !baseActive(s, ctx) ? el('span', { class: 'bad' }, '（働いていない）') : null),
-    other ? el('small', { class: 'muted' }, moon ? `地球の拠点：${other}階層（地球の街の「拠点」）` : `月面の拠点：月面${other}階層（月面の街の「前線基地」）`) : null,
-    on ? null : note(`${f.name}が専攻に入っていない（または休眠している）ので、拠点は建てられず、働かない。${moon ? '月面の街の「裏側の電波望遠鏡」' : '街の「学校・研究室」'}で主専攻か副専攻にする`),
-    el('div', { class: 'btnrow' }, btn),
-    note(`${base}より深い${moon ? '月面の' : ''}階層でやられると、${base}の階層の最初から再開する（${base}の階層そのものでやられたときは${w}1階層から）。建て直すと拠点は移る。拠点は地球と月面で1つずつ持てる。生まれ変わるとどちらも無くなる`),
-  ];
-}
-
 /** 通信基地（月面の街）：地球の仲間が集まる場所と会社の仕事を、地球との通信でする（決めたことの返事は約2.6秒あとに届く） */
 function commPanel(app) {
   const lock = lockText(app, 'company');
@@ -869,10 +829,7 @@ function heroPanel(app) {
   return [
     el('div', { class: 'rename' }, nameInput, el('button', { onclick: rename }, '名前を変える')),
     el('div', { class: 'stats' },
-      stat('HP', live.hp, (() => {
-        const w = onMoon(s) ? '月面' : '';
-        return baseActive(s, app.ctx) ? `0になるとやられて${w}1階層（拠点より深い階層なら${w}${baseFloorHere(s)}階層）に戻る` : `0になるとやられて${w}1階層に戻る`;
-      })()),
+      stat('HP', live.hp, '0になるとやられて、1つ手前の階層の最初からやり直す（全回復する）。誕生日にも全回復'),
       stat('MP', live.mp, `敵が2体以上いると「${b.spell.name}」（MP${b.spell.mpCost}・敵全体）を使う`),
       stat('攻撃', hs.atk, `1体を叩く強さ（秒間${+(1 / b.hero.attackIntervalSec).toFixed(1)}回）`),
       stat('防御', hs.def, '受けるダメージが減る'),
@@ -899,17 +856,17 @@ function heroPanel(app) {
 
 // 中に入れる施設（town.json の id → 中身）。ここに無い施設は「準備中」
 const PANELS = {
-  shop: shopPanel, guild: guildPanel, home: homePanel, company: companyPanel, rocket: rocketPanel, major: majorPanel, base: basePanel, hospital: hospitalPanel,
+  shop: shopPanel, guild: guildPanel, library: libraryPanel, company: companyPanel, rocket: rocketPanel, major: majorPanel, hospital: hospitalPanel,
   // 月面の街（地球の施設と同じ中身。town.json の moon の earth に、代わりになる地球の施設を書いている）
-  moon_rocket: moonRocketPanel, moon_base: homePanel, moon_comm: commPanel, moon_telescope: telescopePanel,
-  moon_outpost: basePanel, moon_supply: shopPanel, moon_clinic: hospitalPanel,
+  moon_rocket: moonRocketPanel, moon_archive: libraryPanel, moon_comm: commPanel, moon_telescope: telescopePanel,
+  moon_supply: shopPanel, moon_clinic: hospitalPanel,
 };
 // 月の一言（town.json の note）
 const moonNote = (f) => (f && f.note ? el('div', { class: 'moon-note' }, el('b', {}, '月のこと'), f.note) : null);
 
 function buildPanel(app) {
   const t = activeTown(app);
-  live = { gold: el('span'), hp: el('b'), mp: el('b'), bed: el('span'), buttons: [], rocket: [], base: null, exam: null, tax: null };
+  live = { gold: el('span'), hp: el('b'), mp: el('b'), buttons: [], rocket: [], exam: null, tax: null };
   const f = t.facilities.find((x) => x.id === view);
   let title, sprite, body;
   if (view === 'hero') {
@@ -954,9 +911,9 @@ export function update(app, force) {
     return;
   }
   town = null;
-  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.hero.gender, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched, !!a.advisor]), s.citationsUsed, s.knowledge.torn.length, s.tax.owed > 0, s.lastSleep && s.lastSleep.at, heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket.buildCostPaid, s.life.generation, s.life.ailing, s.life.treatments, s.life.maxFloor, s.life.moonMaxFloor,
-    // 学際分野（解放・休眠・専攻・熟練）と拠点・ロケットの工程（進み具合は作り直さずに書き換える）
-    fieldList(s, app.ctx).map((f) => [f.unlocked, f.dormant, f.slot, f.levels]), s.adventure.baseFloor, s.adventure.moonBaseFloor, s.knowledge.radio, rocketSteps(s, app.ctx).map((st) => [st.done, st.active]), (nextBoss(s, app.ctx) || {}).id]);
+  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.hero.gender, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched, !!a.advisor]), s.citationsUsed, s.knowledge.torn.length, s.tax.owed > 0, (s.knowledge.profLog || []).length && s.knowledge.profLog[0], heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket.buildCostPaid, s.life.generation, s.life.ailing, s.life.treatments, s.life.maxFloor, s.life.moonMaxFloor,
+    // 学際分野（解放・休眠・専攻・熟練）とロケットの工程（進み具合は作り直さずに書き換える）
+    fieldList(s, app.ctx).map((f) => [f.unlocked, f.dormant, f.slot, f.levels]), s.knowledge.radio, rocketSteps(s, app.ctx).map((st) => [st.done, st.active]), (nextBoss(s, app.ctx) || {}).id]);
   // 名前を入力している途中は作り直さない（入力が消えないように）
   const typing = root.contains(document.activeElement) && document.activeElement.tagName === 'INPUT';
   if (force || ((k !== key || !live) && !typing)) { key = k; buildPanel(app); }
@@ -965,9 +922,6 @@ export function update(app, force) {
   live.hp.textContent = `${Math.ceil(s.hero.hp)}/${hs.maxHp}`;
   live.mp.textContent = `${Math.floor(s.hero.mp)}/${hs.maxMp}`;
   for (const b of live.buttons) b.btn.disabled = s.gold < b.price;
-  const now = s.adventure.floor, back = bedFloor(s);
-  const at = (floor) => `${onMoon(s) ? '月面' : ''}${floor}階層`;
-  live.bed.textContent = now > back ? `今は${at(now)}。眠ると${at(back)}に戻る` : `今は${at(1)}。眠ると${at(1)}の最初から`;
   if (live.rocket.length) {
     const steps = Object.fromEntries(rocketSteps(s, app.ctx).map((st) => [st.id, st]));
     for (const r of live.rocket) {
@@ -989,11 +943,5 @@ export function update(app, force) {
     live.exam.textContent = s.life.ailing
       ? `診察：年を重ねて、体が弱ってきている。このままだと、あと${left}年ほど（${lifespanOf(s, app.ctx.balance)}歳ごろまで）`
       : `診察：どこも悪くない。今${ageYears(s)}歳。年を取って体の不調を感じたら、また来なさい`;
-  }
-  if (live.base) {
-    const on = fieldActive(s, app.ctx, STRUCTURAL);
-    const here = baseFloorHere(s);
-    live.base.btn.textContent = here === now ? `${at(now)}に拠点がある` : `今いる${at(now)}に拠点を建てる`;
-    live.base.btn.disabled = !on || here === now;
   }
 }

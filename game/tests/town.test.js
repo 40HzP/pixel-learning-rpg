@@ -22,7 +22,7 @@ for (const [label, t] of TOWNS) test(`${label}：施設の外観と背景のス�
     assert.equal(sp.category, 'building', f.sprite);
   }
   assert.equal(new Set(town.facilities.map((f) => f.id)).size, town.facilities.length, 'id が重ならない');
-  const need = label === '地球の街' ? ['shop', 'guild', 'home', 'rocket'] : ['moon_rocket', 'moon_base'];
+  const need = label === '地球の街' ? ['shop', 'guild', 'library', 'rocket'] : ['moon_rocket', 'moon_archive'];
   for (const id of need) assert.ok(town.facilities.some((f) => f.id === id), `${id} がある`);
 });
 
@@ -61,7 +61,7 @@ test('月面の街：地球の街でできることは、月面の街でもす�
   }
   for (const id of covered) assert.ok(town.facilities.some((f) => f.id === id), `${id} は地球の施設`);
   // 月だけの一言（note）：地球の施設の代わりになる新しい施設には付ける
-  for (const f of town.moon.facilities) if (f.earth && f.id !== 'moon_base') assert.ok(f.note, `${f.name} の一言`);
+  for (const f of town.moon.facilities) if (f.earth) assert.ok(f.note, `${f.name} の一言`);
   // 並びは地球の街と同じ（同じ役目の施設が同じ場所。会社・仲間の代わりの通信基地は会社の場所）
   const earthAt = (id) => town.facilities.find((f) => f.id === id);
   for (const f of town.moon.facilities) {

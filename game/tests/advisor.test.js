@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  setAdvisor, setInParty, advisorActive, advisorsAt, advisorSlots, partyAllies, inParty, hireRecruit, spawnEnemy, sleep, reincarnate,
+  setAdvisor, setInParty, advisorActive, advisorsAt, advisorSlots, partyAllies, inParty, hireRecruit, spawnEnemy, birthday, reincarnate,
   ADVISOR_PLACES, nextBoss, bossState, citationsLeft, rocketBuildCost, payRocketBuildCost, foundCompany, hireStaff, companyProfit, genreState,
 } from '../js/sim.js';
 import {
@@ -182,7 +182,7 @@ test('要出典（学会の査読者・研究室）：口を挟んでいる魔�
   };
   assert.ok(!quiz(s).choices.some((c) => c.cited), '顧問がいないと付かない');
   setAdvisor(s, 'reviewer', true, ctx);
-  const per = balance.advisor.citationsPerSleep;
+  const per = balance.advisor.citationsPerYear;
   for (let i = 0; i < per; i++) {
     const cur = quiz(s);
     assert.equal(cur.choices.find((c) => c.kind === 'myth').cited, true, `${i + 1}回目は印が付く`);
@@ -190,8 +190,8 @@ test('要出典（学会の査読者・研究室）：口を挟んでいる魔�
   }
   assert.equal(citationsLeft(s, ctx), 0);
   assert.ok(!quiz(s).choices.some((c) => c.cited), '使い切ると付かない');
-  sleep(s, ctx);
-  assert.equal(citationsLeft(s, ctx), per, '眠ると戻る');
+  birthday(s, ctx);
+  assert.equal(citationsLeft(s, ctx), per, '誕生日に戻る');
   // 口を挟んでいる魔物がいないときは付けず、回数も減らない
   s.adventure.enemies = [];
   assert.ok(!quiz(s).choices.some((c) => c.cited));

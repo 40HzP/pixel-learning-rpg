@@ -47,8 +47,8 @@ export function setMajor(state, slot, id, ctx) {
 }
 
 /**
- * 解放と休眠を見張る（毎回の tick で呼ぶ。熟練は勉強・睡眠・デバッグのどこで変わっても、ここで拾う）。
- * 新しく解放した学際分野は fieldUnlocked、専攻に入れている学際分野が休眠した・復活したら fieldDormant／fieldAwake
+ * 解放と休眠を見張る（毎回の tick で呼ぶ。熟練は勉強・誕生日の判定・デバッグのどこで変わっても、ここで拾う）。
+ * 新しく解放した学際分野は fieldUnlocked、解放した学際分野が休眠した・復活したら fieldDormant／fieldAwake（slot：専攻の枠。専攻に入れていなければ −1）
  */
 export function updateFields(state, ctx, events) {
   const rec = state.knowledge.fields;
@@ -64,7 +64,7 @@ export function updateFields(state, ctx, events) {
     if (r.dormant === !meets) continue;
     r.dormant = !meets;
     const slot = state.knowledge.majors.indexOf(f.id);
-    if (slot >= 0) events.push({ type: meets ? 'fieldAwake' : 'fieldDormant', id: f.id, name: f.name, slot, low: lowGenres(state, f, ctx) });
+    events.push({ type: meets ? 'fieldAwake' : 'fieldDormant', id: f.id, name: f.name, slot, low: lowGenres(state, f, ctx) });
   }
 }
 

@@ -2,7 +2,7 @@
 // ctx = { balance, monsters, items, questions, rng }（questions は questions.json の questions 配列）
 
 import { GENRES } from './genres.js';
-import { genreState, raiseZukan, zukanEntry, breakMidbosses, healEnemy, proficiencyCap, markSmooth, hearRadio, advisorActive, citationsLeft } from './sim.js';
+import { genreState, raiseZukan, zukanEntry, breakMidbosses, healEnemy, proficiencyCap, markSmooth, hearRadio, advisorActive, citationsLeft, logProficiency } from './sim.js';
 import { fieldActive, fieldById } from './fields.js';
 
 export { GENRES };
@@ -215,12 +215,13 @@ function addProgress(state, genre, ctx) {
   if (g.progress < ctx.balance.quiz.correctPerProficiencyLevel) return null;
   g.progress = 0;
   g.level++;
+  logProficiency(state, { genre, from: g.level - 1, to: g.level, reason: 'study' });
   return { genre, level: g.level };
 }
 
 /**
  * 学会の査読者（研究室の顧問）の要出典：問題を出したとき、口を挟んでいる魔物がいれば、その魔物が混ぜた俗説の選択肢（誤答1）に
- * 印（choice.cited）を付ける。眠るまでに balance.advisor.citationsPerSleep 回まで（眠ると戻る）。付けたら current.citedBy に名前
+ * 印（choice.cited）を付ける。誕生日までに balance.advisor.citationsPerYear 回まで（誕生日に戻る）。付けたら current.citedBy に名前
  */
 function citeMyth(state, cur, ctx) {
   if (!advisorActive(state, ctx, 'reviewer') || citationsLeft(state, ctx) <= 0 || !interferingEnemy(state, cur.question, ctx)) return;

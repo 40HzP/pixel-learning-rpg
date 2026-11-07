@@ -1,7 +1,7 @@
 // 冒険画面の表示項目（設計ページ「自動冒険画面に必ず表示する項目」）。空の部分（y=0〜97）に重ねる
 import {
   heroStats, partyAllies, companiesProfit, expToNext, formatDate, monthlyRates, monthlyContractCost, monthlyNetGold, isInvulnerable, midbossLeft, pendingBoss, expMultiplier,
-  challengeableMidboss, challengeMidboss, retreatMidboss, onMoon, farthestReached,
+  challengeableMidboss, challengeMidboss, retreatMidboss, onMoon, farthestReached, reachedFloor,
 } from '../sim.js';
 import { dailyCardVisible, dailyInfo } from '../quiz.js';
 import { dailyTitle } from './daily.js';
@@ -39,12 +39,14 @@ export function init(app) {
     },
   }, '逃げる');
   refs.bossBar = el('div', { class: 'bossbar', hidden: true }, refs.boss, refs.retreat);
+  // 階層の移動（この人生で到達した階層へ。ui/floors.js）。今の階層の横の小さなボタン
+  refs.move = el('button', { class: 'move-floor', hidden: true, onclick: () => app.openFloors() }, '移動');
   // 今日の1問の札：その日に初めて起動すると出る。押すと出題し、閉じると街の掲示板に残る（40HzP の依頼）
   refs.daily = el('button', { class: 'daily-card', hidden: true, onclick: () => app.openDaily() });
   refs.dailyKey = '';
   const r = refs;
   hud.append(
-    el('div', { class: 'row' }, r.date, r.floor),
+    el('div', { class: 'row' }, r.date, el('span', { class: 'floor-wrap' }, r.floor, r.move)),
     // 最高到達地点（40HzP の依頼）：この人生でいちばん深く進んだ階層。右に月面の階層と、前世のほうが深ければ「歴代最高 ◯階層（◯世代目）」（入りきらなければ次の行）
     el('div', { class: 'row far' }, el('span', {}, '最高到達 ', r.far), r.farBest),
     el('div', { class: 'row' }, el('span', {}, r.name, '　Lv ', r.lv), r.allies),
@@ -82,6 +84,7 @@ export function update(app) {
   const bossFloor = adv.enemies.some((e) => e.kind === 'boss') || pendingBoss(s, ctx);
   const where = `${onMoon(s) ? '月面' : ''}${adv.floor}階層`;
   r.floor.textContent = bossFloor ? `${where} ボス` : `${where} ${adv.kills}/${ctx.balance.floor.monstersPerFloor}体`;
+  r.move.hidden = reachedFloor(s) < 2;
   const far = farthestReached(s, app.stages);
   r.far.textContent = `${far.floor}階層${far.stage ? `（${far.stage.name}）` : ''}`;
   r.farBest.textContent = [far.moon ? `月面${far.moon}階層` : '', far.best.floor > far.floor ? `歴代最高 ${far.best.floor}階層（${far.best.generation}世代目）` : ''].filter(Boolean).join('・');

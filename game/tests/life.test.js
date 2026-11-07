@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   tick, heroStats, lifespanFor, generationMultiplier, reincarnate, heroTitles, payRocketBuildCost, startGame,
   genreState, midbossState, foundCompany, companiesProfit, spawnGroup, damageEnemy, ageYears, HOURS_PER_YEAR,
-  buyItem, shopList, hireRecruit, recruitList, industryList, hireStaff, bestStaffGrade, staffCost, proficiencyCap, sleep, receiveTreatment, canStartAt, honorific, GENDERS, farthestReached,
+  buyItem, shopList, hireRecruit, recruitList, industryList, hireStaff, bestStaffGrade, staffCost, proficiencyCap, birthday, receiveTreatment, canStartAt, honorific, GENDERS, farthestReached,
 } from '../js/sim.js';
 import { serialize, deserialize } from '../js/save.js';
 import { createSession, presentQuestion, answer } from '../js/quiz.js';
@@ -222,8 +222,8 @@ test('病院で毎回すべての治療を受けて寿命を延ばしても、�
   assert.ok(paidAt && paidAt.gen === 3, `3世代目で届く（${JSON.stringify(paidAt)}）`);
 });
 
-test('熟練Lvの上限は生まれ変わるたびに5ずつ上がる（1世代目5・2世代目10・3世代目15）。勉強でも睡眠でも上限まで上がる', () => {
-  const ctx = makeCtx(constRng(0.01)); // 睡眠では必ず上がる
+test('熟練Lvの上限は生まれ変わるたびに5ずつ上がる（1世代目5・2世代目10・3世代目15）。勉強でも誕生日の判定でも上限まで上がる', () => {
+  const ctx = makeCtx(constRng(0.01)); // 誕生日の判定では必ず上がる
   const s = newGame(7);
   assert.equal(proficiencyCap(s, balance), 5);
   const q = questions[0];
@@ -245,10 +245,10 @@ test('熟練Lvの上限は生まれ変わるたびに5ずつ上がる（1世代�
   assert.equal(g.level, 6, '2世代目は5を超えて上がる');
   assert.deepEqual(r.levelUp, { genre: q.genre, level: 6 });
   g.level = 9; g.studied = true;
-  sleep(s, ctx);
-  assert.equal(g.level, 10, '睡眠でも上限の10まで');
+  birthday(s, ctx);
+  assert.equal(g.level, 10, '誕生日の判定でも上限の10まで');
   g.studied = true;
-  sleep(s, ctx);
+  birthday(s, ctx);
   assert.equal(g.level, 10, '10で止まる');
   s.life.generation = 3;
   assert.equal(proficiencyCap(s, balance), 15);

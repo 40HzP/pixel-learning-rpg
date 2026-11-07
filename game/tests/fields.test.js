@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  tick, genreState, heroTitles, reincarnate, spawnGroup, spawnEnemy, sleep, buildBase, respawnFloor, baseActive,
+  tick, genreState, heroTitles, reincarnate, spawnGroup, spawnEnemy, birthday, moveToFloor, challengeMidboss,
   rocketSteps, itemPrice, buyItem, industryOutlook, foundCompany, hireStaff, companiesProfit, monthlyContractCost, HOURS_PER_YEAR,
 } from '../js/sim.js';
 import { fieldActive, fieldById, fieldList, setMajor, canMajor, MAJOR_SLOTS } from '../js/fields.js';
@@ -83,12 +83,13 @@ test('専攻は主専攻・副専攻の2枠。解放したものだけ入れら�
   assert.equal(fieldActive(s, ctx, 'behavioral_economics'), false);
 });
 
-test('休眠：睡眠で熟練がLv3を下回ると効果が止まり（知らせる）、戻すと復活する。解放と称号はそのまま', () => {
-  const ctx = makeCtx(constRng(0.01)); // 睡眠で、解いていないジャンルは必ず下がる
+test('休眠：誕生日の判定で熟練がLv3を下回ると効果が止まり（知らせる）、戻すと復活する。解放と称号はそのまま。熟練の記録に残る', () => {
+  const ctx = makeCtx(constRng(0.01)); // 誕生日の判定で、長く勉強していないジャンルは必ず下がる
   const s = newGame(0);
   unlock(s, ctx, 'behavioral_economics');
   setMajor(s, 0, 'behavioral_economics', ctx);
-  sleep(s, ctx);
+  for (const g of ['心理学', '経済学']) genreState(s, g).idle = balance.birthday.idleYears - 1;
+  birthday(s, ctx);
   assert.equal(genreState(s, '心理学').level, LV - 1);
   const ev = tick(s, 0.01, ctx);
   const d = ev.find((e) => e.type === 'fieldDormant');
@@ -101,51 +102,67 @@ test('休眠：睡眠で熟練がLv3を下回ると効果が止まり（知ら�
   const awake = setLevels(s, ctx, { 心理学: LV, 経済学: LV });
   assert.ok(awake.some((e) => e.type === 'fieldAwake' && e.id === 'behavioral_economics'));
   assert.equal(fieldActive(s, ctx, 'behavioral_economics'), true);
+  const name = fieldById(ctx, 'behavioral_economics').name;
+  assert.deepEqual(s.knowledge.profLog.filter((c) => c.field).map((c) => [c.field, c.reason]), [[name, 'awake'], [name, 'dormant']], '休眠と復活も熟練の記録に');
 });
 
-test('生まれ変わっても、解放した学際分野と専攻は残る（知識なので）。拠点は階層と一緒に無くなる', () => {
+test('生まれ変わっても、解放した学際分野と専攻は残る（知識なので）。足場はボスと一緒に無くなる', () => {
   const ctx = makeCtx();
   const s = newGame(0);
   unlock(s, ctx, 'structural_engineering');
   setMajor(s, 0, 'structural_engineering', ctx);
-  s.adventure.floor = 12;
-  buildBase(s, ctx);
+  s.scaffold.tendousetsu = 100;
   reincarnate(s, ctx);
   assert.deepEqual(s.knowledge.majors, ['structural_engineering', null]);
   assert.ok(s.knowledge.fields.structural_engineering);
-  assert.equal(s.adventure.baseFloor, null);
+  assert.deepEqual(s.scaffold, {});
   assert.ok(heroTitles(s, ctx).includes('構造工学者'));
 });
 
-test('構造工学：専攻にしている間、今いる階層に拠点を建てられる。拠点より深い階層でやられると拠点の階層から再開する', () => {
+test('構造工学（足場）：専攻にしている間、倒しきれなかったボスに与えたダメージが次の挑戦に持ち越される', () => {
   const ctx = makeCtx();
   const s = newGame(0);
   unlock(s, ctx, 'structural_engineering');
-  s.adventure.floor = 20;
-  assert.match(buildBase(s, ctx).reason, /専攻にすると建てられる/);
+  s.life.maxFloor = 10;
+  const boss = () => s.adventure.enemies.find((e) => e.kind === 'boss');
+  const at10 = () => { moveToFloor(s, ctx, 10); const ev = []; spawnGroup(s, ctx, ev); return ev; };
+  // 専攻にしていないと残らない
+  s.adventure.floor = 9;
+  at10();
+  boss().hp -= 100;
+  moveToFloor(s, ctx, 9);
+  assert.deepEqual(s.scaffold, {});
+  // 専攻にすると、離れたとき（階層の移動・やられた・中ボスに挑んだ・ロケットで移った）に与えたダメージを覚える
   setMajor(s, 1, 'structural_engineering', ctx);
-  assert.deepEqual(buildBase(s, ctx), { ok: true, floor: 20, moon: false });
-  assert.match(buildBase(s, ctx).reason, /もう20階層に拠点がある/);
-  s.adventure.floor = 25;
-  assert.equal(respawnFloor(s, ctx), 20);
-  s.adventure.floor = 20;
-  assert.equal(respawnFloor(s, ctx), 1, '拠点の階層そのものでやられたら1階層');
-  // 実際にやられる
-  s.adventure.floor = 25;
-  s.hero.level = 30;
-  const e = spawnEnemy(s, ctx, []);
-  e.cd = 0.05;
-  s.adventure.heroCd = 99;
+  at10();
+  const full = boss().maxHp;
+  assert.equal(boss().hp, full, 'まだ足場が無いので満タンで出る');
+  boss().hp -= 120;
+  moveToFloor(s, ctx, 9);
+  assert.deepEqual(s.scaffold, { tendousetsu: 120 });
+  const ev = at10();
+  assert.equal(boss().hp, full - 120, '前の挑戦のダメージを受けた状態で出る');
+  assert.ok(ev.some((e) => e.type === 'scaffold' && e.damage === 120));
+  // 続けて与えたダメージも足される（やられて離れた）
+  boss().hp -= 30;
   s.hero.hp = 1;
-  const dead = tick(s, 0.1, ctx).find((x) => x.type === 'heroDefeated');
-  assert.ok(dead);
-  assert.equal(s.adventure.floor, 20);
-  assert.equal(dead.sleep.floor, 20);
-  // 専攻から外すと拠点は働かない
+  boss().cd = 0.01;
+  s.adventure.heroCd = 99;
+  assert.ok(tick(s, 0.1, ctx).some((e) => e.type === 'heroDefeated'));
+  assert.equal(s.scaffold.tendousetsu, 150);
+  // 専攻から外すと、足場は残るが効かない（満タンで出る）
   setMajor(s, 1, null, ctx);
-  s.adventure.floor = 25;
-  assert.equal(baseActive(s, ctx), false);
-  assert.equal(respawnFloor(s, ctx), 1);
+  at10();
+  assert.equal(boss().hp, full);
+  // 倒すと足場は外れる
+  setMajor(s, 1, 'structural_engineering', ctx);
+  at10();
+  s.hero.level = 300;
+  s.hero.hp = 1e9;
+  s.adventure.heroCd = 0; // 上でやられる場面のために止めていた攻撃を戻す
+  for (let i = 0; i < 200 && boss(); i++) tick(s, 0.5, ctx);
+  assert.equal(s.bosses.tendousetsu.status, 'defeated');
+  assert.equal(s.scaffold.tendousetsu, undefined);
 });
 
 test(`ロケット計画：工程の学際分野を専攻にしている間、ゲーム内の時間で進み、${balance.rocket.stepYears}年で完了する。2枠なので同時に2つまで。進み具合は生まれ変わっても残る`, () => {
@@ -247,17 +264,17 @@ test('心理統計学：騙された回数の多い俗説と、ジャンルご�
   assert.deepEqual(a.review, [{ genre: '統計学', count: 2 }, { genre: '経済学', count: 1 }]);
 });
 
-test('前のセーブ（学際分野が無い）も読める：解放なし・専攻は空・拠点なし・ロケットの工程は0', () => {
+test('前のセーブ（学際分野が無い）も読める：解放なし・専攻は空・足場なし・ロケットの工程は0', () => {
   const ctx = makeCtx();
   const s = newGame(0);
   delete s.knowledge.fields;
   delete s.knowledge.majors;
-  delete s.adventure.baseFloor;
+  delete s.scaffold;
   delete s.legacy.rocket.steps;
   const loaded = deserialize(serialize(s), balance);
   assert.deepEqual(loaded.knowledge.fields, {});
   assert.deepEqual(loaded.knowledge.majors, [null, null]);
-  assert.equal(loaded.adventure.baseFloor, null);
+  assert.deepEqual(loaded.scaffold, {});
   assert.ok(rocketSteps(loaded, ctx).every((st) => st.hours === 0));
   assert.deepEqual(tick(loaded, 0.01, ctx).filter((e) => e.type.startsWith('field')), []);
 });

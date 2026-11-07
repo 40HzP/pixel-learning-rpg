@@ -42,7 +42,7 @@
       [0, 10, 25, 35, 30]
     ]
   },
-  "sleep": { "gameHours": 10, "upChance": 0.15, "downChance": 0.05 },
+  "birthday": { "upChance": 0.15, "downChance": 0.05, "idleYears": 10 },
   "midboss": { "hpMultiplier": 5, "atkMultiplier": 1.5, "expMultiplier": 5, "goldMultiplier": 5 },
   "boss": { "hpMultiplier": 8, "atkMultiplier": 2, "defMultiplier": 1, "expMultiplier": 10, "goldMultiplier": 10 },
   "ally": { "attackIntervalSec": 1.5, "atkFromBoss": 0.6, "hpFromBoss": 0.6, "partyMax": 5 },
@@ -53,7 +53,7 @@
   "moon": { "floorOffset": 300, "rampFloor": 60, "rampTo": 1500, "smoothDamage": [0.5, 0.75, 1], "splashAgiMultiplier": 0.5, "sinkIntervalSec": 4, "splitAt": 0.5, "absorbSec": 3, "remainsSec": 2.5, "transportPerKg": 10000000, "radioCharge": 10, "relaySec": 2.6 },
   "fields": { "unlockLevel": 3, "shopDiscount": 0.2 },
   "nande": { "firstSec": 3, "intervalSec": 10, "correctDamageRatio": 0.1, "wrongHealRatio": 0.1 },
-  "advisor": { "slots": { "school": 1, "lab": 1, "company": 1, "rocket": 1 }, "citationsPerSleep": 3, "periodicTestProgress": 1, "hrStaffBonus": 0.25, "rocketSubsidy": 0.1, "taxCut": 0.5 },
+  "advisor": { "slots": { "school": 1, "lab": 1, "company": 1, "rocket": 1 }, "citationsPerYear": 3, "periodicTestProgress": 1, "hrStaffBonus": 0.25, "rocketSubsidy": 0.1, "taxCut": 0.5 },
   "corporation": { "profitBonus": 0.5, "taxRate": 0.3 },
   "authoring": { "rightsLevel": 5, "rightsGenres": 2 },
   "rateWindowSec": 60

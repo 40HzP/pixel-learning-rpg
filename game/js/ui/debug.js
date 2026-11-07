@@ -135,8 +135,8 @@ export function init(app) {
           app.notify('宇宙からの電波をためた（月面で勉強に1問正解すると、図鑑の頁が開く）');
         },
       }, '宇宙からの電波をためる'))),
-    el('div', { class: 'section' }, el('h2', {}, '睡眠'),
-      el('div', {}, el('button', { onclick: () => app.sleepNow() }, 'すぐ眠る'))),
+    el('div', { class: 'section' }, el('h2', {}, '誕生日'),
+      el('div', {}, el('button', { onclick: () => app.birthdayNow() }, '誕生日の判定を今する（全回復・熟練の判定）'))),
     el('div', { class: 'section' }, el('h2', {}, 'セーブ'),
       el('div', {},
         el('button', { onclick: () => { text.value = serialize(app.state, Date.now()); } }, '文字列で書き出す'),
