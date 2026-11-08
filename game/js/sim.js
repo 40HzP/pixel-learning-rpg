@@ -1957,6 +1957,16 @@ export function lifeBar(state, balance) {
 }
 
 /**
+ * 経験値の帯（40HzP の依頼「寿命バーと同じように、次のレベルまでに必要な量がわかるバー」）：
+ * 今のレベルでためた経験値 exp・次のレベルまでに要る量 need・あと rest・たまった割合 ratio（0〜1）
+ */
+export function expBar(state, balance) {
+  const need = expToNext(state.hero.level, balance);
+  const exp = Math.max(0, Math.min(state.hero.exp, need));
+  return { level: state.hero.level, exp, need, rest: need - exp, ratio: exp / need };
+}
+
+/**
  * 起動したときの主人公を覚えておく（起動から3分で「今」と比べる。40HzP の依頼で毎回）。
  * floor・moonFloor はこの人生の最高到達、zukan は図鑑に載った（出会った）魔物の数、correct は累計の正解数
  */

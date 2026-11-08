@@ -1,7 +1,7 @@
 // 冒険画面の表示項目（設計ページ「自動冒険画面に必ず表示する項目」）。空の部分（y=0〜97）に重ねる
 import {
   heroStats, partyAllies, companiesProfit, expToNext, formatDate, monthlyRates, monthlyContractCost, monthlyNetGold, isInvulnerable, midbossLeft, pendingBoss, expMultiplier,
-  challengeableMidboss, challengeMidboss, retreatMidboss, onMoon, farthestReached, reachedFloor, lifeBar,
+  challengeableMidboss, challengeMidboss, retreatMidboss, onMoon, farthestReached, reachedFloor, lifeBar, expBar,
 } from '../sim.js';
 import { dailyCardVisible, dailyInfo } from '../quiz.js';
 import { dailyTitle } from './daily.js';
@@ -49,6 +49,11 @@ export function init(app) {
   refs.lifeFill = el('i');
   refs.lifeBar = el('span', { class: 'lifebar', role: 'img', 'aria-label': '寿命' }, refs.lifeFill);
   refs.lifeKey = '';
+  // 経験値の帯（40HzP の依頼「寿命バーと同じように、次のレベルまでに必要な量がわかるバー」）：次のレベルまでにたまった割合。
+  // 数字は下の「経験値 ◯/◯」の行（前世の記憶をたどるを出している間は、その行が隠れても帯は出る）
+  refs.expFill = el('i');
+  refs.expBar = el('span', { class: 'lifebar expbar', role: 'img', 'aria-label': '経験値' }, refs.expFill);
+  refs.expKey = '';
   const r = refs;
   // detail：前世の記憶をたどるを出している間は隠す行（ステータスを短くして、問題と戦いの様子を見せる）
   hud.append(
@@ -57,6 +62,7 @@ export function init(app) {
     // 最高到達地点（40HzP の依頼）：この人生でいちばん深く進んだ階層。右に月面の階層と、前世のほうが深ければ「歴代最高 ◯階層（◯世代目）」（入りきらなければ次の行）
     el('div', { class: 'row far detail' }, el('span', {}, '最高到達 ', r.far), r.farBest),
     el('div', { class: 'row' }, el('span', {}, r.name, '　Lv ', r.lv), r.allies),
+    el('div', { class: 'row life' }, el('span', { class: 'life-label' }, '経験値'), r.expBar),
     el('div', { class: 'gauges' },
       el('div', {}, el('div', { class: 'row' }, el('span', {}, 'HP'), r.hp), el('div', { class: 'hpbar' }, r.hpbar)),
       el('div', {}, el('div', { class: 'row' }, el('span', {}, 'MP'), r.mp), el('div', { class: 'hpbar mp' }, r.mpbar))),
@@ -122,6 +128,13 @@ export function update(app) {
   r.def.textContent = hs.def;
   r.wis.textContent = hs.wis;
   r.exp.textContent = `${fmt(s.hero.exp)}/${fmt(expToNext(s.hero.level, ctx.balance))}`;
+  const xb = expBar(s, ctx.balance);
+  const xk = `${xb.level}:${xb.exp}`;
+  if (xk !== r.expKey) {
+    r.expKey = xk;
+    r.expFill.style.width = `${xb.ratio * 100}%`;
+    r.expBar.setAttribute('aria-label', `経験値 次のレベルまで あと${fmt(xb.rest)}`);
+  }
   r.total.textContent = fmt(s.hero.totalExp);
   r.gold.textContent = fmt(s.gold);
   r.xmul.textContent = expMultiplier(s, ctx.balance).toFixed(2);

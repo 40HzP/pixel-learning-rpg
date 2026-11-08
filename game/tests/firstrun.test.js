@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  spawnGroup, tick, rememberedZako, zakoZukanCount, lifeBar, heroSnapshot, compareSnapshots, reincarnate, FIRST_LIFE_FLOORS, HOURS_PER_YEAR,
+  spawnGroup, tick, rememberedZako, zakoZukanCount, lifeBar, expBar, gainExp, expToNext, heroSnapshot, compareSnapshots, reincarnate, FIRST_LIFE_FLOORS, HOURS_PER_YEAR,
 } from '../js/sim.js';
 import {
   RECALL_SIZE, firstCheckCandidates, recallCandidates, pickRecall, beginRecall, recallProgress, nextRecall, answerRecall, everSolved,
@@ -272,6 +272,22 @@ test('寿命の帯：誕生日ごとに1目盛り進み、寿命は病院の治�
   assert.equal(lifeBar(s, balance).lifespan, 80 + 2 * balance.hospital.extendYears);
   s.life.gameHours = 200 * HOURS_PER_YEAR;
   assert.equal(lifeBar(s, balance).age, lifeBar(s, balance).lifespan, '帯からはみ出さない');
+});
+
+test('経験値の帯（40HzP の依頼）：次のレベルまでにたまった割合。レベルが上がると、余った分から数え直す', () => {
+  const ctx = makeCtx();
+  const s = newGame(0);
+  s.hero.level = 10;
+  const need = expToNext(10, balance);
+  assert.deepEqual(expBar(s, balance), { level: 10, exp: 0, need, rest: need, ratio: 0 });
+  gainExp(s, need / 4, ctx, []);
+  assert.equal(expBar(s, balance).ratio, 0.25);
+  assert.equal(expBar(s, balance).rest, need * 3 / 4);
+  gainExp(s, need, ctx, []);
+  const b = expBar(s, balance);
+  assert.equal(b.level, 11, 'レベルが上がる');
+  assert.deepEqual([b.exp, b.need], [need / 4, expToNext(11, balance)], '余った分から数え直す');
+  assert.ok(b.ratio > 0 && b.ratio < 1);
 });
 
 /* ---------- 生まれ変わるたびの「前世の記憶をたどる」（設計ページの節） ---------- */

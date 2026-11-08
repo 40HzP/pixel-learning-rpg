@@ -204,6 +204,10 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
   background-image: repeating-linear-gradient(to right, transparent 0, transparent calc(100% / var(--years, 80) - 1px),
     rgba(26, 22, 38, .35) calc(100% / var(--years, 80) - 1px), rgba(26, 22, 38, .35) calc(100% / var(--years, 80)));
 }
+/* 経験値の帯（寿命の帯と同じ形）：次のレベルまでにたまった割合。目盛りは無し。ラベルの幅を寿命とそろえて、帯の左端を合わせる */
+#hud .expbar i { background: #e0b84a; }
+#hud .expbar::after { content: none; }
+#hud .row.life .life-label { min-width: 3em; }
 /* 前世の記憶をたどる（ui/recall.js）：出している間はステータスを短くする（detail の行を隠す）。用紙は今日の1問の札と同じ白い紙 */
 #hud.checking .detail { display: none !important; }
 #hud .first-check {
