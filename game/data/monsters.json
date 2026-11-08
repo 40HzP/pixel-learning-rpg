@@ -97,7 +97,8 @@
       "myth": "犬は白黒の世界しか見えていない",
       "truth": "色を感じる細胞が2種類で、青と黄色の系統は見分けられる。赤と緑の区別が苦手",
       "debated": false,
-      "sprites": { "idle": "inuhamonokuro_idle", "attack": null }
+      "sprites": { "idle": "inuhamonokuro_idle", "attack": null },
+      "space": { "kind": "dog", "history": "史実：1960年、旧ソ連の犬のベルカとストレルカが、人工衛星で地球のまわりを回り、初めて生きて帰ってきた。" }
     },
     {
       "id": "kinokoshokubutsu",
@@ -141,7 +142,8 @@
       "myth": "クモは昆虫",
       "truth": "脚が8本で、昆虫とは別の仲間（ダニやサソリと同じ）",
       "debated": false,
-      "sprites": { "idle": "kumokonchuu_idle", "attack": null }
+      "sprites": { "idle": "kumokonchuu_idle", "attack": null },
+      "space": { "step": "airframe", "history": "史実：1973年、宇宙ステーション「スカイラブ」で、クモのアラベラとアニタが、重さを感じない中でも巣を張った。" }
     },
     {
       "id": "sangoshokubutsu",
@@ -207,7 +209,8 @@
       "myth": "カメは甲羅を脱げる",
       "truth": "甲羅は背骨やろっ骨とつながっていて、脱げない",
       "debated": false,
-      "sprites": { "idle": "kouranugi_idle", "attack": null }
+      "sprites": { "idle": "kouranugi_idle", "attack": null },
+      "space": { "step": "orbit", "history": "史実：1968年、旧ソ連の探査機ゾンド5号に乗った2匹のカメが、月のまわりを回って地球に帰ってきた。" }
     },
     {
       "id": "oyogitsuzuke",
@@ -251,7 +254,8 @@
       "myth": "人間はサルから進化した",
       "truth": "人間とチンパンジーは共通の祖先から分かれた",
       "debated": false,
-      "sprites": { "idle": "sarukaraningen_idle", "attack": null }
+      "sprites": { "idle": "sarukaraningen_idle", "attack": null },
+      "space": { "step": "permit", "history": "史実：1959年、サルのエイブルとベイカーが宇宙を飛んで無事に戻った。1961年にはチンパンジーのハムが、飛んでいる間にレバーを操作した。宇宙でも作業ができると分かった。" }
     },
     {
       "id": "nenrinhoui",
@@ -1057,7 +1061,8 @@
       "myth": "寝ている間に年8匹クモを食べる",
       "truth": "出典不明の都市伝説",
       "debated": false,
-      "sprites": { "idle": "negohachigumo_idle", "attack": null }
+      "sprites": { "idle": "negohachigumo_idle", "attack": null },
+      "space": { "step": "airframe", "history": "史実：1973年、宇宙ステーション「スカイラブ」で、クモのアラベラとアニタが、重さを感じない中でも巣を張った。" }
     },
     {
       "id": "sanbyouruuru",
@@ -1834,7 +1839,8 @@
       "myth": "オオカミは月に向かって吠える",
       "truth": "遠吠えは仲間との連絡やなわばりを知らせるためで、月とは関係ない",
       "debated": false,
-      "sprites": { "idle": "tsukiboe_idle", "attack": null }
+      "sprites": { "idle": "tsukiboe_idle", "attack": null },
+      "space": { "kind": "dog", "history": "オオカミは犬の仲間。史実：1960年、旧ソ連の犬のベルカとストレルカが、人工衛星で地球のまわりを回り、初めて生きて帰ってきた。" }
     },
     {
       "id": "katagawamichishio",

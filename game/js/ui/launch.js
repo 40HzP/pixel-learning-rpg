@@ -1,5 +1,7 @@
 // ロケットのミニムービー（90×160）：3・2・1で火がつき、打ち上げ場から飛び立って、行き先の発着場に降りる。
 // 地球→月面（打ち上げ）・月面→地球（帰還ロケット）・打ち上げの失敗（少し浮いて落ちる）。
+// 試作機（飼育小屋のザコを乗せる）は地球→地球：乗せるザコが発着場の横に立ち、火がつく前に乗り込み、帰ってくると横に降りる
+// （犬以外は失敗すると左へ去っていく。野に戻る）。
 // 絵は scene_launchpad（地球の打ち上げ場）・bg_moon_town（月面の街）と rocket_flight（16×48。1枚目は炎なし、2・3枚目は炎）。
 // 流れている間はゲームの時間を止め、知らせは終わってから出す（main.js の runOverlay）
 import { drawSprite, cssColor } from '../sprites.js';
@@ -27,9 +29,10 @@ const padsFor = (app) => {
 
 /**
  * ロケットのミニムービーを流す。from：飛び立つ世界（earth・moon）、to：行き先（失敗なら null）、
- * lines：降りたあと（失敗したあと）に出す文。閉じると解決する Promise を返す
+ * lines：降りたあと（失敗したあと）に出す文。passenger：試作機に乗せたザコ（{ sprite, leaves（失敗して野に戻る） }）。
+ * 閉じると解決する Promise を返す
  */
-export function playLaunch(app, { from, to, lines }) {
+export function playLaunch(app, { from, to, lines, passenger = null }) {
   return new Promise((resolve) => {
     const cv = el('canvas', { class: 'pixel', width: W, height: H });
     const g = cv.getContext('2d');
@@ -88,6 +91,17 @@ export function playLaunch(app, { from, to, lines }) {
       }
     }
 
+    /** 試作機に乗せたザコ：発着場の左に立つ（火がつく前と、終わったあと）。野に戻るザコは終わってから左へ去る */
+    function drawPassenger(world, t, now) {
+      if (!passenger || !passenger.sprite) return;
+      const q = pads[world];
+      const sp = passenger.sprite;
+      let x = q.x - sp.w - 2;
+      if (t >= end && passenger.leaves) x -= (t - end) * 24;
+      if (x < -sp.w) return;
+      drawSprite(g, sp, Math.floor(now * 4) % sp.frames.length, Math.round(x), q.y + 48 - sp.h);
+    }
+
     function draw() {
       const now = performance.now() / 1000;
       const t = now - start;
@@ -97,6 +111,7 @@ export function playLaunch(app, { from, to, lines }) {
       if (t < T0) {
         drawScene(from);
         drawRocket(p.x, p.y, false, now);
+        if (t < T0 - COUNT_SEC) drawPassenger(from, t, now); // 「1」で乗り込む
         label = t < 0 ? '' : String(3 - Math.floor(t / COUNT_SEC));
       } else if (!to) {
         // 失敗：少し浮いて、炎がとぎれ、落ちて煙に包まれる
@@ -108,6 +123,7 @@ export function playLaunch(app, { from, to, lines }) {
         const fire = s < 0.6 && Math.floor(now * 14) % 3 !== 0;
         if (t >= T0) smoke(from, t - T0, s > 0.9);
         drawRocket(p.x + shake, p.y + dy, fire, now);
+        if (t >= end) drawPassenger(from, t, now);           // 失敗して出てくる
         label = s > 0.9 ? 'ぷすん…' : '発射！';
       } else if (t < T2) {
         drawScene(from);
@@ -124,6 +140,7 @@ export function playLaunch(app, { from, to, lines }) {
         const y = -48 + (q.y + 48) * (1 - (1 - s) ** 2);
         if (s >= 1) smoke(to, Math.min(1.2, t - (T3 + LAND_SEC)) + 0.3);
         drawRocket(q.x, y, s < 1, now);
+        if (s >= 1) drawPassenger(to, t, now);               // 帰ってきて降りる
         if (t < T3) { g.fillStyle = '#000'; g.fillRect(0, 0, W, H); }
         else if (t < T3 + SWITCH_SEC / 2) { g.globalAlpha = 1 - (t - T3) / (SWITCH_SEC / 2); g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.globalAlpha = 1; }
       }

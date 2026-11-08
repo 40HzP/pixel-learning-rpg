@@ -3,6 +3,7 @@ import {
   createState, startGame, canStartAt, tick, clockFrame, createClock, HOURS_PER_YEAR,
   createRateTracker, trackTime, trackGain, moveToFloor, birthday, stageFor, fitParty, lifespanFor, generationMultiplier, heroStats, forgetPastLifeBosses,
   launchRocket, returnToEarth, ADVISOR_PLACES, heroSnapshot, compareSnapshots, lifeLogHighlights,
+  flyPrototype, launchSuccessRate, launchRateVisible,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
 import { forgetMissingQuestions, ensureAuthorCode, takeNewAdoptions, refreshDaily, dayKey, beginRecall } from './quiz.js';
@@ -145,8 +146,9 @@ async function boot() {
     }
     return dressed.get(key);
   }
-  // 用紙を破りすてたときのミニモーションの教室（背景と、先生の前に重ねる教卓）。ロケットのミニムービーの打ち上げ場と飛ぶロケット
-  const [classroom, lectern, launchpad, rocket] = await Promise.all([load('scene_classroom'), load('scene_lectern'), load('scene_launchpad'), load('rocket_flight')]);
+  // 用紙を破りすてたときのミニモーションの教室（背景と、先生の前に重ねる教卓）。ロケットのミニムービーの打ち上げ場と飛ぶロケット。
+  // 飼育小屋と月面の飼育ドームの中（ザコが歩き回る）
+  const [classroom, lectern, launchpad, rocket, barn, moonBarn] = await Promise.all([load('scene_classroom'), load('scene_lectern'), load('scene_launchpad'), load('rocket_flight'), load('scene_barn'), load('scene_moon_barn')]);
   // 10階層ごとの世界の背景（stages.json に書いた名前だけ読む）
   const stageList = await Promise.all(stages.map(async (st) => ({ ...st, bg: await load(st.background) })));
   // 施設画面の街：背景と施設の外観（town.json に書いた名前だけ読む）
@@ -205,7 +207,7 @@ async function boot() {
     heroSets,
     // 今の主人公の絵：性別（男の子は hero_*、女の子は heroine_*）と、付けている装備の見た目
     get heroSprites() { return heroLooks(this.state); },
-    sceneSprites: { classroom, lectern, launchpad, rocket },
+    sceneSprites: { classroom, lectern, launchpad, rocket, barn, moonBarn },
     stages: stageList,
     town: { ...town, bg: townBg, sprites: townSprites },
     moonTown: { ...town.moon, bg: moonBg, sprites: moonSprites },
@@ -268,6 +270,7 @@ async function boot() {
     oogiriTest: (teacherId) => runOverlay(() => playOogiri(app, teacherId)), // テストに大喜利を書いて提出した（主人公が赤面する）
     launch: () => launch(),          // ロケットを打ち上げる（地球 → 月面。失敗することもある）
     returnHome: () => returnHome(),  // 帰還ロケットで地球に帰る（無料）
+    flyPrototype: (id) => prototypeFlight(id), // 飼育小屋のザコを試作機に乗せて飛ばす（ロケット発射場）
   };
   const firstLaunch = !hasSave(); // 初めての起動（前世の最期から始める）
   app.state = loadSave(balance, notify);
@@ -442,6 +445,41 @@ async function boot() {
     return r;
   }
 
+  /**
+   * 飼育小屋のザコを試作機に乗せて飛ばす（設計ページ「飼育小屋と試作機」）。ロケットのミニムービー（地球から飛び立ち、地球の打ち上げ場に戻る。
+   * 失敗は少し浮いて落ちる）のあとに、帰ってきたか・効果を知らせる。動物が死ぬ話はしない（犬以外は失敗すると野に戻る）
+   */
+  function prototypeFlight(id) {
+    const before = launchSuccessRate(app.state, ctx);
+    const r = flyPrototype(app.state, ctx, id);
+    if (!r.ok) { notify(r.reason, 'bad'); return r; }
+    saveNow();
+    const pct = (x) => `${Math.round(x * 100)}%`;
+    const shown = launchRateVisible(app.state, ctx);
+    let lines;
+    let summary;
+    if (r.success) {
+      const e = r.effect;
+      let effect;
+      if (e.kind === 'rate') effect = `本番の打ち上げの成功率が上がった。${shown ? `（${pct(before)}→${pct(launchSuccessRate(app.state, ctx))}）` : ''}`;
+      else if (e.kind === 'step') effect = r.stepDone ? `ロケット計画の「${e.stepName}」の工程が進み、終わった！` : `ロケット計画の「${e.stepName}」の工程が進んだ。`;
+      else effect = e.capped ? '（本番の打ち上げの成功率は、もう上限まで上がっている）' : `（${r.name}の効果は、もう出ている）`;
+      lines = [`試作機が帰ってきた！　${r.name}は元気だ。`, `${r.name}に「宇宙帰り」の印が付いた。`, effect];
+      if (r.history && e.kind !== 'none') lines.push(r.history);
+      summary = `${r.name}が試作機で宇宙から帰ってきた！\n${effect}`;
+    } else if (r.dog) {
+      lines = ['試作機はうまく飛べなかった…', `でも${r.name}は元気に戻ってきた。犬は必ず生きて帰ってくる。`];
+      summary = `試作機は失敗した。${r.name}は元気に戻ってきた`;
+    } else {
+      lines = ['試作機はうまく飛べなかった…', `${r.name}は驚いて、野に帰っていった。（また倒すと、なつくことがある）`];
+      summary = `試作機は失敗した。${r.name}は野に帰っていった`;
+    }
+    const sp = (monsterSprites[id] || {}).idle || null;
+    runOverlay(() => playLaunch(app, { from: 'earth', to: r.success ? 'earth' : null, lines, passenger: sp ? { sprite: sp, leaves: r.left } : null })
+      .then(() => { notify(summary, r.success ? 'good' : r.left ? 'bad' : ''); refreshActive(true); }));
+    return r;
+  }
+
   /* ---------- 前世の記憶をたどるで間違えた問題のザコ（前世で魔物に吹き込まれた噂）・図鑑の1体目 ---------- */
   // 誤答1を選んだ問題のザコが出たら、群れの噂を1枚の札に並べる。倒すたびにその行に線を引き、「正体」の札を出す（間違えた問題のザコはどれも）。
   // 正体と図鑑の1体目の札は、続けて倒しても読めるように1枚ずつ順に出す（cardQueue）
@@ -583,6 +621,7 @@ async function boot() {
         const tip = adv && !adv.soon ? `\n${ADVISOR_PLACES[adv.place]}の顧問（${adv.role}）にもできる` : '';
         notify((e.benched ? `${e.name}が仲間になった！\nパーティーがいっぱいなので控えにいる（仲間が集まる場所で入れ替えられる）` : `${e.name}が仲間になった！`) + tip, 'good');
       }
+      else if (e.type === 'barnJoin') notify(`${e.name}がなついて、${e.barn}に入った！\n${e.world === 'moon' ? '月面の街' : '街'}の${e.world === 'moon' ? '飼育ドーム' : '飼育小屋'}で見られる`, 'good');
       else if (e.type === 'titleGained') notify(`称号「${e.title}」を手に入れた！`, 'good');
       else if (e.type === 'contractEnded') notify(`ゴールドが足りず、${e.name}との契約が切れた`, 'bad');
       else if (e.type === 'fieldUnlocked') found.push(e);

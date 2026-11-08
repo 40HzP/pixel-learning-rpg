@@ -69,7 +69,12 @@ export function createState(balance) {
     legacy: {                                     // 転生しても残るもの
       titles: [],                                   // 前世までにもらった称号
       lives: [],                                    // 前世のまとめ：{ generation, name, age, level, maxFloor, gold }
-      rocket: { buildCostPaid: false, steps: {} },  // ロケット計画の工程（建造費を払ったか・工程ごとに進んだゲーム内の時間）
+      // ロケット計画：建造費を払ったか・工程ごとに進んだゲーム内の時間・
+      // 試作機で効果が出たザコ（同じザコの効果は1回まで）・試作機で上がった打ち上げの成功率
+      rocket: { buildCostPaid: false, steps: {}, flown: [], rateBonus: 0 },
+      // 飼育小屋（地球のザコ）と月面の飼育ドーム（月面のザコ）：なついたザコ { id, space?（宇宙帰り）, flights?（飛んで帰ってきた回数） } のなついた順。
+      // 同じザコは1体まで。生まれ変わっても残る（40HzP の判断）
+      barn: [],
       author: { code: null, seen: [] },            // 作問：作問者コード（はじめて起動したときに決まる）・もう知らせた採用の問題id
       // 今日の1問（現実の日付ごとに1問）：その日（'YYYY-MM-DD'）・問題id・札を開いて閉じたか・答え（{ correct, chosen, timeout }。まだなら null）
       daily: { day: null, id: null, opened: false, result: null },
@@ -163,7 +168,7 @@ export const generationMultiplier = (state, balance) => balance.reincarnation.mu
 /**
  * 寿命で亡くなり、次の世代に生まれ変わる。
  * 最初からになるもの：Lv・経験値・ゴールド・品物と装備・仲間（契約も）・会社・中ボス・ボス（倒したボスにもまた会う。40HzP の依頼）・階層（月面にいても地球の1階層から）・年齢。
- * 引き継ぐもの：知識（熟練・累計正解数・間違えたままの問題・過去問復習・図鑑・学際分野と専攻）・称号・名前・ロケット計画の工程。
+ * 引き継ぐもの：知識（熟練・累計正解数・間違えたままの問題・過去問復習・図鑑・学際分野と専攻）・称号・名前・ロケット計画の工程・飼育小屋のザコ。
  * 足場（構造工学。ボスに与えたダメージ）はボスと一緒に最初から。
  * 年齢を選ぶまで（meta.startAge＝null）時間は止まる。前世のまとめを返す
  */
@@ -1066,6 +1071,8 @@ function defeatEnemy(state, e, ctx, events) {
   } else if (!e.minion) {
     adv.kills++;
   }
+  // ザコは低い確率でなついて、飼育小屋（月面のザコは飼育ドーム）に入る
+  if (e.kind === 'monster') tameZako(state, ctx, e.monsterId, events);
   if (adv.enemies.length) return;
   // 群れを全部倒した。ザコを階層の数だけ倒すか、ボスを倒すと次の階層へ（階層の上限はない）
   adv.spawnTimer = spawnDelay(adv, b);
@@ -1737,8 +1744,17 @@ export function payRocketBuildCost(state, ctx) {
 export const launchRateVisible = (state, ctx) => fieldActive(state, ctx, 'probability');
 
 /**
+ * 本番の打ち上げの成功率：balance.rocket.launchSuccessRate に、試作機で上がった分（legacy.rocket.rateBonus）を足す。
+ * 上限は balance.rocket.launchSuccessRateMax
+ */
+export const launchSuccessRate = (state, ctx) => {
+  const r = ctx.balance.rocket;
+  return Math.min(r.launchSuccessRateMax, r.launchSuccessRate + (state.legacy.rocket.rateBonus || 0));
+};
+
+/**
  * ロケットを打ち上げられるか：建造費を払い、すべての工程が終わっていて、地球にいる。
- * { ok, reason, successRate, rateVisible }（成功率は balance.rocket.launchSuccessRate）
+ * { ok, reason, successRate, rateVisible }（成功率は launchSuccessRate）
  */
 export function launchInfo(state, ctx) {
   const r = ctx.balance.rocket;
@@ -1747,7 +1763,7 @@ export function launchInfo(state, ctx) {
   if (onMoon(state)) reason = 'もう月面にいる';
   else if (!state.legacy.rocket.buildCostPaid) reason = '建造費を払うと打ち上げられる';
   else if (left.length) reason = `まだ終わっていない工程：${left.map((st) => st.name).join('・')}`;
-  return { ok: !reason, reason, successRate: r.launchSuccessRate, rateVisible: launchRateVisible(state, ctx) };
+  return { ok: !reason, reason, successRate: launchSuccessRate(state, ctx), rateVisible: launchRateVisible(state, ctx) };
 }
 
 /**
@@ -1772,6 +1788,112 @@ export function returnToEarth(state, ctx) {
   if (!onMoon(state)) return { ok: false, reason: 'もう地球にいる' };
   goToWorld(state, ctx, 'earth');
   return { ok: true, floor: state.adventure.floor };
+}
+
+/* ================= 飼育小屋と試作機 ================= */
+
+/** 飼育小屋の場所：地球のザコは飼育小屋（earth）、月面のザコは月面の飼育ドーム（moon） */
+export const BARN_NAMES = { earth: '飼育小屋', moon: '月面の飼育ドーム' };
+
+const monsterById = (ctx, id) => ctx.monsters.find((m) => m.id === id) || null;
+
+/** 飼育小屋（world を渡すとその世界の小屋だけ）のザコ：{ id, monster, space, flights } のなついた順 */
+export function barnAnimals(state, ctx, world = null) {
+  return (state.legacy.barn || [])
+    .map((a) => ({ ...a, monster: monsterById(ctx, a.id) }))
+    .filter((a) => a.monster && (!world || worldOf(a.monster) === world));
+}
+
+/** 小屋に入れるザコの数（その世界のザコの全数） */
+export const barnCapacity = (ctx, world) => ctx.monsters.filter((m) => m.kind === 'monster' && worldOf(m) === world).length;
+
+/**
+ * ザコを飼育小屋に入れる（force でなければ balance.barn.joinChance の確率で）。同じザコは1体まで。
+ * ボス・中ボスは入らない（中ボスは今までどおり戦いの仲間になる）。入ったら true
+ */
+export function tameZako(state, ctx, monsterId, events, force = false) {
+  const m = monsterById(ctx, monsterId);
+  if (!m || m.kind !== 'monster') return false;
+  if (state.legacy.barn.some((a) => a.id === monsterId)) return false;
+  if (!force && !(ctx.rng() < ctx.balance.barn.joinChance)) return false;
+  state.legacy.barn.push({ id: monsterId });
+  const world = worldOf(m);
+  if (events) events.push({ type: 'barnJoin', monsterId, name: m.name, world, barn: BARN_NAMES[world] });
+  return true;
+}
+
+/** 犬のザコ（monsters.json の space.kind が dog。イヌハモノクロと、犬の仲間の月面のツキボエ）：試作機で必ず生きて帰ってくる */
+export const isSpaceDog = (m) => !!(m && m.space && m.space.kind === 'dog');
+
+/**
+ * 試作機に乗せたら、成功したときに何が起きるか：
+ * - 犬：本番の打ち上げの成功率が balance.rocket.prototype.dogBonus 上がる
+ * - 実際に宇宙を飛んだ生き物（space.step）：その工程が prototype.stepYears 年分進む（その工程がもう終わっていれば、ほかのザコと同じ）
+ * - ほかのザコ：成功率が prototype.otherBonus 上がる
+ * 同じザコの効果は1回まで（legacy.rocket.flown）。成功率が上限なら効果は無い（使ったことにしない）。
+ * { kind: 'rate'|'step'|'none', amount?, step?, stepName?, hours?, used?（もう効果が出た）, capped?（成功率が上限） }
+ */
+export function prototypeEffect(state, ctx, monsterId) {
+  const m = monsterById(ctx, monsterId);
+  const pr = ctx.balance.rocket.prototype;
+  if (!m) return { kind: 'none' };
+  if ((state.legacy.rocket.flown || []).includes(monsterId)) return { kind: 'none', used: true };
+  const sp = m.space || {};
+  if (sp.step && !isSpaceDog(m)) {
+    const st = rocketSteps(state, ctx).find((x) => x.id === sp.step);
+    if (st && !st.done) return { kind: 'step', step: st.id, stepName: st.name, hours: Math.min(st.need - st.hours, pr.stepYears * HOURS_PER_YEAR) };
+  }
+  const room = ctx.balance.rocket.launchSuccessRateMax - launchSuccessRate(state, ctx);
+  if (room <= 1e-9) return { kind: 'none', capped: true };
+  return { kind: 'rate', amount: Math.min(room, isSpaceDog(m) ? pr.dogBonus : pr.otherBonus) };
+}
+
+/**
+ * 試作機を飛ばせるか：ロケット計画の「機体設計」の工程が終わっていて、地球にいる（地球のロケット発射場から飛ばす）。
+ * { ok, reason, cost, successRate, rateVisible }（成功率が見えるのは確率論を専攻にしているときだけ。本番と同じ）
+ */
+export function prototypeInfo(state, ctx) {
+  const pr = ctx.balance.rocket.prototype;
+  const frame = rocketSteps(state, ctx).find((st) => st.id === 'airframe');
+  let reason = null;
+  if (onMoon(state)) reason = '地球のロケット発射場から飛ばす';
+  else if (!frame || !frame.done) reason = `「${frame ? frame.name : '機体設計'}」の工程が終わると飛ばせる`;
+  return { ok: !reason, reason, cost: pr.cost, successRate: pr.successRate, rateVisible: launchRateVisible(state, ctx) };
+}
+
+/**
+ * 飼育小屋のザコを試作機に乗せて飛ばす（balance.rocket.prototype.cost のゴールドを払う）。
+ * 成功（prototype.successRate）すると「宇宙帰り」の印が付き、prototypeEffect の効果が出る。
+ * 失敗すると、犬は必ず生きて帰ってくる（小屋に残る）。ほかのザコは小屋からいなくなり、野に戻る（また仲間にできる）。
+ * { ok, reason?, success, dog, left（野に戻った）, effect, stepDone?, name, history }
+ */
+export function flyPrototype(state, ctx, monsterId) {
+  const info = prototypeInfo(state, ctx);
+  if (!info.ok) return { ok: false, reason: info.reason };
+  const a = state.legacy.barn.find((x) => x.id === monsterId);
+  const m = monsterById(ctx, monsterId);
+  if (!a || !m) return { ok: false, reason: '飼育小屋にいない' };
+  if (state.gold < info.cost) return { ok: false, reason: 'ゴールドが足りません' };
+  state.gold -= info.cost;
+  const effect = prototypeEffect(state, ctx, monsterId);
+  const dog = isSpaceDog(m);
+  const res = { ok: true, success: ctx.rng() < info.successRate, dog, left: false, effect, name: m.name, history: (m.space && m.space.history) || null };
+  if (res.success) {
+    a.space = true;
+    a.flights = (a.flights || 0) + 1;
+    const r = state.legacy.rocket;
+    if (effect.kind === 'rate') r.rateBonus = (r.rateBonus || 0) + effect.amount;
+    if (effect.kind === 'step') {
+      const need = ctx.balance.rocket.stepYears * HOURS_PER_YEAR;
+      r.steps[effect.step] = Math.min(need, (r.steps[effect.step] || 0) + effect.hours);
+      res.stepDone = r.steps[effect.step] >= need;
+    }
+    if (effect.kind !== 'none') r.flown = [...(r.flown || []), monsterId];
+  } else if (!dog) {
+    state.legacy.barn = state.legacy.barn.filter((x) => x !== a);
+    res.left = true;
+  }
+  return res;
 }
 
 /**

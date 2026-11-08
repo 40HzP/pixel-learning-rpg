@@ -1,11 +1,11 @@
 // 施設画面＝街。bg_town の上に施設の外観を並べ（並べる位置は data/town.json）、建物をタップするとその施設に入る。
-// 入れる施設：店・仲間が集まる場所・図書館（熟練の記録）・会社・ロケット発射場・学校・研究室（専攻の付け替えと顧問）・病院。
-// 寝床と拠点は2026-11-07にやめた（設計ページ「誕生日の熟練判定と階層の移動」）。寝床の跡は図書館、拠点の跡は「準備中」（何にするかは未定）。
+// 入れる施設：店・仲間が集まる場所・図書館（熟練の記録）・会社・ロケット発射場（と試作機）・学校・研究室（専攻の付け替えと顧問）・病院・飼育小屋。
+// 寝床と拠点は2026-11-07にやめた（設計ページ「誕生日の熟練判定と階層の移動」）。寝床の跡は図書館、拠点の跡は飼育小屋（なついたザコが歩き回る）。
 // 仲間にした中ボスは、学校・研究室・会社・ロケット発射場に顧問として置ける（advisorSection）。
 // 月面にいる間は、地球の街の代わりに月面の街（town.json の moon）が出る。月面の街でも地球の街と同じことができる
 // （設計ページ「月面の街」の①）：通信基地＝仲間が集まる場所と会社、裏側の電波望遠鏡＝学校・研究室、
 // 補給所＝店（本体＋輸送費）、月面の書庫＝図書館、医務室＝病院、帰還ロケット、掲示板。中身は地球の画面を使い回し、月の一言（note）を付ける。
-// 前線基地の跡は、地球の拠点の跡と同じく未定（準備中）。
+// 前線基地の跡は月面の飼育ドーム（月面のザコ）。飼育小屋のザコは、ロケット発射場で試作機に乗せて飛ばせる（設計ページ「飼育小屋と試作機」）。
 // 小さな広場に立っている主人公をタップすると、主人公のステータスと名前の変更
 import {
   shopList, buyItem, equipItem, EQUIP_SLOTS, heroTitles, inParty, setInParty, partyAllies, partyMax, partyFull, formatDate, heroStats, renameHero, HERO_NAME_MAX, expMultiplier,
@@ -15,6 +15,7 @@ import {
   lifespanOf, treatmentInfo, receiveTreatment, onMoon, launchInfo,
   ADVISOR_PLACES, advisorDef, advisorSlots, advisorsAt, advisorActive, setAdvisor, citationsLeft, rocketBuildCost, hrFactor, nextBoss,
   canIncorporate, incorporate, corporateTax, LAW_ECONOMICS, farthestReached,
+  barnAnimals, barnCapacity, BARN_NAMES, isSpaceDog, prototypeInfo, prototypeEffect, launchSuccessRate, worldOf,
 } from '../sim.js';
 import { fieldList, fieldById, fieldActive, isUnlocked, setMajor, MAJOR_SLOTS } from '../fields.js';
 import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor } from '../sprites.js';
@@ -637,7 +638,63 @@ function rocketPanel(app) {
     el('div', { class: 'profit' }, '成功率 ', el('b', {}, info.rateVisible ? rate : '？？？'),
       el('small', { class: 'muted' }, info.rateVisible ? `（${fieldById(ctx, 'probability').name}で見えている）` : `（${fieldById(ctx, 'probability').name}を専攻にすると見える）`)),
     el('div', { class: 'btnrow' }, launchBtn),
+    ...prototypeSection(app),
     ...advisorSection(app, ['rocket']),
+  ];
+}
+
+/**
+ * 試作機（設計ページ「飼育小屋と試作機」）：「機体設計」の工程が終わると、飼育小屋（月面の飼育ドームも）のザコを1体乗せて飛ばせる。
+ * 成功すると「宇宙帰り」の印と、ザコごとの効果（prototypeEffect）。犬は必ず生きて帰ってくる。ほかのザコは失敗すると野に戻る。
+ * 成功率と、成功率が上がる量が見えるのは、確率論を専攻にしているときだけ（本番と同じ）
+ */
+function prototypeSection(app) {
+  const s = app.state;
+  const ctx = app.ctx;
+  const info = prototypeInfo(s, ctx);
+  const head = el('h3', { class: 'subhead' }, '試作機（飼育小屋のザコを乗せて飛ばす）');
+  if (!info.ok) return [head, note(`ロケット計画の「機体設計」が終わると、飼育小屋のザコを試作機に乗せて飛ばせる（${info.reason}）`)];
+  const shown = info.rateVisible;
+  const prob = fieldById(ctx, 'probability').name;
+  const animals = barnAnimals(s, ctx);
+  const effectText = (a) => {
+    const e = prototypeEffect(s, ctx, a.id);
+    const dog = isSpaceDog(a.monster);
+    let t;
+    if (e.kind === 'rate') t = `成功すると、本番の打ち上げの成功率が${dog ? '' : '少し'}上がる${shown ? `（+${+(e.amount * 100).toFixed(1)}%）` : ''}`;
+    else if (e.kind === 'step') t = `成功すると「${e.stepName}」の工程が進む`;
+    else t = e.capped ? '本番の成功率はもう上限（飛ばすことはできる）' : '効果はもう出た（飛ばすことはできる）';
+    return t + (dog ? '。犬は必ず生きて帰ってくる' : '。失敗すると野に戻る');
+  };
+  const rows = animals.map((a) => {
+    const m = a.monster;
+    const sp = (app.monsterSprites[m.id] || {}).idle;
+    const btn = el('button', {
+      class: 'primary',
+      onclick: () => {
+        const odds = shown ? `\n成功率は${pct(info.successRate)}。` : '';
+        const risk = isSpaceDog(m) ? '' : `\n失敗すると、${m.name}は野に戻る。`;
+        if (!confirm(`${m.name}を試作機に乗せて飛ばしますか？（${fmt(info.cost)}G）${odds}${risk}`)) return;
+        app.flyPrototype(m.id);
+      },
+    }, '乗せて飛ばす');
+    live.buttons.push({ btn, price: info.cost });
+    return el('div', { class: 'item' },
+      sp ? spriteCanvas(sp, 2, app.palette) : null,
+      el('div', { class: 'name' }, m.name, a.space ? el('span', { class: 'space-badge' }, '宇宙帰り') : null,
+        worldOf(m) === 'moon' ? el('small', {}, '月面の飼育ドーム') : null,
+        el('small', {}, effectText(a))),
+      el('div', { class: 'btns' }, btn));
+  });
+  return [
+    head,
+    note(`1回 ${fmt(info.cost)}G。成功すると「宇宙帰り」の印が付き、乗せたザコによって本番の打ち上げの成功率が上がったり、ロケット計画の工程が進んだりする（同じザコの効果は1回まで）。犬は必ず生きて帰ってくる。ほかのザコは失敗すると小屋からいなくなり、野に戻る（また倒すと、なつくことがある）`),
+    el('div', { class: 'profit' }, '試作機の成功率 ', el('b', {}, shown ? pct(info.successRate) : '？？？'),
+      el('small', { class: 'muted' }, shown ? `（${prob}で見えている）` : `（${prob}を専攻にすると見える）`)),
+    shown ? el('div', { class: 'profit' }, '本番の打ち上げの成功率 ', el('b', {}, pct(launchSuccessRate(s, ctx))),
+      el('small', { class: 'muted' }, `（試作機で +${+((launchSuccessRate(s, ctx) - ctx.balance.rocket.launchSuccessRate) * 100).toFixed(1)}%。${pct(ctx.balance.rocket.launchSuccessRateMax)}まで）`)) : null,
+    animals.length ? el('div', { class: 'list' }, rows)
+      : note('飼育小屋にまだ誰もいない。ザコを倒すと、ときどきなついて、飼育小屋に入る'),
   ];
 }
 
@@ -857,12 +914,130 @@ function heroPanel(app) {
   ];
 }
 
+/* ================= 飼育小屋（月面の飼育ドーム） ================= */
+
+const BARN_W = 90;
+const BARN_H = 64;
+const BARN_SHOW = 12;   // 小屋の中を歩くザコの数（なついた順に新しいほうから。ほかは下の一覧から見る）
+// 歩ける床の範囲（ザコの絵の左上。足元が床に乗るように）
+const BARN_FLOOR = { earth: { x0: 0, x1: BARN_W - 16, y0: 15, y1: BARN_H - 17 }, moon: { x0: 0, x1: BARN_W - 16, y0: 20, y1: BARN_H - 17 } };
+
+/** 小屋のザコの「誤解」と「本当のこと」（言葉のザコは「よく言われる意味」と「本来の意味」、研究が割れているザコは「研究が割れている」） */
+function barnCard(app, a) {
+  const m = a.monster;
+  const mythLabel = m.mythLabel || (m.wordType ? 'よく言われる意味' : '誤解');
+  const truthLabel = m.wordType ? '本来の意味' : '本当のこと';
+  const flights = a.flights ? `試作機で${a.flights}回飛んで帰ってきた` : '';
+  return [
+    el('div', { class: 'barn-card-head' },
+      spriteCanvas((app.monsterSprites[m.id] || {}).idle, 3, app.palette),
+      el('div', {}, el('b', {}, m.name), a.space ? el('span', { class: 'space-badge' }, '宇宙帰り') : null, flights ? el('small', {}, flights) : null)),
+    el('span', { class: 'label' }, mythLabel), el('div', {}, m.myth),
+    el('span', { class: 'label' }, truthLabel), el('div', { class: 'good' }, m.debated ? '研究が割れている' : m.truth),
+    a.space && m.space && m.space.history ? el('div', { class: 'muted barn-history' }, m.space.history) : null,
+  ];
+}
+
+/**
+ * 飼育小屋（地球のザコ）と月面の飼育ドーム（月面のザコ）。なついたザコが中を歩き回り、触ると誤解と本当のことが見られる。
+ * 下にいるザコの一覧（押しても同じ札が出る）
+ */
+function barnPanel(app) {
+  const s = app.state;
+  const ctx = app.ctx;
+  const world = view === 'moon_barn' ? 'moon' : 'earth';
+  const other = world === 'moon' ? 'earth' : 'moon';
+  const animals = barnAnimals(s, ctx, world);
+  const elsewhere = barnAnimals(s, ctx, other).length;
+  const canvas = el('canvas', { class: 'pixel barn-scene', width: BARN_W, height: BARN_H, 'aria-label': `${BARN_NAMES[world]}の中` });
+  const g = canvas.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  const card = el('div', { class: 'barn-card', 'aria-live': 'polite' }, el('div', { class: 'muted' }, animals.length ? 'ザコを触ると、誤解と本当のことが見られる' : ''));
+  const area = BARN_FLOOR[world];
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const walkers = animals.slice(-BARN_SHOW).map((a) => {
+    const x = rnd(area.x0, area.x1), y = rnd(area.y0, area.y1);
+    return { a, sp: (app.monsterSprites[a.id] || {}).idle, x, y, tx: x, ty: y, wait: rnd(0, 2), flip: Math.random() < 0.5, speed: rnd(5, 9) };
+  });
+  const barn = { canvas, g, walkers, world, area, selected: null, last: 0 };
+  const select = (id) => {
+    barn.selected = id;
+    const a = animals.find((x) => x.id === id);
+    if (a) card.replaceChildren(...barnCard(app, a).filter(Boolean));
+    for (const b of list.querySelectorAll('button')) b.classList.toggle('on', b.dataset.id === id);
+  };
+  canvas.addEventListener('click', (ev) => {
+    const r = canvas.getBoundingClientRect();
+    const px = ((ev.clientX - r.left) / r.width) * BARN_W, py = ((ev.clientY - r.top) / r.height) * BARN_H;
+    // 手前（足元が下）のザコから。指でも押しやすいように少し広めに
+    const hit = [...walkers].sort((p, q) => q.y - p.y).find((w) => px >= w.x - 2 && px <= w.x + 18 && py >= w.y - 2 && py <= w.y + 18);
+    if (hit) select(hit.a.id);
+  });
+  const list = el('div', { class: 'barn-list' }, animals.map((a) => el('button', { 'data-id': a.id, onclick: () => select(a.id) },
+    spriteCanvas((app.monsterSprites[a.id] || {}).idle, 2, app.palette), el('span', {}, a.monster.name), a.space ? el('span', { class: 'space-badge' }, '宇宙') : null)));
+  // 歩くザコは画面の更新（0.2秒ごと）より細かく動かす。施設を出て絵が外れたら止まる
+  const loop = () => {
+    if (!canvas.isConnected) return;
+    if (!root.hidden) drawBarn(app, barn, performance.now() / 1000);
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+  const frameDone = rocketSteps(s, ctx).some((st) => st.id === 'airframe' && st.done);
+  return [
+    el('div', { class: 'profit' }, `${animals.length}体 ／ ${barnCapacity(ctx, world)}体`,
+      el('small', { class: 'muted' }, world === 'moon' ? '（月面のザコ）' : '（地球のザコ）')),
+    el('div', { class: 'barn-box' }, canvas),
+    card,
+    animals.length > BARN_SHOW ? note(`小屋の中を歩いているのは新しく来た${BARN_SHOW}体。ほかのザコは下の一覧から見られる`) : null,
+    animals.length ? list : note(`まだ誰もいない。${world === 'moon' ? '月面の' : ''}ザコを倒すと、ときどきなついて、ここに入る`),
+    elsewhere ? note(world === 'earth' ? `月面の飼育ドームにも${elsewhere}体いる（月面の街で見られる）` : `地球の飼育小屋にも${elsewhere}体いる（地球の街で見られる）`) : null,
+    note(frameDone ? 'ロケット発射場で、小屋のザコ（飼育ドームのザコも）を試作機に乗せて飛ばせる' : 'ロケット計画の「機体設計」が終わると、ロケット発射場で小屋のザコを試作機に乗せて飛ばせる'),
+  ];
+}
+
+/** 小屋の中のザコを歩かせて描く（毎フレーム） */
+function drawBarn(app, barn, now) {
+  const dt = barn.last ? Math.min(0.1, now - barn.last) : 0;
+  barn.last = now;
+  const { g, area } = barn;
+  const bg = app.sceneSprites[barn.world === 'moon' ? 'moonBarn' : 'barn'];
+  g.clearRect(0, 0, BARN_W, BARN_H);
+  if (bg) drawSprite(g, bg, 0, 0, 0);
+  for (const w of barn.walkers) {
+    if (w.wait > 0) w.wait -= dt;
+    else {
+      const dx = w.tx - w.x, dy = w.ty - w.y, d = Math.hypot(dx, dy);
+      if (d < 0.5) {
+        // 着いたら少し休んで、次の行き先を決める
+        w.wait = 0.5 + Math.random() * 2.5;
+        w.tx = area.x0 + Math.random() * (area.x1 - area.x0);
+        w.ty = area.y0 + Math.random() * (area.y1 - area.y0);
+        w.flip = w.tx > w.x; // 魔物の絵は左向き。右へ行くときは裏返す
+      } else {
+        const step = Math.min(d, w.speed * dt);
+        w.x += (dx / d) * step; w.y += (dy / d) * step;
+      }
+    }
+  }
+  for (const w of [...barn.walkers].sort((p, q) => p.y - q.y)) {
+    if (w.sp) drawSprite(g, w.sp, frameAt(w.sp, now), w.x, w.y, { flip: w.flip });
+    else drawPlaceholder(g, w.x, w.y, 16, 16, app.palette);
+    if (w.a.id === barn.selected) {
+      // 選んだザコの頭の上に小さな黄色い矢印
+      g.fillStyle = cssColor(app.palette, 'g', '#fbe57a');
+      const cx = Math.round(w.x) + 7, top = Math.round(w.y) - 4;
+      g.fillRect(cx - 1, top, 4, 1); g.fillRect(cx, top + 1, 2, 1);
+    }
+  }
+}
+
 // 中に入れる施設（town.json の id → 中身）。ここに無い施設は「準備中」
 const PANELS = {
   shop: shopPanel, guild: guildPanel, library: libraryPanel, company: companyPanel, rocket: rocketPanel, major: majorPanel, hospital: hospitalPanel,
   // 月面の街（地球の施設と同じ中身。town.json の moon の earth に、代わりになる地球の施設を書いている）
   moon_rocket: moonRocketPanel, moon_archive: libraryPanel, moon_comm: commPanel, moon_telescope: telescopePanel,
   moon_supply: shopPanel, moon_clinic: hospitalPanel,
+  barn: barnPanel, moon_barn: barnPanel,
 };
 // 月の一言（town.json の note）
 const moonNote = (f) => (f && f.note ? el('div', { class: 'moon-note' }, el('b', {}, '月のこと'), f.note) : null);
@@ -916,7 +1091,9 @@ export function update(app, force) {
   town = null;
   const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.hero.gender, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched, !!a.advisor]), s.citationsUsed, s.knowledge.torn.length, s.tax.owed > 0, (s.knowledge.profLog || []).length && s.knowledge.profLog[0], heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket.buildCostPaid, s.life.generation, s.life.ailing, s.life.treatments, s.life.maxFloor, s.life.moonMaxFloor,
     // 学際分野（解放・休眠・専攻・熟練）とロケットの工程（進み具合は作り直さずに書き換える）
-    fieldList(s, app.ctx).map((f) => [f.unlocked, f.dormant, f.slot, f.levels]), s.knowledge.radio, rocketSteps(s, app.ctx).map((st) => [st.done, st.active]), (nextBoss(s, app.ctx) || {}).id]);
+    fieldList(s, app.ctx).map((f) => [f.unlocked, f.dormant, f.slot, f.levels]), s.knowledge.radio, rocketSteps(s, app.ctx).map((st) => [st.done, st.active]), (nextBoss(s, app.ctx) || {}).id,
+    // 飼育小屋のザコと、試作機の効果
+    s.legacy.barn, s.legacy.rocket.flown, s.legacy.rocket.rateBonus]);
   // 名前を入力している途中は作り直さない（入力が消えないように）
   const typing = root.contains(document.activeElement) && document.activeElement.tagName === 'INPUT';
   if (force || ((k !== key || !live) && !typing)) { key = k; buildPanel(app); }

@@ -1,5 +1,5 @@
 // デバッグ画面（URL に ?debug=1 を付けたときだけ出る）
-import { HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel, lifespanOf, ailmentAge, ageYears, zakoPool, rocketSteps } from '../sim.js';
+import { HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel, lifespanOf, ailmentAge, ageYears, zakoPool, rocketSteps, tameZako, worldOf } from '../sim.js';
 import { SAVE_KEY, serialize, deserialize } from '../save.js';
 import { GENRES } from '../genres.js';
 import { refreshDaily, dayKey } from '../quiz.js';
@@ -135,6 +135,26 @@ export function init(app) {
           app.notify('宇宙からの電波をためた（月面で勉強に1問正解すると、図鑑の頁が開く）');
         },
       }, '宇宙からの電波をためる'))),
+    el('div', { class: 'section' }, el('h2', {}, '飼育小屋と試作機'),
+      el('div', {},
+        el('button', {
+          onclick: () => {
+            // 今いる世界のザコを、まだ小屋にいないものから5体なつかせる（宇宙を飛んだ生き物のザコを先に）
+            const world = app.state.adventure.world || 'earth';
+            const left = ctx.monsters.filter((m) => m.kind === 'monster' && worldOf(m) === world && !app.state.legacy.barn.some((a) => a.id === m.id))
+              .sort((a, b) => (b.space ? 1 : 0) - (a.space ? 1 : 0)).slice(0, 5);
+            const ev = [];
+            for (const m of left) tameZako(app.state, ctx, m.id, ev, true);
+            app.notify(ev.length ? `${ev.map((e) => e.name).join('・')}が${ev[0].barn}に入った` : 'もう全部いる');
+          },
+        }, '今いる世界のザコを5体なつかせる'),
+        el('button', {
+          onclick: () => {
+            app.state.legacy.rocket.steps.airframe = ctx.balance.rocket.stepYears * HOURS_PER_YEAR;
+            app.state.gold = Math.max(app.state.gold, ctx.balance.rocket.prototype.cost * 20);
+            app.notify('機体設計を終え、試作機20回分のゴールドを持たせた（ロケット発射場で試作機を飛ばせる）');
+          },
+        }, '機体設計を終える（試作機を飛ばせるように）'))),
     el('div', { class: 'section' }, el('h2', {}, '誕生日'),
       el('div', {}, el('button', { onclick: () => app.birthdayNow() }, '誕生日の判定を今する（全回復・熟練の判定）'))),
     el('div', { class: 'section' }, el('h2', {}, '最初の3分'),
