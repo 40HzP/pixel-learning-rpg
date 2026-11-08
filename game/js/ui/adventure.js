@@ -68,7 +68,7 @@ export function init(app) {
       el('div', {}, el('div', { class: 'row' }, el('span', {}, 'MP'), r.mp), el('div', { class: 'hpbar mp' }, r.mpbar))),
     el('div', { class: 'row detail' }, el('span', {}, '攻撃 ', r.atk, '　防御 ', r.def, '　賢さ ', r.wis)),
     el('div', { class: 'row detail' }, el('span', {}, '経験値 ', r.exp), el('span', {}, '累計 ', r.total)),
-    el('div', { class: 'row detail' }, el('span', {}, '所持金 ', r.gold, 'G'), el('span', {}, '経験値 ×', r.xmul)),
+    el('div', { class: 'row detail' }, el('span', {}, '所持金 ', r.gold, 'G'), el('span', {}, '経験値倍率 ×', r.xmul)),
     el('div', { class: 'row detail' }, el('span', {}, '1か月あたり 経験値 ', r.rexp, '・', r.rgold, 'G')),
     r.companyRow = el('div', { class: 'row detail', hidden: true }, r.company),
     el('div', { class: 'row detail' }, el('span', {}, '契約料 ', r.fee, 'G'), el('span', {}, '手取り ', r.net, 'G')),
