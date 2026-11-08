@@ -16,9 +16,10 @@ import {
   ADVISOR_PLACES, advisorDef, advisorSlots, advisorsAt, advisorActive, setAdvisor, citationsLeft, rocketBuildCost, hrFactor, nextBoss,
   canIncorporate, incorporate, corporateTax, LAW_ECONOMICS, farthestReached,
   barnAnimals, barnCapacity, BARN_NAMES, isSpaceDog, prototypeInfo, prototypeEffect, launchSuccessRate, worldOf,
+  touchZako, isReformed,
 } from '../sim.js';
 import { fieldList, fieldById, fieldActive, isUnlocked, setMajor, MAJOR_SLOTS } from '../fields.js';
-import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor } from '../sprites.js';
+import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor, drawHalo } from '../sprites.js';
 import { el, fmt } from './dom.js';
 import { profLogList, profLogNote } from './proflog.js';
 
@@ -664,7 +665,9 @@ function prototypeSection(app) {
     if (e.kind === 'rate') t = `成功すると、本番の打ち上げの成功率が${dog ? '' : '少し'}上がる${shown ? `（+${+(e.amount * 100).toFixed(1)}%）` : ''}`;
     else if (e.kind === 'step') t = `成功すると「${e.stepName}」の工程が進む`;
     else t = e.capped ? '本番の成功率はもう上限（飛ばすことはできる）' : '効果はもう出た（飛ばすことはできる）';
-    return t + (dog ? '。犬は必ず生きて帰ってくる' : '。失敗すると野に戻る');
+    // 犬以外は、失敗しても懐き度%の確率で帰ってくる（設計ページ「懐き度」の①）
+    const back = Math.floor(a.affinity || 0);
+    return t + (dog ? '。犬は必ず生きて帰ってくる' : back > 0 ? `。失敗しても${back}%の確率で帰ってくる（懐き度${back}）` : '。失敗すると野に戻る（懐き度0）');
   };
   const rows = animals.map((a) => {
     const m = a.monster;
@@ -673,7 +676,8 @@ function prototypeSection(app) {
       class: 'primary',
       onclick: () => {
         const odds = shown ? `\n成功率は${pct(info.successRate)}。` : '';
-        const risk = isSpaceDog(m) ? '' : `\n失敗すると、${m.name}は野に戻る。`;
+        const back = Math.floor(a.affinity || 0);
+        const risk = isSpaceDog(m) ? '' : `\n失敗すると、${m.name}は${back > 0 ? `懐き度${back}%の確率で帰ってくる。帰ってこなければ` : ''}野に戻る。`;
         if (!confirm(`${m.name}を試作機に乗せて飛ばしますか？（${fmt(info.cost)}G）${odds}${risk}`)) return;
         app.flyPrototype(m.id);
       },
@@ -688,7 +692,7 @@ function prototypeSection(app) {
   });
   return [
     head,
-    note(`1回 ${fmt(info.cost)}G。成功すると「宇宙帰り」の印が付き、乗せたザコによって本番の打ち上げの成功率が上がったり、ロケット計画の工程が進んだりする（同じザコの効果は1回まで）。犬は必ず生きて帰ってくる。ほかのザコは失敗すると小屋からいなくなり、野に戻る（また倒すと、なつくことがある）`),
+    note(`1回 ${fmt(info.cost)}G。成功すると「宇宙帰り」の印が付き、乗せたザコによって本番の打ち上げの成功率が上がったり、ロケット計画の工程が進んだりする（同じザコの効果は1回まで）。犬は必ず生きて帰ってくる。ほかのザコは失敗しても懐き度%の確率で帰ってくるが、帰ってこなければ小屋からいなくなり、野に戻る（また倒すと、なつくことがある。懐き度は0から）。帰ってくると懐き度が上がる`),
     el('div', { class: 'profit' }, '試作機の成功率 ', el('b', {}, shown ? pct(info.successRate) : '？？？'),
       el('small', { class: 'muted' }, shown ? `（${prob}で見えている）` : `（${prob}を専攻にすると見える）`)),
     shown ? el('div', { class: 'profit' }, '本番の打ち上げの成功率 ', el('b', {}, pct(launchSuccessRate(s, ctx))),
@@ -918,24 +922,43 @@ function heroPanel(app) {
 
 const BARN_W = 90;
 const BARN_H = 64;
-const BARN_SHOW = 12;   // 小屋の中を歩くザコの数（なついた順に新しいほうから。ほかは下の一覧から見る）
+const BARN_SHOW = 12;
+let barnPick = null; // 小屋で最後に触ったザコ（{ view, id }。階層が進むなどで画面を作り直しても、札を出したままにする）   // 小屋の中を歩くザコの数（なついた順に新しいほうから。ほかは下の一覧から見る）
 // 歩ける床の範囲（ザコの絵の左上。足元が床に乗るように）
 const BARN_FLOOR = { earth: { x0: 0, x1: BARN_W - 16, y0: 15, y1: BARN_H - 17 }, moon: { x0: 0, x1: BARN_W - 16, y0: 20, y1: BARN_H - 17 } };
 
-/** 小屋のザコの「誤解」と「本当のこと」（言葉のザコは「よく言われる意味」と「本来の意味」、研究が割れているザコは「研究が割れている」） */
-function barnCard(app, a) {
+/**
+ * 小屋のザコの札：懐き度（帯）・触った結果・そのザコの一言（誤解。更生すると本当のこと）・「誤解」と「本当のこと」
+ * （言葉のザコは「よく言われる意味」と「本来の意味」、研究が割れているザコは「研究が割れている」）。touch は触った結果（touchZako）
+ */
+function barnCard(app, a, touch) {
   const m = a.monster;
+  const b = app.ctx.balance.barn;
+  const aff = Math.floor(a.affinity || 0);
+  const reformed = aff >= b.affinityMax;
   const mythLabel = m.mythLabel || (m.wordType ? 'よく言われる意味' : '誤解');
   const truthLabel = m.wordType ? '本来の意味' : '本当のこと';
   const flights = a.flights ? `試作機で${a.flights}回飛んで帰ってきた` : '';
+  const bar = el('i', { style: { width: `${(aff / b.affinityMax) * 100}%` } });
+  const touchText = !touch ? '' : touch.already ? '今日はもうなでた（1日に1回、懐き度が上がる）'
+    : touch.gained > 0 ? `なでた！　懐き度 +${touch.gained}` : 'なでた！';
+  const perks = reformed ? '更生した：誤解ではなく本当のことを話すようになった'
+    : aff >= b.friendlyAffinity ? `懐いている：誕生日に贈り物を持ってくることがあり、${m.name}の問題で誤答を1つ消してくれる`
+      : `懐き度${b.friendlyAffinity}で、誕生日の贈り物と勉強の手伝い。${b.affinityMax}で更生する`;
   return [
     el('div', { class: 'barn-card-head' },
-      spriteCanvas((app.monsterSprites[m.id] || {}).idle, 3, app.palette),
-      el('div', {}, el('b', {}, m.name), a.space ? el('span', { class: 'space-badge' }, '宇宙帰り') : null, flights ? el('small', {}, flights) : null)),
+      spriteCanvas((app.monsterSprites[m.id] || {}).idle, 3, app.palette, { halo: reformed }),
+      el('div', {}, el('b', {}, m.name), a.space ? el('span', { class: 'space-badge' }, '宇宙帰り') : null,
+        reformed ? el('span', { class: 'space-badge reformed' }, '更生') : null, flights ? el('small', {}, flights) : null)),
+    el('div', { class: 'affinity' }, el('span', {}, '懐き度'), el('div', { class: 'affbar' }, bar), el('b', {}, `${aff}/${b.affinityMax}`)),
+    touchText ? el('div', { class: touch && touch.gained > 0 ? 'good' : 'muted' }, touchText) : null,
+    el('small', { class: 'muted' }, perks),
+    // そのザコの一言：誤解を話す。更生すると本当のことを話す（設計ページ「懐き度」の⑤）
+    el('div', { class: 'barn-say' + (reformed ? ' reformed' : '') }, `「${reformed ? (m.debated ? '本当のところは、研究が割れているんだ' : m.truth) : m.myth}」`),
     el('span', { class: 'label' }, mythLabel), el('div', {}, m.myth),
     el('span', { class: 'label' }, truthLabel), el('div', { class: 'good' }, m.debated ? '研究が割れている' : m.truth),
     a.space && m.space && m.space.history ? el('div', { class: 'muted barn-history' }, m.space.history) : null,
-  ];
+  ].filter(Boolean);
 }
 
 /**
@@ -952,19 +975,30 @@ function barnPanel(app) {
   const canvas = el('canvas', { class: 'pixel barn-scene', width: BARN_W, height: BARN_H, 'aria-label': `${BARN_NAMES[world]}の中` });
   const g = canvas.getContext('2d');
   g.imageSmoothingEnabled = false;
-  const card = el('div', { class: 'barn-card', 'aria-live': 'polite' }, el('div', { class: 'muted' }, animals.length ? 'ザコを触ると、誤解と本当のことが見られる' : ''));
+  const card = el('div', { class: 'barn-card', 'aria-live': 'polite' }, el('div', { class: 'muted' }, animals.length ? 'ザコを触ると、懐き度と、誤解と本当のことが見られる（1日に1回、なでると懐き度が上がる）' : ''));
   const area = BARN_FLOOR[world];
   const rnd = (a, b) => a + Math.random() * (b - a);
   const walkers = animals.slice(-BARN_SHOW).map((a) => {
     const x = rnd(area.x0, area.x1), y = rnd(area.y0, area.y1);
-    return { a, sp: (app.monsterSprites[a.id] || {}).idle, x, y, tx: x, ty: y, wait: rnd(0, 2), flip: Math.random() < 0.5, speed: rnd(5, 9) };
+    return { a, sp: (app.monsterSprites[a.id] || {}).idle, x, y, tx: x, ty: y, wait: rnd(0, 2), flip: Math.random() < 0.5, speed: rnd(5, 9), reformed: isReformed(s, ctx, a.id) };
   });
   const barn = { canvas, g, walkers, world, area, selected: null, last: 0 };
-  const select = (id) => {
+  // 触る（なでる）：そのザコは1日に1回、懐き度が上がる。懐いた・更生したときは知らせが出る
+  const show = (id, touch) => {
     barn.selected = id;
-    const a = animals.find((x) => x.id === id);
-    if (a) card.replaceChildren(...barnCard(app, a).filter(Boolean));
+    const a = barnAnimals(app.state, app.ctx, world).find((x) => x.id === id);
+    if (a) card.replaceChildren(...barnCard(app, a, touch));
     for (const b of list.querySelectorAll('button')) b.classList.toggle('on', b.dataset.id === id);
+  };
+  const select = (id) => {
+    barnPick = { view, id };
+    const ev = [];
+    const touch = touchZako(app.state, app.ctx, id, app.today(), ev);
+    if (touch.gained > 0) app.save();
+    if (ev.length) app.handleEvents(ev);
+    show(id, touch);
+    const w = walkers.find((x) => x.a.id === id);
+    if (w) w.reformed = isReformed(app.state, app.ctx, id);
   };
   canvas.addEventListener('click', (ev) => {
     const r = canvas.getBoundingClientRect();
@@ -974,7 +1008,11 @@ function barnPanel(app) {
     if (hit) select(hit.a.id);
   });
   const list = el('div', { class: 'barn-list' }, animals.map((a) => el('button', { 'data-id': a.id, onclick: () => select(a.id) },
-    spriteCanvas((app.monsterSprites[a.id] || {}).idle, 2, app.palette), el('span', {}, a.monster.name), a.space ? el('span', { class: 'space-badge' }, '宇宙') : null)));
+    spriteCanvas((app.monsterSprites[a.id] || {}).idle, 2, app.palette, { halo: isReformed(s, ctx, a.id) }),
+    el('span', {}, a.monster.name, el('small', {}, `懐き度 ${Math.floor(a.affinity || 0)}`)),
+    a.space ? el('span', { class: 'space-badge' }, '宇宙') : null)));
+  // 作り直したときは、前に触ったザコの札を出したままにする（触ったことにはしない）
+  if (barnPick && barnPick.view === view && animals.some((a) => a.id === barnPick.id)) show(barnPick.id, null);
   // 歩くザコは画面の更新（0.2秒ごと）より細かく動かす。施設を出て絵が外れたら止まる
   const loop = () => {
     if (!canvas.isConnected) return;
@@ -1022,10 +1060,11 @@ function drawBarn(app, barn, now) {
   for (const w of [...barn.walkers].sort((p, q) => p.y - q.y)) {
     if (w.sp) drawSprite(g, w.sp, frameAt(w.sp, now), w.x, w.y, { flip: w.flip });
     else drawPlaceholder(g, w.x, w.y, 16, 16, app.palette);
+    if (w.reformed && w.sp) drawHalo(g, w.sp, w.x, w.y, app.palette, { flip: w.flip }); // 更生した印（光の輪）
     if (w.a.id === barn.selected) {
       // 選んだザコの頭の上に小さな黄色い矢印
       g.fillStyle = cssColor(app.palette, 'g', '#fbe57a');
-      const cx = Math.round(w.x) + 7, top = Math.round(w.y) - 4;
+      const cx = Math.round(w.x) + 7, top = Math.round(w.y) - (w.reformed ? 9 : 4); // 光の輪があれば、その上に
       g.fillRect(cx - 1, top, 4, 1); g.fillRect(cx, top + 1, 2, 1);
     }
   }
@@ -1092,8 +1131,8 @@ export function update(app, force) {
   const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.hero.gender, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched, !!a.advisor]), s.citationsUsed, s.knowledge.torn.length, s.tax.owed > 0, (s.knowledge.profLog || []).length && s.knowledge.profLog[0], heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket.buildCostPaid, s.life.generation, s.life.ailing, s.life.treatments, s.life.maxFloor, s.life.moonMaxFloor,
     // 学際分野（解放・休眠・専攻・熟練）とロケットの工程（進み具合は作り直さずに書き換える）
     fieldList(s, app.ctx).map((f) => [f.unlocked, f.dormant, f.slot, f.levels]), s.knowledge.radio, rocketSteps(s, app.ctx).map((st) => [st.done, st.active]), (nextBoss(s, app.ctx) || {}).id,
-    // 飼育小屋のザコと、試作機の効果
-    s.legacy.barn, s.legacy.rocket.flown, s.legacy.rocket.rateBonus]);
+    // 飼育小屋のザコ（懐き度は触るたび・誕生日ごとに変わるので、更生したかだけ）と、試作機の効果
+    s.legacy.barn.map((a) => [a.id, !!a.space, (a.affinity || 0) >= app.ctx.balance.barn.affinityMax]), s.legacy.rocket.flown, s.legacy.rocket.rateBonus]);
   // 名前を入力している途中は作り直さない（入力が消えないように）
   const typing = root.contains(document.activeElement) && document.activeElement.tagName === 'INPUT';
   if (force || ((k !== key || !live) && !typing)) { key = k; buildPanel(app); }

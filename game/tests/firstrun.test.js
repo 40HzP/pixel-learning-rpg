@@ -255,7 +255,7 @@ test('起動から3分の比較：伸びたものだけを並べ、図鑑に加�
   assert.ok(cmp.rows.some((r) => r.key === 'floor' && r.from === 1 && r.to === 4));
   assert.ok(!cmp.rows.some((r) => r.key === 'moonFloor'), '伸びていないものは出さない');
   assert.deepEqual([cmp.zukan, cmp.correct], [2, 3]);
-  assert.deepEqual(compareSnapshots(after, after), { rows: [], zukan: 0, correct: 0 }, '何も伸びていなければ空');
+  assert.deepEqual(compareSnapshots(after, after), { rows: [], zukan: 0, correct: 0, affinity: [] }, '何も伸びていなければ空');
   reincarnate(s, ctx);
   assert.equal(compareSnapshots(before, heroSnapshot(s, ctx)), null);
 });

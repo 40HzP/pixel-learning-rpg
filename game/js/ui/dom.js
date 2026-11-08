@@ -29,3 +29,8 @@ export function fmt(n) {
   return v.toLocaleString('ja-JP');
 }
 export const stars = (n) => '☆'.repeat(n);
+
+/**
+ * 勉強の手伝い（設計ページ「懐き度」の④）：懐いた飼育小屋のザコが、自分の問題で誤答を1つ消してくれたときの添え書き（quiz.js の barnHelp。current.helpedBy）
+ */
+export const helpNote = (cur) => (cur && cur.helpedBy ? el('span', { class: 'good' }, `　懐いた${cur.helpedBy}が誤答を1つ消してくれた`) : null);

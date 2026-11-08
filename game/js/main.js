@@ -3,7 +3,7 @@ import {
   createState, startGame, canStartAt, tick, clockFrame, createClock, HOURS_PER_YEAR,
   createRateTracker, trackTime, trackGain, moveToFloor, birthday, stageFor, fitParty, lifespanFor, generationMultiplier, heroStats, forgetPastLifeBosses,
   launchRocket, returnToEarth, ADVISOR_PLACES, heroSnapshot, compareSnapshots, lifeLogHighlights,
-  flyPrototype, launchSuccessRate, launchRateVisible,
+  flyPrototype, launchSuccessRate, launchRateVisible, seeOffFriends,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
 import { forgetMissingQuestions, ensureAuthorCode, takeNewAdoptions, refreshDaily, dayKey, beginRecall } from './quiz.js';
@@ -413,6 +413,8 @@ async function boot() {
       head: `${p.name}の熟練の記録`,
       sub: `Lv${p.level}・最高到達${p.maxFloor}階層${p.moonFloor ? `（月面${p.moonFloor}階層）` : ''}・${fmt(p.gold)}ゴールドを残した`,
       gender: app.state.hero.gender,
+      // 懐いた飼育小屋のザコが見送る（設計ページ「懐き度」の③。懐き度の高い順に数体）
+      friends: seeOffFriends(app.state, ctx).map((f) => ({ ...f, sprite: (monsterSprites[f.id] || {}).idle || null })),
     };
   }
 
@@ -451,7 +453,8 @@ async function boot() {
    */
   function prototypeFlight(id) {
     const before = launchSuccessRate(app.state, ctx);
-    const r = flyPrototype(app.state, ctx, id);
+    const events = [];
+    const r = flyPrototype(app.state, ctx, id, events);
     if (!r.ok) { notify(r.reason, 'bad'); return r; }
     saveNow();
     const pct = (x) => `${Math.round(x * 100)}%`;
@@ -470,13 +473,17 @@ async function boot() {
     } else if (r.dog) {
       lines = ['試作機はうまく飛べなかった…', `でも${r.name}は元気に戻ってきた。犬は必ず生きて帰ってくる。`];
       summary = `試作機は失敗した。${r.name}は元気に戻ってきた`;
+    } else if (r.cameBack) {
+      lines = ['試作機はうまく飛べなかった…', `でも${r.name}はよく懐いていたので、ちゃんと帰ってきた。`];
+      summary = `試作機は失敗した。${r.name}は懐いていたので帰ってきた`;
     } else {
       lines = ['試作機はうまく飛べなかった…', `${r.name}は驚いて、野に帰っていった。（また倒すと、なつくことがある）`];
       summary = `試作機は失敗した。${r.name}は野に帰っていった`;
     }
+    if (r.affinity > 0) lines.push(`${r.name}の懐き度が上がった（+${r.affinity}）。`);
     const sp = (monsterSprites[id] || {}).idle || null;
     runOverlay(() => playLaunch(app, { from: 'earth', to: r.success ? 'earth' : null, lines, passenger: sp ? { sprite: sp, leaves: r.left } : null })
-      .then(() => { notify(summary, r.success ? 'good' : r.left ? 'bad' : ''); refreshActive(true); }));
+      .then(() => { notify(summary, r.success ? 'good' : r.left ? 'bad' : ''); handleEvents(events); refreshActive(true); }));
     return r;
   }
 
@@ -621,6 +628,9 @@ async function boot() {
         const tip = adv && !adv.soon ? `\n${ADVISOR_PLACES[adv.place]}の顧問（${adv.role}）にもできる` : '';
         notify((e.benched ? `${e.name}が仲間になった！\nパーティーがいっぱいなので控えにいる（仲間が集まる場所で入れ替えられる）` : `${e.name}が仲間になった！`) + tip, 'good');
       }
+      else if (e.type === 'barnFriendly') notify(`${e.name}がすっかり懐いた！（${e.barn}）\n誕生日に贈り物を持ってきたり、${e.name}の問題で誤答を1つ消してくれたりする`, 'good');
+      else if (e.type === 'barnReformed') notify(`${e.name}が自分の誤解に気づいた！（更生）\n${e.barn}で触ると、本当のことを話してくれる`, 'good');
+      else if (e.type === 'barnGift') notify(`${e.age}歳の誕生日。${e.name}から贈り物：${e.itemName ? `${e.itemName}（装備した）` : `${fmt(e.gold)}G`}`, 'good');
       else if (e.type === 'barnJoin') notify(`${e.name}がなついて、${e.barn}に入った！\n${e.world === 'moon' ? '月面の街' : '街'}の${e.world === 'moon' ? '飼育ドーム' : '飼育小屋'}で見られる`, 'good');
       else if (e.type === 'titleGained') notify(`称号「${e.title}」を手に入れた！`, 'good');
       else if (e.type === 'contractEnded') notify(`ゴールドが足りず、${e.name}との契約が切れた`, 'bad');
@@ -804,6 +814,10 @@ async function boot() {
     const cmp = compareSnapshots(launchMark.snap, heroSnapshot(app.state, ctx));
     if (!cmp || (!cmp.rows.length && !cmp.zukan && !cmp.correct)) return; // 伸びたものだけを出す
     const extra = [cmp.zukan ? `図鑑 +${cmp.zukan}体` : '', cmp.correct ? `正解 +${cmp.correct}問` : ''].filter(Boolean).join('・');
+    // その3分で懐き度が上がった飼育小屋のザコ（いちばん上がったザコと、ほかの数）
+    const aff = cmp.affinity || [];
+    const top = aff.length ? monsters.find((m) => m.id === aff[0].id) : null;
+    const affLine = top ? `懐き度：${top.name} +${aff[0].gain}${aff.length > 1 ? `　ほか${aff.length - 1}体` : ''}` : '';
     notifyCard([
       el('b', { class: 'nt-title' }, '起動したときの自分と比べると'),
       el('div', { class: 'cmp-rows' }, cmp.rows.map((r) => {
@@ -811,6 +825,7 @@ async function boot() {
         return el('span', { class: r.key.endsWith('loor') ? 'wide' : '' }, `${r.label} ${fmt(r.from)}${unit} → `, el('b', {}, `${fmt(r.to)}${unit}`));
       })),
       extra ? el('small', {}, extra) : null,
+      affLine ? el('small', {}, affLine) : null,
     ], 'compare', LAUNCH_COMPARE_SHOW_MS);
   }
   document.addEventListener('visibilitychange', () => {

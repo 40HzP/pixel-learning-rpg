@@ -4,7 +4,7 @@ import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap, a
 import { fieldById, fieldActive } from '../fields.js';
 import { GENRES } from '../genres.js';
 import { spriteCanvas, cssColor } from '../sprites.js';
-import { el, stars } from './dom.js';
+import { el, stars, helpNote } from './dom.js';
 import { teacherForAge } from './tear.js';
 import { createDoodle, attachDoodle } from './doodle.js';
 import { shareTest } from './share.js';
@@ -260,6 +260,7 @@ function refreshSheetMeta(app) {
     m.key = key;
     m.meta.replaceChildren(`${m.i + 1}問目　${stars(q.difficulty)}`,
       m.cur.trimmedBy ? el('span', { class: 'good' }, `　${m.cur.trimmedBy}で誤答が1つ消えた`) : '',
+      helpNote(m.cur) || '',
       im ? el('span', { class: 'meddle' }, `　${im.name}が口を挟んでいる`) : '',
       citedNote(m.cur) || '',
       b ? el('span', { class: 'good' }, `　${b.monster.name}は口を挟めない（${b.field.name}）`) : '');
@@ -483,7 +484,7 @@ function renderQuestion(app) {
   const ratio = Math.max(0, view.remaining / cur.timeLimit);
   refs.body.replaceChildren(
     interferenceBanner(app, q),
-    el('div', { class: 'qmeta' }, `${stars(q.difficulty)}　${progress}`, cur.trimmedBy ? el('span', { class: 'good' }, `　${cur.trimmedBy}で誤答が1つ消えた`) : null, citedNote(cur)),
+    el('div', { class: 'qmeta' }, `${stars(q.difficulty)}　${progress}`, cur.trimmedBy ? el('span', { class: 'good' }, `　${cur.trimmedBy}で誤答が1つ消えた`) : null, helpNote(cur), citedNote(cur)),
     questionText(app, q),
     el('div', { class: 'timebar', id: 'timebar' }, el('i', { style: { width: ratio * 100 + '%' } })),
     view.revealed
@@ -542,6 +543,7 @@ export function effectLines(app, r, brief = false) {
     else if (!brief && g && g.level < proficiencyCap(app.state, app.ctx.balance)) lines.push(['', `${r.question.genre}：次のLvまで ${g.progress}/${per}回`]);
     for (const z of r.zukan) lines.push(['good', `図鑑：${name(z.monsterId)}の正体が判明した`]);
     if (r.untorn && remedialOpen(app.state, app.ctx)) lines.push(['good', '破りすてた問題に正解した（補習から外れた）']);
+    if (r.affinity) lines.push(['good', `${r.affinity.name}の懐き度が上がった（+${r.affinity.gained}）`]);
   } else {
     if (r.fooled) lines.push(['bad', `${r.targetName}に騙された！　${r.targetName}が${r.healed}回復した`]);
   }

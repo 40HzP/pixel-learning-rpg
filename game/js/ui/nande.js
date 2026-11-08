@@ -5,7 +5,7 @@
 import { createSession, nextQuestion, answer } from '../quiz.js';
 import { nandeAnswered, nandeUnanswered, midbossLeft } from '../sim.js';
 import { spriteCanvas } from '../sprites.js';
-import { el, stars } from './dom.js';
+import { el, stars, helpNote } from './dom.js';
 
 const FADE_MS = 300;
 
@@ -48,7 +48,7 @@ export function askNande(app) {
       } }, '選択肢を表示する'),
       el('div', { class: 'muted' }, `押すと制限時間（${cur.timeLimit}秒）が始まる`));
     body.replaceChildren(
-      el('div', { class: 'qmeta' }, `${q.genre}　${stars(q.difficulty)}`),
+      el('div', { class: 'qmeta' }, `${q.genre}　${stars(q.difficulty)}`, helpNote(cur)),
       el('div', { class: 'qtext' }, q.question),
       bar,
       reveal,

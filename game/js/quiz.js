@@ -2,7 +2,7 @@
 // ctx = { balance, monsters, items, questions, rng }（questions は questions.json の questions 配列）
 
 import { GENRES } from './genres.js';
-import { genreState, raiseZukan, zukanEntry, breakMidbosses, healEnemy, proficiencyCap, markSmooth, hearRadio, advisorActive, citationsLeft, logProficiency, worldOf, summonRemembered, zakoZukanCount } from './sim.js';
+import { genreState, raiseZukan, zukanEntry, breakMidbosses, healEnemy, proficiencyCap, markSmooth, hearRadio, advisorActive, citationsLeft, logProficiency, worldOf, summonRemembered, zakoZukanCount, isFriendly, raiseAffinity } from './sim.js';
 import { fieldActive, fieldById } from './fields.js';
 
 export { GENRES };
@@ -129,6 +129,7 @@ export function nextQuestion(state, session, ctx) {
     if (!q) { session.current = null; return null; }
     const cur = presentQuestion(session, q, ctx);
     trimChoices(state, cur, ctx);
+    barnHelp(state, cur, ctx);
     citeMyth(state, cur, ctx);
     return cur;
   }
@@ -139,6 +140,7 @@ export function nextQuestion(state, session, ctx) {
   if (!q) { session.current = null; return null; }
   const cur = presentQuestion(session, q, ctx);
   trimChoices(state, cur, ctx);
+  barnHelp(state, cur, ctx);
   citeMyth(state, cur, ctx);
   return cur;
 }
@@ -157,6 +159,7 @@ export function presentTest(state, session, ctx) {
     if (!q) break;
     const cur = presentQuestion(session, q, ctx);
     trimChoices(state, cur, ctx);
+    barnHelp(state, cur, ctx);
     citeMyth(state, cur, ctx);
     sheet.push(cur);
   }
@@ -244,6 +247,22 @@ function trimChoices(state, cur, ctx) {
   if (!wrong.length) return;
   cur.choices.splice(cur.choices.indexOf(wrong[Math.floor(ctx.rng() * wrong.length)]), 1);
   cur.trimmedBy = fieldById(ctx, id).name;
+}
+
+/**
+ * 勉強の手伝い（設計ページ「懐き度」の④）：飼育小屋の懐いたザコ（懐き度が balance.barn.friendlyAffinity 以上）は、
+ * 自分の問題（問題の「関連する魔物」がそのザコ）が出ると誤答を1つ消してくれる。口を挟む仕組みの裏返し。
+ * 消すのは誤答2・3のどちらか（誤解の誤答1は残して、誤解を見分ける練習にする）。同じザコが敵として群れにいて口を挟んでいても起きる。
+ * 消したら current.helpedBy にザコの名前を入れる
+ */
+export function barnHelp(state, cur, ctx) {
+  const q = cur.question;
+  const m = q.monster ? ctx.monsters.find((x) => x.name === q.monster) : null;
+  if (!m || !isFriendly(state, ctx, m.id)) return;
+  const wrong = cur.choices.filter((c) => c.kind === 'wrong');
+  if (!wrong.length) return;
+  cur.choices.splice(cur.choices.indexOf(wrong[Math.floor(ctx.rng() * wrong.length)]), 1);
+  cur.helpedBy = m.name;
 }
 
 /** 決まった問題を出す（nextQuestion の中身。テストでも使う） */
@@ -393,6 +412,11 @@ export function answer(state, session, choiceIndex, ctx) {
     const ti = k.torn.indexOf(q.id);
     if (ti >= 0) { k.torn.splice(ti, 1); res.untorn = true; }
     if (relatedMonster && raiseZukan(state, relatedMonster.id, 2, events)) res.zukan.push({ monsterId: relatedMonster.id, stage: 2 });
+    // 飼育小屋にいるザコの問題に正解すると、そのザコの懐き度が上がる（設計ページ「懐き度」）
+    if (relatedMonster) {
+      const gained = raiseAffinity(state, ctx, relatedMonster.id, ctx.balance.barn.affinityPerCorrect, events);
+      if (gained > 0) res.affinity = { monsterId: relatedMonster.id, name: relatedMonster.name, gained };
+    }
 
     // 中ボスの防御は累計の正解数で崩れる（出てくる前の正解も数える）
     if (breakMidbosses(state, ctx, events).length) res.midbossBroken = true;
@@ -668,7 +692,7 @@ export function nextRecall(state, ctx) {
     return nextRecall(state, ctx);
   }
   const session = { mode: 'recall', genre: null, pool: [id], total: 1, index: 0, asked: [], current: null, results: [], daily: null };
-  presentQuestion(session, q, ctx);
+  barnHelp(state, presentQuestion(session, q, ctx), ctx);
   return session;
 }
 

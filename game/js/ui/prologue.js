@@ -1,7 +1,8 @@
 // 前世の最期（設計ページ「最初の3分」）：初めて起動したときだけ、80歳の前世の主人公が息を引き取る場面から始まる。
 // その人の「熟練の記録」が数行だけ流れて、主人公が光になって消え、生まれ変わる（10秒ほど。画面を触れば飛ばせる）。説明はしない。
 // 前世は世代に数えず（遊ぶ人の最初の人生が1世代目）、本物の熟練の記録（knowledge.profLog）にも入れない。
-// 寿命で生まれ変わるときも同じ場面で、終わったばかりの人生の本物の熟練の記録から数行を流す（設計ページ「生まれ変わるたびの『前世の記憶をたどる』」の案。main.js）
+// 寿命で生まれ変わるときも同じ場面で、終わったばかりの人生の本物の熟練の記録から数行を流す（設計ページ「生まれ変わるたびの『前世の記憶をたどる』」の案。main.js）。
+// そのとき、懐いた飼育小屋のザコたちが主人公の両側に並んで見送る（設計ページ「懐き度」の③。初回の作り話の前世には出ない）
 import { drawSprite } from '../sprites.js';
 import { el } from './dom.js';
 
@@ -14,7 +15,10 @@ export const PROLOGUE_LOG = [
   { when: '80歳', what: '', how: 'ここで記録が途切れている', kind: 'end' },
 ];
 
-const W = 48, H = 36;      // 絵の大きさ（ドット）
+const BASE_W = 48, H = 36; // 絵の大きさ（ドット）。見送るザコがいれば横に広げる（FRIENDS_W）
+const FRIENDS_W = 96;
+// 見送るザコの立つ場所（絵の真ん中からのずれ。主人公の右・左・右・左の順）
+const FRIEND_DX = [10, -26, 28, -44];
 const FEET = 30;           // 足元の行
 const FADE_IN = 0.8;       // 暗闇から浮かび上がる
 const FIRST_LINE = 1.2;    // 記録の1行目が出る時刻（秒）
@@ -27,9 +31,13 @@ const SKIP_SEC = 0.5;      // 触ったときは、白くなるところまで�
 /**
  * 流す。閉じると解決する Promise を返す。
  * 生まれ変わるときは log（{ when, what, how, kind } の並び。最後は「ここで記録が途切れている」）・head（見出し）・sub（その人生のまとめ）・
- * gender（年を取った姿の絵。男の子は hero_old_idle、女の子は heroine_old_idle）を渡す。渡さなければ初めての起動の作り話の前世
+ * gender（年を取った姿の絵。男の子は hero_old_idle、女の子は heroine_old_idle）・friends（見送るザコ { sprite, name } の並び）を渡す。
+ * 渡さなければ初めての起動の作り話の前世
  */
-export function playPrologue(app, { log = PROLOGUE_LOG, head = '熟練の記録', sub = null, gender = 'male' } = {}) {
+export function playPrologue(app, { log = PROLOGUE_LOG, head = '熟練の記録', sub = null, gender = 'male', friends = [] } = {}) {
+  const seeOff = friends.filter((f) => f.sprite).slice(0, FRIEND_DX.length);
+  const W = seeOff.length ? FRIENDS_W : BASE_W;
+  const OX = (W - BASE_W) / 2; // 主人公と光の粒は真ん中
   const n = log.length;
   const LINE_AT = log.map((_, i) => (i < n - 1 ? FIRST_LINE + i * LINE_GAP : FIRST_LINE + Math.max(0, n - 2) * LINE_GAP + (n > 1 ? LAST_GAP : 0)));
   const GONE_FROM = LINE_AT[n - 1] + 0.4, GONE_TO = GONE_FROM + GONE_SEC;
@@ -46,13 +54,15 @@ export function playPrologue(app, { log = PROLOGUE_LOG, head = '熟練の記録'
     const list = el('ol', { class: 'prof-log prologue-log', 'aria-live': 'polite' }, items);
     const white = el('div', { class: 'prologue-white' });
     const overlay = el('div', { class: 'overlay movie prologue', role: 'dialog', 'aria-label': '前世の最期', tabindex: '-1' },
-      cv, el('div', { class: 'prologue-head' }, head), sub ? el('div', { class: 'prologue-sub' }, sub) : null, list, el('div', { class: 'movie-hint' }, 'タップで飛ばす'), white);
+      cv, el('div', { class: 'prologue-head' }, head), sub ? el('div', { class: 'prologue-sub' }, sub) : null,
+      seeOff.length ? el('div', { class: 'prologue-sub' }, `${seeOff.map((f) => f.name).join('・')}が見送っている`) : null,
+      list, el('div', { class: 'movie-hint' }, 'タップで飛ばす'), white);
     document.getElementById('app').append(overlay);
 
     // 年を取った姿（初めての起動は男の子の絵を借りる。性別はまだ選んでいない）。動かさず、立ったまま
     const hero = (app.heroSets[gender] || app.heroSets.male || {}).old || null;
     // 光の粒（決まった並び。主人公の体から昇っていく）
-    const motes = Array.from({ length: 14 }, (_, i) => ({ x: 18 + ((i * 7) % 12), y: FEET - 2 - ((i * 5) % 13), d: (i % 4) * 0.25, s: 6 + (i % 3) * 2 }));
+    const motes = Array.from({ length: 14 }, (_, i) => ({ x: OX + 18 + ((i * 7) % 12), y: FEET - 2 - ((i * 5) % 13), d: (i % 4) * 0.25, s: 6 + (i % 3) * 2 }));
     let start = performance.now() / 1000;
     let raf = 0;
     let closing = false;
@@ -68,6 +78,12 @@ export function playPrologue(app, { log = PROLOGUE_LOG, head = '熟練の記録'
       g.fillRect(8, FEET, W - 16, 1);
       g.globalAlpha = 0.15 * lit;
       g.fillRect(4, FEET + 1, W - 8, 1);
+      // 見送るザコ：主人公のほうを向いて立ち、主人公が光になって消えても残る（左に立つザコは右を向く）
+      seeOff.forEach((f, i) => {
+        const dx = FRIEND_DX[i];
+        g.globalAlpha = lit;
+        drawSprite(g, f.sprite, Math.floor(t * 2) % f.sprite.frames.length, W / 2 + dx, FEET - f.sprite.h, { flip: dx < 0 });
+      });
       // 主人公：記録が途切れたあと、少しずつ光になって消える
       const gone = Math.max(0, Math.min(1, (t - GONE_FROM) / (GONE_TO - GONE_FROM)));
       if (hero) {

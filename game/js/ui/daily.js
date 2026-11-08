@@ -3,7 +3,7 @@
 // 答えたあとは、答えと解説を読める。閉じると冒険画面の札は消え、街の掲示板に残る（quiz.js の markDailyOpened）。
 // 出している間はゲームの時間が止まる（main.js の runOverlay）
 import { createSession, nextQuestion, answer, dailyInfo, dailyPending, markDailyOpened } from '../quiz.js';
-import { el, stars } from './dom.js';
+import { el, stars, helpNote } from './dom.js';
 import { credit, questionText, effectLines, favButton, choiceText } from './study.js';
 
 const FADE_MS = 300;
@@ -56,7 +56,7 @@ export function openDaily(app) {
       // あとで答えてもよい（掲示板に残る）
       el('button', { class: 'later', onclick: close }, 'あとで答える（街の掲示板に貼る）'));
     body.replaceChildren(
-      el('div', { class: 'qmeta' }, `${q.genre}　${stars(q.difficulty)}　正解すると熟練が ${ctx.balance.quiz.dailyProgress}/${ctx.balance.quiz.correctPerProficiencyLevel} 進む`),
+      el('div', { class: 'qmeta' }, `${q.genre}　${stars(q.difficulty)}　正解すると熟練が ${ctx.balance.quiz.dailyProgress}/${ctx.balance.quiz.correctPerProficiencyLevel} 進む`, helpNote(cur)),
       questionText(app, q),
       bar,
       reveal,

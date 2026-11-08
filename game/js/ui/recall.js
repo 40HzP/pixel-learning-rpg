@@ -58,8 +58,9 @@ function draw(app) {
     el('div', { class: 'fc-head' }, el('b', {}, RECALL_TITLE), el('span', {}, `${'☆'.repeat(q.difficulty)}　${p.index + (view.phase === 'result' ? 0 : 1)}/${p.total}`)),
     el('div', { class: 'fc-time' + (view.phase === 'result' ? ' stop' : '') }, bar),
     el('p', { class: 'fc-q' }, q.question),
+    cur.helpedBy ? el('small', { class: 'fc-help' }, `懐いた${cur.helpedBy}が誤答を1つ消してくれた`) : null,
     el('div', { class: 'fc-choices' }, choices),
-  ];
+  ].filter(Boolean);
   if (view.phase === 'result') parts.push(el('p', { class: 'fc-result ' + (view.kind === 'correct' ? 'good' : 'bad') }, resultText(view.kind, q)));
   box.replaceChildren(...parts);
 }

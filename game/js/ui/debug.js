@@ -1,5 +1,5 @@
 // デバッグ画面（URL に ?debug=1 を付けたときだけ出る）
-import { HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel, lifespanOf, ailmentAge, ageYears, zakoPool, rocketSteps, tameZako, worldOf } from '../sim.js';
+import { HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel, lifespanOf, ailmentAge, ageYears, zakoPool, rocketSteps, tameZako, worldOf, raiseAffinity } from '../sim.js';
 import { SAVE_KEY, serialize, deserialize } from '../save.js';
 import { GENRES } from '../genres.js';
 import { refreshDaily, dayKey } from '../quiz.js';
@@ -154,7 +154,16 @@ export function init(app) {
             app.state.gold = Math.max(app.state.gold, ctx.balance.rocket.prototype.cost * 20);
             app.notify('機体設計を終え、試作機20回分のゴールドを持たせた（ロケット発射場で試作機を飛ばせる）');
           },
-        }, '機体設計を終える（試作機を飛ばせるように）'))),
+        }, '機体設計を終える（試作機を飛ばせるように）'),
+        el('button', {
+          onclick: () => {
+            // 懐き度を試す：小屋のザコ全員の懐き度を25上げる（4回で最大＝更生）
+            const ev = [];
+            for (const a of app.state.legacy.barn) raiseAffinity(app.state, ctx, a.id, 25, ev);
+            app.handleEvents(ev);
+            app.notify(app.state.legacy.barn.length ? '小屋のザコ全員の懐き度を25上げた' : '小屋にまだ誰もいない');
+          },
+        }, '小屋のザコの懐き度を+25'))),
     el('div', { class: 'section' }, el('h2', {}, '誕生日'),
       el('div', {}, el('button', { onclick: () => app.birthdayNow() }, '誕生日の判定を今する（全回復・熟練の判定）'))),
     el('div', { class: 'section' }, el('h2', {}, '最初の3分'),

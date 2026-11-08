@@ -125,16 +125,56 @@ export function drawPlaceholder(ctx, x, y, w = 16, h = 16, palette = new Map()) 
   });
 }
 
-/** 画面の部品用：スプライト（無ければ仮の図形）を整数倍で描いたキャンバスを返す */
+/** 更生した印（光の輪）を描く場所：1枚目の絵のいちばん上の行の、塗ってある所の真ん中（絵の左上からのドット数） */
+function haloSpot(sprite) {
+  if (!sprite.haloSpot) {
+    const rows = (sprite.rows && sprite.rows[0]) || [];
+    let spot = { cx: Math.floor(sprite.w / 2), y: 0 };
+    for (let y = 0; y < rows.length; y++) {
+      const xs = [...String(rows[y])].map((ch, x) => (ch !== '.' ? x : -1)).filter((x) => x >= 0);
+      if (xs.length) { spot = { cx: Math.round((xs[0] + xs[xs.length - 1]) / 2), y }; break; }
+    }
+    sprite.haloSpot = spot;
+  }
+  return sprite.haloSpot;
+}
+// 光の輪（5×3）。上の行を明るい黄、ほかを山吹
+const HALO = ['.ggg.', 'g...f', '.fff.'];
+/** 光の輪の高さ（絵の上に足す行数。輪3行＋すき間1行） */
+export const HALO_PAD = 4;
+
+/**
+ * 更生した印（設計ページ「懐き度」の⑤）：絵の頭の上に金色の光の輪を描く。x, y は絵の左上（drawSprite と同じ）。
+ * 新しい絵は描かず、今の絵に印を足すだけ（171体分の絵を描かないため）
+ */
+export function drawHalo(ctx, sprite, x, y, palette, opts = {}) {
+  if (!sprite) return;
+  const spot = haloSpot(sprite);
+  const cx = opts.flip ? sprite.w - 1 - spot.cx : spot.cx;
+  const ox = Math.round(x) + cx - 2, oy = Math.round(y) + spot.y - HALO_PAD;
+  HALO.forEach((row, ry) => {
+    for (let rx = 0; rx < row.length; rx++) {
+      if (row[rx] === '.') continue;
+      ctx.fillStyle = cssColor(palette, row[rx], row[rx] === 'g' ? '#fbe57a' : '#f7b23c');
+      ctx.fillRect(ox + rx, oy + ry, 1, 1);
+    }
+  });
+}
+
+/** 画面の部品用：スプライト（無ければ仮の図形）を整数倍で描いたキャンバスを返す。opts.halo で頭の上に光の輪（更生した印）を足す */
 export function spriteCanvas(sprite, scale, palette, opts = {}) {
-  const w = sprite ? sprite.w : 16, h = sprite ? sprite.h : 16;
+  const pad = opts.halo && sprite ? Math.max(0, HALO_PAD - haloSpot(sprite).y) : 0;
+  const w = sprite ? sprite.w : 16, h = (sprite ? sprite.h : 16) + pad;
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
   c.className = 'pixel';
   c.style.width = w * scale + 'px';
   c.style.height = h * scale + 'px';
   const ctx = c.getContext('2d');
-  if (sprite) drawSprite(ctx, sprite, 0, 0, 0, opts);
+  if (sprite) {
+    drawSprite(ctx, sprite, 0, 0, pad, opts);
+    if (opts.halo) drawHalo(ctx, sprite, 0, pad, palette, opts);
+  }
   else if (opts.silhouette) { ctx.fillStyle = cssColor(palette, '0', '#1a1626'); ctx.fillRect(0, 0, w, h); }
   else drawPlaceholder(ctx, 0, 0, w, h, palette);
   return c;
