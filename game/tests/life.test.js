@@ -131,7 +131,7 @@ test(`世代の倍率：2世代目はステータスの伸び・獲得経験値�
   s1.hero.level = s2.hero.level = 21;
   const h1 = heroStats(s1, ctx), h2 = heroStats(s2, ctx);
   assert.equal(h2.atk, Math.floor(balance.hero.base.atk + balance.hero.perLevel.atk * M * 20));
-  assert.ok(h2.maxHp > h1.maxHp && h2.agi > h1.agi && h2.luck > h1.luck);
+  assert.ok(h2.maxHp > h1.maxHp && h2.maxMp > h1.maxMp && h2.wis > h1.wis && h2.def > h1.def);
   // 敵を倒したときの経験値とゴールド
   const kill = (s) => {
     s.hero.hp = 1e9; spawnGroup(s, ctx, [], ['tsugihakuro']);

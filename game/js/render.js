@@ -42,8 +42,6 @@ const DIGITS = {
   6: ['111', '100', '111', '101', '111'], 7: ['111', '001', '001', '010', '010'],
   8: ['111', '101', '111', '101', '111'], 9: ['111', '101', '111', '001', '111'],
   '+': ['000', '010', '111', '010', '000'],
-  // 回避（MISS）
-  M: ['101', '111', '111', '101', '101'], I: ['111', '010', '010', '010', '111'], S: ['011', '100', '010', '001', '110'],
 };
 
 // 世界の切り替えの暗転。step(今の世界, 時刻) が { shown: 描く世界, dark: 暗さ 0〜1 } を返す。
@@ -137,14 +135,13 @@ export function createRenderer(canvas, app) {
         if (e.by === 'hero') anim.heroAt = now;
         if (e.by === 'ally') allyAt.set(e.allyId, now);
         enemyHitAt.set(e.uid, now);
-        const color = e.dmg === 0 ? col('3') : e.by === 'quiz' ? col('g') : e.crit ? col('e') : e.by === 'spell' ? col('o') : col('4');
+        const color = e.dmg === 0 ? col('3') : e.by === 'quiz' ? col('g') : e.by === 'spell' ? col('o') : col('4');
         addNumber({ text: String(e.dmg), x: p.cx, y: p.top - 6, t0: now, color });
         if (e.by === 'quiz' || e.by === 'spell') fx.push({ type: 'burst', cx: p.cx, cy: p.cy, t0: now, big: e.by === 'quiz' });
-        else fx.push({ type: 'slash', cx: p.cx, cy: p.cy, t0: now, crit: !!e.crit });
+        else fx.push({ type: 'slash', cx: p.cx, cy: p.cy, t0: now });
       } else if (e.type === 'attack' && e.target === 'hero') {
         enemyAttackAt.set(e.uid, now);
-        // かわしたときは MISS（すばやさの回避率）
-        addNumber({ text: e.evaded ? 'MISS' : String(e.dmg), x: X.hero + 8, y: FEET_Y - 22, t0: now, color: e.evaded ? col('3') : col('d') });
+        addNumber({ text: String(e.dmg), x: X.hero + 8, y: FEET_Y - 22, t0: now, color: col('d') });
       } else if (e.type === 'heal' && e.target === 'hero' && e.amount > 0) {
         allyAt.set(e.allyId, now);
         addNumber({ text: '+' + e.amount, x: X.hero + 8, y: FEET_Y - 26, t0: now, color: col('j') });
@@ -220,7 +217,7 @@ export function createRenderer(canvas, app) {
       }
       drawActor({ idle: sp.idle || null, attack: sp.attack || null }, a.x, a.feet, now, { attackAt: allyAt.get(a.ally.id) ?? -9, flip: !a.ally.hired, lunge: 2 });
     }
-    // 水しぶき（ツキノウミセツ）：主人公がずぶぬれで、すばやさが下がっている
+    // 水しぶき（ツキノウミセツ）：主人公がずぶぬれで、攻撃が下がっている
     if (gimmickIn(state, 'splash')) {
       const k = Math.floor(now * 4) % 2;
       g.fillStyle = col('o');
@@ -298,12 +295,9 @@ export function createRenderer(canvas, app) {
       } else if (f.type === 'slash') {
         if (t > 0.18) { fx.splice(i, 1); continue; }
         const n = Math.min(9, Math.floor(t / 0.12 * 9));
-        g.fillStyle = col(f.crit ? 'f' : t > 0.12 ? 'o' : '4');
+        g.fillStyle = col(t > 0.12 ? 'o' : '4');
         const sx = Math.round(f.cx) + 5, sy = Math.round(f.cy) - 6;
-        for (let k = 0; k <= n; k++) {
-          g.fillRect(sx - k, sy + k, 1, 1);
-          if (f.crit) g.fillRect(sx + 1 - k, sy + k, 1, 1);
-        }
+        for (let k = 0; k <= n; k++) g.fillRect(sx - k, sy + k, 1, 1);
       } else if (f.type === 'burst') {
         if (t > 0.35) { fx.splice(i, 1); continue; }
         const r = (f.big ? 3 : 2) + Math.floor(t * (f.big ? 30 : 20));

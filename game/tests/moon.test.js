@@ -398,14 +398,15 @@ test('ツキジンセツ：いる間は新聞のビラで問題文の一部が�
   assert.equal(newspaperActive(s), false);
 });
 
-test('ツキノウミセツ：いる間は水しぶきで主人公のすばやさが下がる。倒すと元に戻る', () => {
+test('ツキノウミセツ：いる間は水しぶきで主人公の攻撃が下がる。倒すと元に戻る', () => {
   const ctx = makeCtx(constRng(0.5));
   const s = onMoonFloor(40, ctx);
-  const agi = heroStats(s, ctx).agi;
+  const atk = heroStats(s, ctx).atk;
   spawnGroup(s, ctx, []);
-  assert.equal(heroStats(s, ctx).agi, Math.floor(agi * balance.moon.splashAgiMultiplier));
+  assert.ok(balance.moon.splashAtkMultiplier < 1);
+  assert.equal(heroStats(s, ctx).atk, Math.floor(atk * balance.moon.splashAtkMultiplier));
   damageEnemy(s, 1e12, ctx, [], 'quiz', ofBoss(s, 'tsukinoumisetsu'));
-  assert.equal(heroStats(s, ctx).agi, agi);
+  assert.equal(heroStats(s, ctx).atk, atk);
 });
 
 test('チリノウミセツ：仲間を1人ずつ塵に沈めて動けなくする。航空宇宙工学を専攻にしていれば沈まない。ボスがいなくなると出てくる', () => {

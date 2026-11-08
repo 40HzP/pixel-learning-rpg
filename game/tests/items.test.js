@@ -54,10 +54,10 @@ test('装飾品：すばやさ・運・賢さを足す。買うと今の装飾�
   const boots = items.find((i) => i.id === 'leather_boots');
   const clover = items.find((i) => i.id === 'clover');
   assert.deepEqual(buyItem(s, boots.id, ctx), { ok: true, equipped: true }, '空いていれば付ける');
-  assert.equal(heroStats(s, ctx).agi, h0.agi + boots.agi);
+  assert.equal(heroStats(s, ctx).maxHp, h0.maxHp + boots.hp);
   assert.deepEqual(buyItem(s, clover.id, ctx), { ok: true, equipped: true }, '強い（足す数の合計が大きい）ので付け替える');
   const h1 = heroStats(s, ctx);
-  assert.deepEqual([h1.agi, h1.luck], [h0.agi, h0.luck + clover.luck], '装飾品は1つだけ');
+  assert.deepEqual([h1.maxHp, h1.maxMp], [h0.maxHp, h0.maxMp + clover.mp], '装飾品は1つだけ');
   assert.equal(shopList(s, ctx).find((i) => i.id === boots.id).equipped, false);
   assert.deepEqual(equipItem(s, boots.id, ctx), { ok: true });
   assert.equal(s.equipment.accessory, boots.id);
@@ -70,7 +70,7 @@ test('装飾品：すばやさ・運・賢さを足す。買うと今の装飾�
   const stone = items.find((i) => i.id === 'philosophers_stone');
   buyItem(s, stone.id, ctx);
   const h2 = heroStats(s, ctx);
-  assert.deepEqual([h2.wis - h0.wis, h2.agi - h0.agi, h2.luck - h0.luck], [stone.wis, stone.agi, stone.luck], '賢者の石は3つ足す');
+  assert.deepEqual([h2.wis - h0.wis, h2.maxHp - h0.maxHp, h2.maxMp - h0.maxMp], [stone.wis, stone.hp, stone.mp], '賢者の石は3つ足す');
   equipItem(s, 'wood_sword', ctx).ok || buyItem(s, 'wood_sword', ctx);
   assert.equal(s.equipment.weapon, 'iron_sword', '弱い武器は買っても付けない');
   assert.deepEqual(equipItem(s, 'wood_sword', ctx), { ok: true }, '持っていれば付け替えられる');

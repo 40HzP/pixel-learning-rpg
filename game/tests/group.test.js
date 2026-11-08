@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  tick, spawnGroup, damageEnemy, heroStats, heroAttackInterval, evadeChance, critChance, goldWithLuck,
+  tick, spawnGroup, damageEnemy, heroStats, heroAttackInterval,
   sanitizeName, renameHero, startGame, createState, genreState,
 } from '../js/sim.js';
 import { createSession, presentQuestion, answer } from '../js/quiz.js';
@@ -95,39 +95,36 @@ test('攻撃のテンポは一定：群れを倒して次の群れが出ると�
   }
 });
 
-test(`すばやさ：回避率（すばやさ×${balance.stats.evadePerAgi}、上限${balance.stats.evadeMax * 100}%）が上がり、敵の攻撃をその割合でかわす（運でぶれない）`, () => {
-  const ctx = makeCtx(constRng(0.5));
-  const at = (lv) => { const s = newGame(0); s.hero.level = lv; return heroStats(s, ctx); };
-  assert.ok(evadeChance(at(30), balance) > evadeChance(at(1), balance));
-  assert.equal(evadeChance(at(1), balance), at(1).agi * balance.stats.evadePerAgi);
-  assert.equal(evadeChance(at(1000), balance), balance.stats.evadeMax, '上限で止まる');
-  // 100回攻撃されると、回避率の分だけちょうどかわす
+test('すばやさと運の良さは無い（40HzP の依頼）：敵の攻撃はかわさず、主人公の攻撃に会心は無く、ゴールドは運で増えない', () => {
+  const ctx = makeCtx(constRng(0));
   const s = newGame(0);
   s.hero.level = 40;
-  const p = evadeChance(heroStats(s, ctx), balance);
+  const st = heroStats(s, ctx);
+  assert.deepEqual(Object.keys(st).sort(), ['atk', 'damageCut', 'def', 'maxHp', 'maxMp', 'wis']);
+  assert.equal(balance.stats, undefined, 'balance.json に stats（回避・会心・運）は無い');
+  // 100回攻撃されると、100回とも当たる
   const e = spawnGroup(s, ctx, [], ['sanbyoukingyo'])[0];
   e.maxHp = e.hp = 1e9; e.atk = 1;
   s.adventure.heroCd = 1e9; // 主人公は攻撃しない
   const ev = [];
   for (let i = 0; i < 100; i++) { e.cd = 0.05; s.hero.hp = 1e9; ev.push(...tick(s, 0.1, ctx).filter((x) => x.type === 'attack' && x.target === 'hero')); }
   assert.equal(ev.length, 100);
-  assert.equal(ev.filter((x) => x.evaded).length, Math.floor(100 * p + 1e-9), `回避率 ${(p * 100).toFixed(1)}%`);
-  assert.ok(ev.filter((x) => x.evaded).every((x) => x.dmg === 0));
-});
-
-test('運の良さ：会心の一撃が出て、もらえるゴールドが増える', () => {
-  const s = newGame(0);
-  const st = heroStats(s, makeCtx());
-  assert.ok(critChance(st, balance) > 0);
-  assert.ok(goldWithLuck(100, st, balance) > 100);
-  // 乱数0なら必ず会心
-  const ctx = makeCtx(constRng(0));
-  spawnGroup(s, ctx, [], ['tsugihakuro']);
-  s.adventure.heroCd = 0.01;
-  s.adventure.enemies[0].cd = 99;
-  s.adventure.enemies[0].hp = 999;
-  const hit = tick(s, 0.05, ctx).find((e) => e.type === 'attack' && e.by === 'hero');
-  assert.equal(hit.crit, true);
+  assert.ok(ev.every((x) => !x.evaded && x.dmg > 0));
+  // 乱数0でも会心にならない（ダメージは攻撃−防御×0.5 のぶれの範囲）
+  const t = newGame(0);
+  spawnGroup(t, ctx, [], ['tsugihakuro']);
+  t.adventure.heroCd = 0.01;
+  t.adventure.enemies[0].cd = 99;
+  t.adventure.enemies[0].hp = 999;
+  const hit = tick(t, 0.05, ctx).find((x) => x.type === 'attack' && x.by === 'hero');
+  assert.ok(hit && !hit.crit);
+  // ゴールドは魔物のゴールドのまま（1世代目）
+  const u = newGame(0);
+  u.hero.hp = 1e9;
+  const z = spawnGroup(u, ctx, [], ['tsugihakuro'])[0];
+  const out = [];
+  damageEnemy(u, 1e9, ctx, out);
+  assert.equal(out.find((x) => x.type === 'defeat').gold, Math.round(z.gold));
 });
 
 test('賢さは勉強の正解数でも伸びる', () => {

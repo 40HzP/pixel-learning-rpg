@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  launchRocket, returnToEarth, onMoon, shopList, buyItem, equipItem, heroStats, critChance, itemPrice, itemBodyPrice,
+  launchRocket, returnToEarth, onMoon, shopList, buyItem, equipItem, heroStats, itemPrice, itemBodyPrice,
   transportCost, isMoonItem, hearRadio, radioInfo, reincarnate, spawnEnemy, tick, genreState, HOURS_PER_YEAR,
 } from '../js/sim.js';
 import { createSession, presentQuestion, answer } from '../js/quiz.js';
@@ -24,7 +24,7 @@ function toMoon(s) {
 test('月面だけの品：宇宙服（防具）・金のバイザー・月面車の車輪（装飾品）。割合で効き、重さがある', () => {
   assert.deepEqual(items.filter(isMoonItem).map((i) => [i.id, i.slot, i.price]), [
     ['spacesuit', 'armor', 3e9], ['gold_visor', 'accessory', 1e9], ['rover_wheel', 'accessory', 2e9]]);
-  assert.deepEqual(MOON_ITEMS.map((id) => byId(id).effects), [{ damageCut: 0.2 }, { critBonus: 0.1 }, { agiRate: 0.15 }]);
+  assert.deepEqual(MOON_ITEMS.map((id) => byId(id).effects), [{ damageCut: 0.2 }, { atkRate: 0.1 }, { hpRate: 0.15 }]);
 });
 
 test('補給所：値段は本体＋輸送費（重さ×transportPerKg）。地球の店には輸送費が無い。行動経済学の値引きは本体にだけ効く', () => {
@@ -81,21 +81,21 @@ test('月面だけの品は月面の補給所でだけ買える。買えば地�
   assert.deepEqual(s.owned, []);
 });
 
-test('月面だけの品の効き目：宇宙服は受けるダメージ−20%、金のバイザーは会心の一撃+10%、月面車の車輪はすばやさ+15%', () => {
+test('月面だけの品の効き目：宇宙服は受けるダメージ−20%、金のバイザーは攻撃+10%、月面車の車輪はHP+15%', () => {
   const ctx = makeCtx(constRng(0.5));
   const s = newGame(7);
   s.hero.level = 200;
   const h0 = heroStats(s, ctx);
-  assert.deepEqual([h0.damageCut, h0.critBonus], [0, 0]);
+  assert.equal(h0.damageCut, 0);
   s.owned.push(...MOON_ITEMS);
   s.equipment.armor = 'spacesuit';
   s.equipment.accessory = 'gold_visor';
   const h1 = heroStats(s, ctx);
   assert.equal(h1.damageCut, 0.2);
-  assert.ok(Math.abs(critChance(h1, balance) - (critChance(h0, balance) + 0.1)) < 1e-9);
+  assert.equal(h1.atk, Math.floor(h0.atk * 1.1));
   assert.equal(h1.def, h0.def, '宇宙服は防御の数値は足さない');
   s.equipment.accessory = 'rover_wheel';
-  assert.equal(heroStats(s, ctx).agi, Math.floor(h0.agi * 1.15));
+  assert.equal(heroStats(s, ctx).maxHp, Math.floor(h0.maxHp * 1.15));
 
   // 敵の攻撃を受けたときのダメージ
   const hit = (armor) => {
@@ -104,7 +104,6 @@ test('月面だけの品の効き目：宇宙服は受けるダメージ−20%�
     t.owned.push('spacesuit');
     t.equipment.armor = armor;
     t.adventure.floor = 30;
-    t.adventure.evadeAcc = -1e9; // かわさない
     const e = spawnEnemy(t, ctx, []);
     t.adventure.enemies = [e];
     e.cd = 0.01;

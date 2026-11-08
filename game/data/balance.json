@@ -1,26 +1,18 @@
 {
   "time": { "gameHoursPerRealSecond": 58.4, "maxFrameSeconds": 1 },
   "hero": {
-    "base": { "hp": 14, "mp": 10, "atk": 2, "def": 2, "wis": 3, "agi": 3, "luck": 3 },
-    "perLevel": { "hp": 14, "mp": 12, "atk": 3.8, "def": 2.4, "wis": 2, "agi": 1.8, "luck": 1.2 },
+    "base": { "hp": 14, "mp": 10, "atk": 2, "def": 2, "wis": 3 },
+    "perLevel": { "hp": 23, "mp": 12, "atk": 4.1, "def": 2.4, "wis": 2 },
     "wisPerCorrect": 1.5,
     "expBonusPerCorrect": 0.02,
     "attackIntervalSec": 0.5
-  },
-  "stats": {
-    "evadePerAgi": 0.002,
-    "evadeMax": 0.5,
-    "critChancePerLuck": 0.0017,
-    "critChanceMax": 0.5,
-    "critMultiplier": 1.5,
-    "goldBonusPerLuck": 0.0033
   },
   "spell": { "name": "ひらめき", "mpCost": 4, "power": 0.6, "minTargets": 2, "mpRegenPerSec": 0.2 },
   "levelExp": { "base": 1, "power": 2 },
   "floor": { "monstersPerFloor": 5, "spawnLeadSec": 0.35 },
   "monster": {
     "base": { "hp": 12, "atk": 2, "def": 0, "exp": 3, "gold": 3 },
-    "perFloor": { "hp": 49, "atk": 2.7, "def": 0.3, "exp": 1.4, "gold": 1.4 },
+    "perFloor": { "hp": 49, "atk": 2.7, "def": 0.3, "exp": 1.4, "gold": 1.75 },
     "attackIntervalSec": 2.0
   },
   "damage": { "defFactor": 0.5, "variance": 0.1 },
@@ -50,7 +42,7 @@
   "hospital": { "extendYears": 2, "treatmentCosts": [100000, 1000000, 10000000] },
   "reincarnation": { "multiplier": 1.5, "proficiencyCapStep": 5 },
   "rocket": { "buildCost": 300000000000, "stepYears": 5, "launchSuccessRate": 0.8 },
-  "moon": { "floorOffset": 300, "rampFloor": 60, "rampTo": 1500, "smoothDamage": [0.5, 0.75, 1], "splashAgiMultiplier": 0.5, "sinkIntervalSec": 4, "splitAt": 0.5, "absorbSec": 3, "remainsSec": 2.5, "transportPerKg": 10000000, "radioCharge": 10, "relaySec": 2.6 },
+  "moon": { "floorOffset": 300, "rampFloor": 60, "rampTo": 1400, "smoothDamage": [0.5, 0.75, 1], "splashAtkMultiplier": 0.8, "sinkIntervalSec": 4, "splitAt": 0.5, "absorbSec": 3, "remainsSec": 2.5, "transportPerKg": 10000000, "radioCharge": 10, "relaySec": 2.6 },
   "fields": { "unlockLevel": 3, "shopDiscount": 0.2 },
   "nande": { "firstSec": 3, "intervalSec": 10, "correctDamageRatio": 0.1, "wrongHealRatio": 0.1 },
   "advisor": { "slots": { "school": 1, "lab": 1, "company": 1, "rocket": 1 }, "citationsPerYear": 3, "periodicTestProgress": 1, "hrStaffBonus": 0.25, "rocketSubsidy": 0.1, "taxCut": 0.5 },

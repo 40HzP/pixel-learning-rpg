@@ -17,7 +17,7 @@ export function init(app) {
     hud,
     date: span(), floor: span(), far: span(), farBest: span(), name: span(), lv: span(), allies: span(),
     hp: span(), hpbar: el('i'), mp: span(), mpbar: el('i'),
-    atk: span(), def: span(), wis: span(), agi: span(), luck: span(),
+    atk: span(), def: span(), wis: span(),
     exp: span(), total: span(), gold: span(), xmul: span(), rexp: span(), rgold: span(), fee: span(), net: span(), enemy: span(),
     company: span(),
     boss: el('div', { class: 'boss', onclick: () => app.showTab('study') }),
@@ -61,7 +61,6 @@ export function init(app) {
       el('div', {}, el('div', { class: 'row' }, el('span', {}, 'HP'), r.hp), el('div', { class: 'hpbar' }, r.hpbar)),
       el('div', {}, el('div', { class: 'row' }, el('span', {}, 'MP'), r.mp), el('div', { class: 'hpbar mp' }, r.mpbar))),
     el('div', { class: 'row detail' }, el('span', {}, '攻撃 ', r.atk, '　防御 ', r.def, '　賢さ ', r.wis)),
-    el('div', { class: 'row detail' }, el('span', {}, 'すばやさ ', r.agi, '　運の良さ ', r.luck)),
     el('div', { class: 'row detail' }, el('span', {}, '経験値 ', r.exp), el('span', {}, '累計 ', r.total)),
     el('div', { class: 'row detail' }, el('span', {}, '所持金 ', r.gold, 'G'), el('span', {}, '経験値 ×', r.xmul)),
     el('div', { class: 'row detail' }, el('span', {}, '1か月あたり 経験値 ', r.rexp, '・', r.rgold, 'G')),
@@ -122,8 +121,6 @@ export function update(app) {
   r.atk.textContent = hs.atk;
   r.def.textContent = hs.def;
   r.wis.textContent = hs.wis;
-  r.agi.textContent = hs.agi;
-  r.luck.textContent = hs.luck;
   r.exp.textContent = `${fmt(s.hero.exp)}/${fmt(expToNext(s.hero.level, ctx.balance))}`;
   r.total.textContent = fmt(s.hero.totalExp);
   r.gold.textContent = fmt(s.gold);

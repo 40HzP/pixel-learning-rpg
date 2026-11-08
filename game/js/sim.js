@@ -39,9 +39,9 @@ export function createState(balance) {
     nextCompanyUid: 1,
     // 法人税（法と経済学で法人化した会社）：今年の法人の利益（決算で税を計算する元）・払いきれなかった法人税・前に決算した年齢
     tax: { earned: 0, owed: 0, year: 0 },
-    // enemies：今出ている群れ（先頭が狙う相手）。evadeAcc：ためた回避率。
+    // enemies：今出ている群れ（先頭が狙う相手）。
     // world：今いる世界（earth＝地球、moon＝月面）。floor は今いる世界の階層で、もう片方の世界の階層は earthFloor・moonFloor に取っておく
-    adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1, evadeAcc: 0, world: 'earth', earthFloor: null, moonFloor: 1 },
+    adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1, world: 'earth', earthFloor: null, moonFloor: 1 },
     knowledge: {                                    // 転生で引き継ぐ前提のもの（第2段階）
       genres: {},                                   // ジャンル名 → { level, progress, correct, studied（前の誕生日から勉強した）, idle（勉強していない年数） }
       profLog: [],                                  // 熟練の記録（新しい順。PROF_LOG_MAX 件まで。logProficiency）
@@ -323,8 +323,8 @@ const itemById = (items, id) => (id ? items.find((i) => i.id === id) || null : n
 
 /** 装備の枠（items.json の slot）。武器・防具・装飾品に1つずつ */
 export const EQUIP_SLOTS = ['weapon', 'armor', 'accessory'];
-/** 品物が足すステータス */
-export const ITEM_STATS = ['hp', 'mp', 'atk', 'def', 'wis', 'agi', 'luck'];
+/** 品物が足すステータス（すばやさ・運の良さは 40HzP の依頼で無くした） */
+export const ITEM_STATS = ['hp', 'mp', 'atk', 'def', 'wis'];
 
 /**
  * 主人公のステータス。レベルで伸び、装備（武器・防具・装飾品）で足される。
@@ -335,38 +335,27 @@ export function heroStats(state, ctx) {
   const L = state.hero.level;
   const worn = EQUIP_SLOTS.map((slot) => itemById(ctx.items, state.equipment[slot])).filter(Boolean);
   const gear = (k) => worn.reduce((n, it) => n + (it[k] || 0), 0);
-  // 月面だけの品は割合で効く（effects。宇宙服＝受けるダメージを減らす・金のバイザー＝会心・月面車の車輪＝すばやさ）
+  // 月面だけの品は割合で効く（effects。宇宙服＝受けるダメージを減らす・金のバイザー＝攻撃・月面車の車輪＝HP）
   const eff = (k) => worn.reduce((n, it) => n + ((it.effects || {})[k] || 0), 0);
   const gm = generationMultiplier(state, ctx.balance); // 世代が進むと伸び方が大きくなる
   const grow = (k) => Math.floor((hero.base[k] || 0) + (hero.perLevel[k] || 0) * gm * (L - 1));
+  // 月面のボスの水しぶき（gimmick: splash）を浴びている間は、攻撃が moon.splashAtkMultiplier 倍に下がる
+  const splash = gimmickIn(state, 'splash') ? ctx.balance.moon.splashAtkMultiplier : 1;
   return {
-    maxHp: grow('hp') + gear('hp'),
+    maxHp: Math.floor((grow('hp') + gear('hp')) * (1 + eff('hpRate'))),
     maxMp: grow('mp') + gear('mp'),
-    atk: grow('atk') + gear('atk'),
+    atk: Math.floor((grow('atk') + gear('atk')) * (1 + eff('atkRate')) * splash),
     def: grow('def') + gear('def'),
     wis: grow('wis') + Math.floor((hero.wisPerCorrect || 0) * gm * state.knowledge.totalCorrect) + gear('wis'),
-    // 月面のボスの水しぶき（gimmick: splash）を浴びている間は、すばやさが moon.splashAgiMultiplier 倍に下がる
-    agi: Math.floor((grow('agi') + gear('agi')) * (1 + eff('agiRate')) * (gimmickIn(state, 'splash') ? ctx.balance.moon.splashAgiMultiplier : 1)),
-    luck: grow('luck') + gear('luck'),
     damageCut: Math.min(0.9, eff('damageCut')), // 受けるダメージを減らす割合
-    critBonus: eff('critBonus'),                // 会心の一撃の出やすさに足す割合
   };
 }
 
 /** 経験値の倍率：勉強で正解するたびに上がる（1 ＋ 累計の正解数 × expBonusPerCorrect） */
 export const expMultiplier = (state, balance) => 1 + state.knowledge.totalCorrect * (balance.hero.expBonusPerCorrect || 0);
 
-/** 主人公の攻撃の間隔（秒）。すばやさでは変わらない（balance.hero.attackIntervalSec。0.5なら秒間2回） */
+/** 主人公の攻撃の間隔（秒）。決まった間隔（balance.hero.attackIntervalSec。0.5なら秒間2回） */
 export const heroAttackInterval = (balance) => balance.hero.attackIntervalSec;
-
-/** すばやさ：回避率（敵の攻撃をかわす割合）＝ すばやさ × evadePerAgi（上限あり） */
-export const evadeChance = (stats, balance) => Math.min(balance.stats.evadeMax, stats.agi * balance.stats.evadePerAgi);
-
-/** 運の良さ：会心の一撃の出やすさ（上限あり） */
-export const critChance = (stats, balance) => Math.min(1, Math.min(balance.stats.critChanceMax, stats.luck * balance.stats.critChancePerLuck) + (stats.critBonus || 0));
-
-/** 運の良さ：もらえるゴールドが増える */
-export const goldWithLuck = (gold, stats, balance) => Math.round(gold * (1 + stats.luck * balance.stats.goldBonusPerLuck));
 
 /** 賢さ：ひらめき（敵全体への攻撃）のダメージ。防御は効かない */
 export function spellDamage(wis, balance, rng) {
@@ -898,14 +887,6 @@ function combatStep(state, dt, ctx, events) {
     e.cd -= dt;
     if (e.cd > 0) continue;
     e.cd += b.monster.attackIntervalSec;
-    // すばやさ：回避率の分だけ、敵の攻撃をかわす。運でぶれないよう、攻撃を受けるたびに回避率をためていき、
-    // 1になったらかわす（回避率30%なら10回に3回。中ボスに勝てるかどうかが運で大きく変わらないように）
-    adv.evadeAcc = (adv.evadeAcc || 0) + evadeChance(hs, b);
-    if (adv.evadeAcc >= 1) {
-      adv.evadeAcc -= 1;
-      events.push({ type: 'attack', by: 'enemy', target: 'hero', uid: e.uid, slot: e.slot, dmg: 0, evaded: true });
-      continue;
-    }
     // 宇宙服（月面だけの品）は受けるダメージを割合で減らす
     const dmg = Math.max(1, Math.round(calcDamage(e.atk, hs.def, b, ctx.rng) * (1 - (hs.damageCut || 0))));
     state.hero.hp = Math.max(0, state.hero.hp - dmg);
@@ -975,7 +956,7 @@ function allyAct(state, ally, r, hs, ctx, events) {
   }
 }
 
-/** 主人公の番：敵が2体以上いてMPが足りれば「ひらめき」で全体攻撃、そうでなければ先頭を攻撃（会心あり） */
+/** 主人公の番：敵が2体以上いてMPが足りれば「ひらめき」で全体攻撃、そうでなければ先頭を攻撃 */
 function heroAct(state, hs, ctx, events) {
   const adv = state.adventure;
   const b = ctx.balance;
@@ -991,10 +972,7 @@ function heroAct(state, hs, ctx, events) {
   }
   const e = adv.enemies[0];
   if (isInvulnerable(state, e)) { hitEnemy(state, e, 0, 'hero', ctx, events); return; }
-  let dmg = calcDamage(hs.atk, e.def, b, ctx.rng);
-  const crit = ctx.rng() < critChance(hs, b);
-  if (crit) dmg = Math.round(dmg * b.stats.critMultiplier);
-  hitEnemy(state, e, dmg, 'hero', ctx, events, { crit });
+  hitEnemy(state, e, calcDamage(hs.atk, e.def, b, ctx.rng), 'hero', ctx, events);
 }
 
 /** 敵にダメージを与える。実際に与えたダメージ（仕掛けで減ったあと）を返す */
@@ -1038,7 +1016,7 @@ function defeatEnemy(state, e, ctx, events) {
   const b = ctx.balance;
   adv.enemies = adv.enemies.filter((x) => x !== e);
   const gm = generationMultiplier(state, b);
-  const gold = goldWithLuck(e.gold * gm, heroStats(state, ctx), b);
+  const gold = Math.round(e.gold * gm);
   const exp = Math.max(1, Math.round(e.exp * gm * expMultiplier(state, b)));
   state.gold += gold;
   events.push({ type: 'defeat', uid: e.uid, slot: e.slot, monsterId: e.monsterId, kind: e.kind, exp, gold, ...(e.part ? { part: e.part } : {}), ...(e.marks != null ? { marks: e.marks } : {}) });
@@ -1986,7 +1964,7 @@ export function heroSnapshot(state, ctx) {
   const hs = heroStats(state, ctx);
   return {
     generation: state.life.generation, level: state.hero.level,
-    maxHp: hs.maxHp, maxMp: hs.maxMp, atk: hs.atk, def: hs.def, wis: hs.wis, agi: hs.agi, luck: hs.luck,
+    maxHp: hs.maxHp, maxMp: hs.maxMp, atk: hs.atk, def: hs.def, wis: hs.wis,
     floor: state.life.maxFloor, moonFloor: state.life.moonMaxFloor || 0,
     zukan: Object.values(state.knowledge.zukan).filter((e) => e.stage >= 1).length,
     correct: state.knowledge.totalCorrect,
@@ -1994,7 +1972,7 @@ export function heroSnapshot(state, ctx) {
 }
 
 const SNAPSHOT_ROWS = [
-  ['level', 'Lv'], ['maxHp', 'HP'], ['maxMp', 'MP'], ['atk', '攻撃'], ['def', '防御'], ['wis', '賢さ'], ['agi', 'すばやさ'], ['luck', '運の良さ'],
+  ['level', 'Lv'], ['maxHp', 'HP'], ['maxMp', 'MP'], ['atk', '攻撃'], ['def', '防御'], ['wis', '賢さ'],
   ['floor', '最高到達'], ['moonFloor', '最高到達（月面）'],
 ];
 

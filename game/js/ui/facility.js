@@ -8,7 +8,7 @@
 // 前線基地の跡は、地球の拠点の跡と同じく未定（準備中）。
 // 小さな広場に立っている主人公をタップすると、主人公のステータスと名前の変更
 import {
-  shopList, buyItem, equipItem, EQUIP_SLOTS, heroTitles, inParty, setInParty, partyAllies, partyMax, partyFull, formatDate, heroStats, renameHero, HERO_NAME_MAX, critChance, evadeChance, expMultiplier,
+  shopList, buyItem, equipItem, EQUIP_SLOTS, heroTitles, inParty, setInParty, partyAllies, partyMax, partyFull, formatDate, heroStats, renameHero, HERO_NAME_MAX, expMultiplier,
   recruitList, hireRecruit, dismissRecruit, monthlyContractCost, HOURS_PER_MONTH, HOURS_PER_YEAR,
   canFound, foundCompany, closeCompany, companiesProfit, industryList, industryOutlook, generationMultiplier, ageYears, payRocketBuildCost, rocketSteps,
   hireStaff, dismissStaff, bestStaffGrade, staffCost, staffBonus, radioInfo,
@@ -162,16 +162,16 @@ function drawTown(app, now) {
 
 /* ================= 施設の中 ================= */
 
-const STAT_LABEL = { atk: '攻撃', def: '防御', hp: 'HP', mp: 'MP', wis: '賢さ', agi: 'すばやさ', luck: '運の良さ' };
+const STAT_LABEL = { atk: '攻撃', def: '防御', hp: 'HP', mp: 'MP', wis: '賢さ' };
 const SLOT_LABEL = { weapon: '武器', armor: '防具', accessory: '装飾品' };
 const SLOT_NOTE = {
   weapon: '攻撃が上がる',
   armor: '防御が上がる',
-  accessory: '1つだけ付けられる。すばやさ（回避）・運の良さ（会心とゴールド）・賢さ（ひらめき）が上がる',
+  accessory: '1つだけ付けられる。HP・MP・賢さ（ひらめき）が上がる',
 };
 
 // 月面だけの品の割合の効き目（items.json の effects）
-const EFFECT_LABEL = { damageCut: (v) => `受けるダメージ−${pct(v)}`, critBonus: (v) => `会心の一撃+${pct(v)}`, agiRate: (v) => `すばやさ+${pct(v)}` };
+const EFFECT_LABEL = { damageCut: (v) => `受けるダメージ−${pct(v)}`, atkRate: (v) => `攻撃+${pct(v)}`, hpRate: (v) => `HP+${pct(v)}` };
 
 function itemStat(it) {
   return [
@@ -834,8 +834,6 @@ function heroPanel(app) {
       stat('攻撃', hs.atk, `1体を叩く強さ（秒間${+(1 / b.hero.attackIntervalSec).toFixed(1)}回）`),
       stat('防御', hs.def, '受けるダメージが減る'),
       stat('賢さ', hs.wis, `「${b.spell.name}」の強さ。勉強で正解するほど上がる`),
-      stat('すばやさ', hs.agi, `回避率 ${(evadeChance(hs, b) * 100).toFixed(1)}%（敵の攻撃をかわす。上限${Math.round(b.stats.evadeMax * 100)}%）`),
-      stat('運の良さ', hs.luck, `会心の一撃 ${(critChance(hs, b) * 100).toFixed(1)}%・ゴールドが増える`),
       stat('経験値倍率', `×${expMultiplier(s, b).toFixed(2)}`, `勉強で正解するたびに +${Math.round((b.hero.expBonusPerCorrect || 0) * 100)}%`),
       el('div', { class: 'stat wide' }, el('span', {}, '最高到達地点'),
         el('b', {}, `${far.floor}階層${far.stage ? `（${far.stage.name}）` : ''}${far.moon ? `・月面${far.moon}階層` : ''}`),

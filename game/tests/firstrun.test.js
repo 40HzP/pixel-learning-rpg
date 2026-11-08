@@ -250,7 +250,7 @@ test('起動から3分の比較：伸びたものだけを並べ、図鑑に加�
   s.knowledge.zukan = { a: { stage: 1, fooled: 0 }, b: { stage: 2, fooled: 0 } };
   const after = heroSnapshot(s, ctx);
   const cmp = compareSnapshots(before, after);
-  assert.deepEqual(cmp.rows.map((r) => r.key), ['level', 'maxHp', 'maxMp', 'atk', 'def', 'wis', 'agi', 'luck', 'floor'].filter((k) => after[k] > before[k]));
+  assert.deepEqual(cmp.rows.map((r) => r.key), ['level', 'maxHp', 'maxMp', 'atk', 'def', 'wis', 'floor'].filter((k) => after[k] > before[k]));
   assert.deepEqual(cmp.rows[0], { key: 'level', label: 'Lv', from: 1, to: 12 });
   assert.ok(cmp.rows.some((r) => r.key === 'floor' && r.from === 1 && r.to === 4));
   assert.ok(!cmp.rows.some((r) => r.key === 'moonFloor'), '伸びていないものは出さない');
