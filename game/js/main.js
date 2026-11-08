@@ -610,7 +610,11 @@ async function boot() {
   /* ---------- タブ ---------- */
   const tabButtons = [...document.querySelectorAll('#tabs button')];
   if (app.debug) document.querySelector('[data-tab="debug"]').hidden = false;
-  for (const b of tabButtons) b.addEventListener('click', () => showTab(b.dataset.tab));
+  for (const b of tabButtons) b.addEventListener('click', () => {
+    // 街の施設の中にいるときに「街」をもう一度押すと、施設の並ぶ街に戻る（40HzP の依頼）
+    if (b.dataset.tab === 'facility' && app.tab === 'facility') facility.backToTown(app);
+    showTab(b.dataset.tab);
+  });
   function showTab(name) {
     app.tab = name;
     for (const b of tabButtons) b.classList.toggle('active', b.dataset.tab === name);

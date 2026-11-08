@@ -40,6 +40,11 @@ export function reset() { key = ''; view = 'town'; }
 /** 施設の中に入っているか（知らせを下に出すため） */
 export const insideFacility = () => view !== 'town';
 
+/** 街に戻る（施設の中の「← 街へ」と同じ。街を開いているときに下のバーの「街」をもう一度押したとき。40HzP の依頼） */
+export function backToTown(app) {
+  if (view !== 'town') enter(app, 'town');
+}
+
 /** 今いる世界の街（月面にいる間は月面の街） */
 const activeTown = (app) => (onMoon(app.state) ? app.moonTown : app.town);
 
