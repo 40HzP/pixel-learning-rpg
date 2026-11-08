@@ -313,7 +313,7 @@ function renderSheet(app) {
   refs.body.replaceChildren(
     doodleBar(paper).bar,
     paper,
-    // 「提出する」の下に、同じ大きさで赤い「破りすてる」
+    // 「提出する」の下に、同じ大きさで赤い「破りすてる」。テストの間は画面の下に残り、いつでも押せる（40HzP の依頼。CSS の .test-submit）
     el('div', { class: 'test-submit' }, left, el('button', { class: 'primary', onclick: () => submitTest(app) }, '提出する'),
       el('button', { class: 'danger', onclick: () => tearTest(app) }, '破りすてる')),
   );

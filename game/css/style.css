@@ -565,10 +565,17 @@ a.button { display: flex; align-items: center; justify-content: center; backgrou
 }
 .oogiri-hint { color: var(--muted); font-size: 13px; visibility: hidden; }
 .overlay.oogiri.blush .oogiri-hint { visibility: visible; animation: fade-in .3s ease-out; }
-/* ライトグリーンの「提出する」の下に、同じ大きさで赤い「破りすてる」 */
-.test-submit { display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin: 4px 0 8px; }
-.test-submit span { font-size: 14px; }
-.test-submit button { width: 100%; min-height: 52px; }
+/* ライトグリーンの「提出する」の下に、同じ大きさで赤い「破りすてる」。
+   テストの間は画面の下に残り、用紙のどこを読んでいてもすぐ押せる（40HzP の依頼。落書きの道具の帯は上に残る） */
+.test-submit {
+  position: sticky; bottom: 0; z-index: 5; display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+  margin: 8px -12px -24px; padding: 6px 12px 10px; background: var(--bg); border-top: 2px solid var(--line);
+}
+.test-submit span { font-size: 13px; line-height: 1.3; }
+.test-submit button { width: 100%; min-height: 46px; }
+@media (max-height: 640px) { .test-submit button { min-height: 42px; } }
+/* 大喜利の欄などに移ったとき、上の道具の帯と下のボタンの陰に隠れないところまでスクロールする */
+#screen-study:has(.test-submit) { scroll-padding: 64px 0 150px; }
 .test-submit button.primary { background: #c3e07c; border-color: #6fb042; color: #1a1626; }
 button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 
