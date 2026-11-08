@@ -38,6 +38,8 @@ const FONT_WAIT_MS = 3000;
 // 起動から3分で「起動したとき」と「今」の主人公を比べる（設計ページ「最初の3分」。40HzP の依頼で毎回）。
 // 数えるのはゲームの時間が進んでいる間だけ。ほかのアプリなどに切り替えて10分以上たってから戻ってきたときも、起動したことにする
 const LAUNCH_COMPARE_SEC = 180;
+/** 起動したときとの比較の札を出しておく時間（ミリ秒。40HzP の依頼で12秒から14秒に。タップでも閉じる） */
+const LAUNCH_COMPARE_SHOW_MS = 14000;
 const AWAY_RELAUNCH_MS = 10 * 60_000;
 
 const screens = { adventure, study, facility, zukan, settings, debug };
@@ -769,7 +771,7 @@ async function boot() {
         return el('span', { class: r.key.endsWith('loor') ? 'wide' : '' }, `${r.label} ${fmt(r.from)}${unit} → `, el('b', {}, `${fmt(r.to)}${unit}`));
       })),
       extra ? el('small', {}, extra) : null,
-    ], 'compare', 12000);
+    ], 'compare', LAUNCH_COMPARE_SHOW_MS);
   }
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') {
