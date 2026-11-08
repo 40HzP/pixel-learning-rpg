@@ -398,6 +398,16 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .tint-text small { font-size: 11px; color: var(--muted); white-space: nowrap; }
 /* テストのジャンル：「全○問の中から」「5問出題」を2行に分ける（どのボタンも同じ並びになるように） */
 .genre-btn .count .line { display: block; }
+/* テストのジャンル：熟練の進み具合（Lv・次のLvまでの帯・○/10）。帯はまとまりの色。下に「今年 勉強した」「◯年 勉強していない」 */
+.genre-btn .tint-text { flex: 1; }
+.genre-btn .prof { display: flex; align-items: center; gap: 4px; margin-top: 3px; color: var(--text); }
+.genre-btn .prof .lv { flex: none; }
+.genre-btn .prof .pbar { flex: 1; min-width: 20px; height: 6px; background: var(--panel2); border: 1px solid var(--line); }
+.genre-btn .prof .pbar i { display: block; height: 100%; background: var(--tint); }
+.genre-btn .prof .num { flex: none; color: var(--muted); }
+.genre-btn .prof.max .num { color: var(--accent); }
+.genre-btn .mark { display: block; font-size: 10px; color: var(--muted); white-space: normal; }
+.genre-btn .mark.bad { color: var(--bad); }
 /* 勉強のメニューのボタン（クイズ・テスト・過去問復習・補習・作問）：横いっぱいで、説明は折り返す */
 .menu-btn { min-height: 60px; gap: 10px; }
 .menu-btn .tint-text b { font-size: 17px; }
@@ -423,10 +433,8 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .fav-btn.on { color: var(--fav-on-text); background: var(--fav-on-bg); border-color: var(--fav); }
 .paper .fav-btn { background: #fff; color: var(--ink); border: 2px solid #9a9686; }
 .paper .fav-btn.on { background: #fff1b8; border-color: #c27654; }
-.prof-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; }
+.prof-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; line-height: 1.4; }
 .prof-head button { flex-shrink: 0; min-height: 36px; padding: 2px 10px; font-size: 14px; }
-.prof-list { margin-top: 6px; font-size: 13px; display: grid; grid-template-columns: 1fr auto auto; gap: 2px 10px; }
-.prof-list .head { color: var(--muted); }
 /* 干渉の枠は、干渉が無いときも同じ高さで空けておく（敵が入れ替わっても解答ボタンの位置がずれないように） */
 .interfere {
   display: flex; align-items: center; gap: 8px; padding: 0 8px; margin-bottom: 8px;

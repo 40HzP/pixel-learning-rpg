@@ -119,12 +119,12 @@ function tintButton(app, { cls, color, sprite, title, sub, ...props }) {
 const menuButton = (app, id, title, sub, props = {}) =>
   tintButton(app, { cls: 'menu-btn', color: MENU_LOOK[id].color, sprite: app.menuSprites[id], title, sub, ...props });
 
+/**
+ * メニュー。ジャンルごとの熟練の一覧はここには出さない（40HzP の依頼「下半分のジャンルと熟練度の表示は無くしていい」）。
+ * 熟練の進み具合はテストのジャンルを選ぶ画面のボタンに、熟練の記録もその画面から（renderTestGenre）
+ */
 function renderMenu(app) {
   const k = app.state.knowledge;
-  const list = genresWithQuestions(app);
-  const prof = GENRES.filter((g) => list.some((x) => x.genre === g) || (k.genres[g] && k.genres[g].level > 0));
-  const per = app.ctx.balance.quiz.correctPerProficiencyLevel;
-  const cap = proficiencyCap(app.state, app.ctx.balance);
   refs.body.replaceChildren(
     el('div', { class: 'modes' },
       // その日の今日の1問にまだ答えていなければ、クイズは今日の1問から（40HzP の依頼）
@@ -146,24 +146,8 @@ function renderMenu(app) {
         ? `問題を作って送る${adoptedQuestions(app.state, app.ctx).length ? `・採用 ${adoptedQuestions(app.state, app.ctx).length}問` : ''}`
         : `作問権：どれか${app.ctx.balance.authoring.rightsGenres}つのジャンルを Lv${app.ctx.balance.authoring.rightsLevel} に`,
       { onclick: () => { view.phase = 'compose'; renderBody(app); scrollTop(); } })),
-    // 熟練の記録（誕生日の判定・勉強で上がった分・学際分野の休眠と復活。ui/proflog.js）
-    el('div', { class: 'prof-head' },
-      el('span', { class: 'muted' }, `熟練は誕生日（1歳年を取るたび）に判定する`),
-      el('button', { onclick: () => { view.phase = 'profLog'; renderBody(app); scrollTop(); } }, '熟練の記録')),
-    el('div', { class: 'prof-list' },
-      el('span', { class: 'head' }, 'ジャンル'), el('span', { class: 'head' }, '熟練'), el('span', { class: 'head' }, '次のLvまで'),
-      prof.flatMap((g) => {
-        const s = k.genres[g] || { level: 0, progress: 0, studied: false, idle: 0 };
-        const idleYears = app.ctx.balance.birthday.idleYears;
-        const mark = s.studied ? el('span', { class: 'muted' }, '（今年 勉強した）')
-          : s.level > 0 && (s.idle || 0) >= idleYears ? el('span', { class: 'bad' }, `（${s.idle}年勉強していない）`) : '';
-        return [
-          el('span', {}, g, mark),
-          el('span', {}, `Lv ${s.level}`),
-          el('span', {}, s.level >= cap ? '最大' : `${s.progress}/${per}`),
-        ];
-      })),
-    analysisBox(app),
+    // 心理統計学（学際分野）を専攻にしていなければ出さない
+    ...[analysisBox(app)].filter(Boolean),
   );
 }
 
@@ -192,7 +176,9 @@ function openTestGenre(app) {
 
 /**
  * 問題のあるジャンルを、data/genre-groups.json のまとまり（ことば・数学…）ごとに並べる。
- * まとまりの色でボタンを縁取り、ジャンルのアイコン（genre_*、16×16 を2倍）と、問題数（全○問の中から5問出題）・熟練Lvを出す。
+ * まとまりの色でボタンを縁取り、ジャンルのアイコン（genre_*、16×16 を2倍）と、問題数（全○問の中から5問出題）・熟練の進み具合を出す
+ * （40HzP の依頼「テスト画面の各ジャンルボタンに熟練度の進行度合いを表示して」。前はメニューの下に熟練の一覧を出していた）。
+ * 上に「熟練の記録」のボタン（設計ページ「勉強画面の熟練Lvの欄から『熟練の記録』」）。
  * genre-groups.json に無いジャンル（genres.js に足したばかり）は「そのほか」に入れる
  */
 function renderTestGenre(app) {
@@ -206,6 +192,10 @@ function renderTestGenre(app) {
     el('div', { class: 'genre-head' },
       el('button', { onclick: () => { view.phase = 'menu'; renderBody(app); } }, '← もどる'),
       el('span', {}, 'テストのジャンルを選ぶ')),
+    // 熟練の記録（誕生日の判定・勉強で上がった分・学際分野の休眠と復活。ui/proflog.js）
+    el('div', { class: 'prof-head' },
+      el('span', { class: 'muted' }, `ボタンの帯は熟練の進み具合（${app.ctx.balance.quiz.correctPerProficiencyLevel}問正解で次のLv）。熟練は誕生日にも判定する`),
+      el('button', { onclick: () => { view.phase = 'profLog'; view.profBack = 'testGenre'; renderBody(app); scrollTop(); } }, '熟練の記録')),
     ...groups.map((g) => el('section', { class: 'genre-group' },
       el('h3', { class: 'genre-group-name', style: `--tint:${cssColor(app.palette, g.color, '#a9a7b8')}` }, g.name),
       el('div', { class: 'genre-grid' }, g.genres.map((x) => genreButton(app, x.name, g.color, counts[x.name]))))),
@@ -213,11 +203,28 @@ function renderTestGenre(app) {
 }
 
 function genreButton(app, genre, color, count) {
-  const lv = (app.state.knowledge.genres[genre] || {}).level || 0;
   // 「全○問の中から」「5問出題」を2行に分ける（狭い画面でも途中で切れないように）
   const label = testCountLabel(count, app.ctx.balance.quiz.testQuestions).map((t) => el('span', { class: 'line' }, t));
-  const sub = [el('span', { class: 'count' }, label), `熟練Lv${lv}`];
+  const sub = [el('span', { class: 'count' }, label), ...profProgress(app, genre)];
   return tintButton(app, { cls: 'genre-btn', color, sprite: app.genreSprites[genre], title: genre, sub, onclick: () => start(app, 'test', genre) });
+}
+
+/**
+ * ジャンルの熟練の進み具合：「Lv2」と次のLvまでの帯（まとまりの色）と「3/10」（上限に届いていれば「最大」）。
+ * その年に勉強したジャンルは「今年 勉強した」、idleYears 年以上勉強していないジャンルは赤で「◯年 勉強していない」（誕生日に下がることがある）
+ */
+function profProgress(app, genre) {
+  const g = app.state.knowledge.genres[genre] || { level: 0, progress: 0, studied: false, idle: 0 };
+  const per = app.ctx.balance.quiz.correctPerProficiencyLevel;
+  const max = g.level >= proficiencyCap(app.state, app.ctx.balance);
+  const fill = el('i');
+  fill.style.width = `${max ? 100 : Math.min(100, (g.progress / per) * 100)}%`;
+  const row = el('span', { class: 'prof' + (max ? ' max' : ''), 'aria-label': `熟練Lv${g.level}、${max ? '最大' : `次のLvまで${g.progress}/${per}問`}` },
+    el('span', { class: 'lv' }, `Lv${g.level}`), el('span', { class: 'pbar' }, fill), el('span', { class: 'num' }, max ? '最大' : `${g.progress}/${per}`));
+  const idleYears = app.ctx.balance.birthday.idleYears;
+  const mark = g.studied ? el('span', { class: 'mark' }, '今年 勉強した')
+    : g.level > 0 && (g.idle || 0) >= idleYears ? el('span', { class: 'mark bad' }, `${g.idle}年 勉強していない`) : null;
+  return [row, mark];
 }
 
 function start(app, mode, genre = null, pool = null) {
@@ -721,15 +728,15 @@ function renderCompose(app) {
   );
 }
 
-/** 熟練の記録（勉強画面の「熟練の記録」。街の図書館・月面の書庫と同じ中身） */
+/** 熟練の記録（テストのジャンルを選ぶ画面の「熟練の記録」。街の図書館・月面の書庫と同じ中身）。もどるとテストのジャンルを選ぶ画面へ */
 function renderProfLog(app) {
-  const back = el('div', { class: 'btnrow' }, el('button', { onclick: () => { view.phase = 'menu'; renderBody(app); } }, '← もどる'));
+  const goBack = () => { view.phase = view.profBack || 'menu'; renderBody(app); scrollTop(); };
   refs.body.replaceChildren(
     el('h3', { class: 'subhead' }, '熟練の記録'),
     el('p', { class: 'muted', style: { fontSize: '13px' } }, profLogNote(app)),
-    back,
+    el('div', { class: 'btnrow' }, el('button', { onclick: goBack }, '← もどる')),
     profLogList(app),
-    el('div', { class: 'btnrow' }, el('button', { onclick: () => { view.phase = 'menu'; renderBody(app); } }, '← もどる')));
+    el('div', { class: 'btnrow' }, el('button', { onclick: goBack }, '← もどる')));
 }
 
 function renderBody(app) {
