@@ -50,7 +50,7 @@ export function init(app) {
   refs.lifeBar = el('span', { class: 'lifebar', role: 'img', 'aria-label': '寿命' }, refs.lifeFill);
   refs.lifeKey = '';
   // 経験値の帯（40HzP の依頼「寿命バーと同じように、次のレベルまでに必要な量がわかるバー」）：次のレベルまでにたまった割合。
-  // 数字は下の「経験値 ◯/◯」の行（前世の記憶をたどるを出している間は、その行が隠れても帯は出る）
+  // 右に「今のLvでためた量/次のLvまでに要る量」（40HzP の依頼「同じところにまとめて」。前は下の行に別に出していた）。前世の記憶をたどるを出している間も出る
   refs.expFill = el('i');
   refs.expBar = el('span', { class: 'lifebar expbar', role: 'img', 'aria-label': '経験値' }, refs.expFill);
   refs.expKey = '';
@@ -62,13 +62,13 @@ export function init(app) {
     // 最高到達地点（40HzP の依頼）：この人生でいちばん深く進んだ階層。右に月面の階層と、前世のほうが深ければ「歴代最高 ◯階層（◯世代目）」（入りきらなければ次の行）
     el('div', { class: 'row far detail' }, el('span', {}, '最高到達 ', r.far), r.farBest),
     el('div', { class: 'row' }, el('span', {}, r.name, '　Lv ', r.lv), r.allies),
-    el('div', { class: 'row life' }, el('span', { class: 'life-label' }, '経験値'), r.expBar),
+    el('div', { class: 'row life' }, el('span', { class: 'life-label' }, '経験値'), r.expBar, el('span', { class: 'exp-num' }, r.exp)),
     el('div', { class: 'gauges' },
       el('div', {}, el('div', { class: 'row' }, el('span', {}, 'HP'), r.hp), el('div', { class: 'hpbar' }, r.hpbar)),
       el('div', {}, el('div', { class: 'row' }, el('span', {}, 'MP'), r.mp), el('div', { class: 'hpbar mp' }, r.mpbar))),
     el('div', { class: 'row detail' }, el('span', {}, '攻撃 ', r.atk, '　防御 ', r.def, '　賢さ ', r.wis)),
-    el('div', { class: 'row detail' }, el('span', {}, '経験値 ', r.exp), el('span', {}, '累計 ', r.total)),
-    el('div', { class: 'row detail' }, el('span', {}, '所持金 ', r.gold, 'G'), el('span', {}, '経験値倍率 ×', r.xmul)),
+    el('div', { class: 'row detail' }, el('span', {}, '累計経験値 ', r.total), el('span', {}, '経験値倍率 ×', r.xmul)),
+    el('div', { class: 'row detail' }, el('span', {}, '所持金 ', r.gold, 'G')),
     el('div', { class: 'row detail' }, el('span', {}, '1か月あたり 経験値 ', r.rexp, '・', r.rgold, 'G')),
     r.companyRow = el('div', { class: 'row detail', hidden: true }, r.company),
     el('div', { class: 'row detail' }, el('span', {}, '契約料 ', r.fee, 'G'), el('span', {}, '手取り ', r.net, 'G')),

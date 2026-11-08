@@ -208,6 +208,7 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 #hud .expbar i { background: #e0b84a; }
 #hud .expbar::after { content: none; }
 #hud .row.life .life-label { min-width: 3em; }
+#hud .exp-num { flex-shrink: 0; margin-left: 6px; }
 /* 前世の記憶をたどる（ui/recall.js）：出している間はステータスを短くする（detail の行を隠す）。用紙は今日の1問の札と同じ白い紙 */
 #hud.checking .detail { display: none !important; }
 #hud .first-check {
