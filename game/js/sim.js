@@ -684,6 +684,9 @@ export function challengeMidboss(state, ctx, events) {
   if (!m) return null;
   stashScaffold(state, ctx);
   state.adventure.enemies = [];
+  // 挑む前に HP・MP（と仲間の HP）を全回復する（40HzP の依頼。誕生日・やられたときと同じ healAll）
+  healAll(state, ctx);
+  if (events) events.push({ type: 'challengeHeal', monsterId: m.id, name: m.name });
   return spawnGroup(state, ctx, events, [m.id])[0] || null;
 }
 
@@ -1105,7 +1108,7 @@ function restartFloor(state, floor, ctx) {
   adv.spawnTimer = spawnDelay(adv, ctx.balance);
 }
 
-/** HP・MPと仲間のHPを全回復する（誕生日・やられたとき） */
+/** HP・MPと仲間のHPを全回復する（誕生日・やられたとき・中ボスに挑むとき） */
 function healAll(state, ctx) {
   const hs = heroStats(state, ctx);
   state.hero.hp = hs.maxHp;

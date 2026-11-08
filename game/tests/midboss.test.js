@@ -38,6 +38,25 @@ test('挑戦すると、今の敵の群れは退いて中ボスが1体で出る�
   assert.equal(challengeMidboss(s, ctx, []), null);
 });
 
+test('中ボスに挑むときは、HP・MPと仲間のHPが全回復してから戦う（40HzP の依頼）', () => {
+  const s = newGame(7);
+  const ctx = makeCtx(constRng(0.3));
+  s.hero.level = 30;
+  s.allies.push({ id: 'a', name: 'A', atk: 10, maxHp: 50, hp: 3, cd: 1.5 });
+  const hs = heroStats(s, ctx);
+  s.hero.hp = 1;
+  s.hero.mp = 0;
+  const ev = [];
+  challengeMidboss(s, ctx, ev);
+  assert.deepEqual([s.hero.hp, s.hero.mp, s.allies[0].hp], [hs.maxHp, hs.maxMp, 50]);
+  const types = ev.map((x) => x.type);
+  assert.ok(types.indexOf('challengeHeal') >= 0 && types.indexOf('challengeHeal') < types.indexOf('spawn'), '全回復の知らせのあとに中ボスが出る');
+  // 挑戦できないときは回復しない
+  s.hero.hp = 1;
+  assert.equal(challengeMidboss(s, ctx, []), null);
+  assert.equal(s.hero.hp, 1);
+});
+
 test('中ボスに負けると1階層に戻り、中ボスは出てこない。また挑戦できる', () => {
   const s = newGame(7);
   const ctx = makeCtx(constRng(0.5));
@@ -59,8 +78,8 @@ test('中ボスに負けると1階層に戻り、中ボスは出てこない。�
 test('中ボス：累計の正解が5回になるまではダメージ0、その後は自動攻撃が効く（正解そのものではダメージは入らない）', () => {
   const s = newGame(7);
   const ctx = makeCtx(constRng(0.5));
-  s.hero.hp = 99999;
   const e = challengeMidboss(s, ctx, []);
+  s.hero.hp = 99999; // 挑むと全回復する（Lv1 の最大HP）ので、そのあとでやられないようにする
   assert.equal(e.kind, 'midboss');
   assert.deepEqual(s.adventure.enemies, [e], '中ボスは1体で出る');
   assert.equal(midbossState(s, e.monsterId).status, 'appeared');

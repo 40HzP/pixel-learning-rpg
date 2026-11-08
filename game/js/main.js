@@ -545,6 +545,7 @@ async function boot() {
       else if (e.type === 'birthday') notifyBirthday(e);
       else if (e.type === 'scaffold') notify(`足場（構造工学）：ボス「${e.name}」には前の挑戦のダメージが残っている（残りHP ${Math.round(e.left * 100)}%）`, 'good');
       else if (e.type === 'retreat') notify(`${e.name}から逃げた。また挑戦できる`);
+      else if (e.type === 'challengeHeal') notify(`HP・MPが全回復した。${e.name}との戦いだ！`, 'good');
       else if (e.type === 'midbossReady') notify(`${e.name}に挑戦できるようになった！\n冒険画面の「挑戦する」を押すと戦える`, 'good');
       else if (e.type === 'midbossBroken') notify(`${(monsters.find((m) => m.id === e.monsterId) || {}).name || '中ボス'}の防御が崩れた！`, 'good');
       else if (e.type === 'spawn' && e.kind === 'boss') {
