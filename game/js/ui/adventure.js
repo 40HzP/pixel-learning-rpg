@@ -19,7 +19,7 @@ export function init(app) {
     hp: span(), hpbar: el('i'), mp: span(), mpbar: el('i'),
     atk: span(), def: span(), wis: span(),
     exp: span(), total: span(), gold: span(), xmul: span(), rexp: span(), rgold: span(), fee: span(), net: span(), enemy: span(),
-    company: span(),
+    company: span(), companyName: span(),
     boss: el('div', { class: 'boss', onclick: () => app.showTab('study') }),
     // 中ボスは自動では出ない。挑戦できる年齢になったらこのボタンを出す
     challengeName: span(), challengeNote: el('small'),
@@ -62,17 +62,18 @@ export function init(app) {
     // 最高到達地点（40HzP の依頼）：この人生でいちばん深く進んだ階層。右に月面の階層と、前世のほうが深ければ「歴代最高 ◯階層（◯世代目）」（入りきらなければ次の行）
     el('div', { class: 'row far detail' }, el('span', {}, '最高到達 ', r.far), r.farBest),
     el('div', { class: 'row' }, el('span', {}, r.name, '　Lv ', r.lv), r.allies),
-    // 色分け（40HzP の依頼）：経験値は青（c-exp）・ゴールドは黄色（c-gold）・契約料は赤（c-fee）
-    el('div', { class: 'row life' }, el('span', { class: 'life-label c-exp' }, '経験値'), r.expBar, el('span', { class: 'exp-num c-exp' }, r.exp)),
+    // 色分け（40HzP の依頼）：経験値の数字は青（c-exp）・ゴールドの数字は黄色（c-gold）・契約料の数字は赤（c-fee）。文字（「所持金」など）は元の色のまま
+    el('div', { class: 'row life' }, el('span', { class: 'life-label' }, '経験値'), r.expBar, el('span', { class: 'exp-num c-exp' }, r.exp)),
     el('div', { class: 'gauges' },
       el('div', {}, el('div', { class: 'row' }, el('span', {}, 'HP'), r.hp), el('div', { class: 'hpbar' }, r.hpbar)),
       el('div', {}, el('div', { class: 'row' }, el('span', {}, 'MP'), r.mp), el('div', { class: 'hpbar mp' }, r.mpbar))),
     el('div', { class: 'row detail' }, el('span', {}, '攻撃 ', r.atk, '　防御 ', r.def, '　賢さ ', r.wis)),
-    el('div', { class: 'row detail' }, el('span', { class: 'c-exp' }, '累計経験値 ', r.total), el('span', { class: 'c-exp' }, '経験値倍率 ×', r.xmul)),
-    el('div', { class: 'row detail' }, el('span', { class: 'c-gold' }, '所持金 ', r.gold, 'G')),
-    el('div', { class: 'row detail' }, el('span', {}, '1か月あたり ', el('span', { class: 'c-exp' }, '経験値 ', r.rexp), '・', el('span', { class: 'c-gold' }, r.rgold, 'G'))),
-    r.companyRow = el('div', { class: 'row detail c-gold', hidden: true }, r.company),
-    el('div', { class: 'row detail' }, el('span', { class: 'c-fee' }, '契約料 ', r.fee, 'G'), el('span', { class: 'c-gold' }, '手取り ', r.net, 'G')),
+    el('div', { class: 'row detail' }, el('span', {}, '累計経験値 ', el('span', { class: 'c-exp' }, r.total)), el('span', {}, '経験値倍率 ', el('span', { class: 'c-exp' }, '×', r.xmul))),
+    el('div', { class: 'row detail' }, el('span', {}, '所持金 ', el('span', { class: 'c-gold' }, r.gold, 'G'))),
+    el('div', { class: 'row detail' }, el('span', {}, '1か月あたり 経験値 ', el('span', { class: 'c-exp' }, r.rexp), '・', el('span', { class: 'c-gold' }, r.rgold, 'G'))),
+    r.companyRow = el('div', { class: 'row detail', hidden: true }, el('span', {}, r.companyName, el('span', { class: 'c-gold' }, r.company))),
+    // 手取りがマイナスのときは数字を赤に（数字の span に .bad を付ける）
+    el('div', { class: 'row detail' }, el('span', {}, '契約料 ', el('span', { class: 'c-fee' }, r.fee, 'G')), el('span', {}, '手取り ', el('span', { class: 'c-gold' }, r.net, 'G'))),
     el('div', { class: 'row enemy' }, r.enemy),
     r.bossBar,
     r.challenge,
@@ -152,7 +153,8 @@ export function update(app) {
   r.companyRow.hidden = !cp.companies.length;
   if (cp.companies.length) {
     const who = cp.companies.length === 1 ? cp.companies[0].industry.name : `${cp.companies.length}社`;
-    r.company.textContent = `会社（${who}）の利益 1か月 +${fmt(cp.total)}G`;
+    r.companyName.textContent = `会社（${who}）の利益 1か月 `;
+    r.company.textContent = `+${fmt(cp.total)}G`;
   }
   r.net.textContent = `${net < 0 ? '−' : ''}${fmt(Math.abs(net))}`;
   r.net.parentNode.classList.toggle('bad', net < 0);
