@@ -17,7 +17,7 @@ import * as facility from './ui/facility.js';
 import * as zukan from './ui/zukan.js';
 import * as debug from './ui/debug.js';
 import * as settings from './ui/settings.js';
-import { el, fmt } from './ui/dom.js';
+import { el, fmt, affNum } from './ui/dom.js';
 import { playMovie } from './ui/movie.js';
 import { askNande } from './ui/nande.js';
 import { openDaily } from './ui/daily.js';
@@ -480,7 +480,7 @@ async function boot() {
       lines = ['試作機はうまく飛べなかった…', `${r.name}は驚いて、野に帰っていった。（また倒すと、なつくことがある）`];
       summary = `試作機は失敗した。${r.name}は野に帰っていった`;
     }
-    if (r.affinity > 0) lines.push(`${r.name}の懐き度が上がった（+${r.affinity}）。`);
+    if (r.affinity > 0) lines.push(`${r.name}の懐き度が上がった（+${affNum(r.affinity)}）。`);
     const sp = (monsterSprites[id] || {}).idle || null;
     runOverlay(() => playLaunch(app, { from: 'earth', to: r.success ? 'earth' : null, lines, passenger: sp ? { sprite: sp, leaves: r.left } : null })
       .then(() => { notify(summary, r.success ? 'good' : r.left ? 'bad' : ''); handleEvents(events); refreshActive(true); }));
@@ -817,7 +817,7 @@ async function boot() {
     // その3分で懐き度が上がった飼育小屋のザコ（いちばん上がったザコと、ほかの数）
     const aff = cmp.affinity || [];
     const top = aff.length ? monsters.find((m) => m.id === aff[0].id) : null;
-    const affLine = top ? `懐き度：${top.name} +${aff[0].gain}${aff.length > 1 ? `　ほか${aff.length - 1}体` : ''}` : '';
+    const affLine = top ? `懐き度：${top.name} +${affNum(aff[0].gain)}${aff.length > 1 ? `　ほか${aff.length - 1}体` : ''}` : '';
     notifyCard([
       el('b', { class: 'nt-title' }, '起動したときの自分と比べると'),
       el('div', { class: 'cmp-rows' }, cmp.rows.map((r) => {

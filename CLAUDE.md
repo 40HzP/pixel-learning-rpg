@@ -285,7 +285,7 @@ tools/check-questions.mjs … questions.json の検査
   - `hero.attackIntervalSec` 主人公の攻撃の間隔（0.5秒＝秒間2回）
   - `spell` 主人公の全体攻撃「ひらめき」：敵が `minTargets` 体以上でMPが `mpCost` 以上あると使う。ダメージ＝賢さ×`power`（防御は効かない）。MPは毎秒 `mpRegenPerSec` 回復し、眠ると全回復
   - `birthday` 誕生日の熟練判定：`upChance` この1年に勉強したジャンルが上がる確率、`downChance` 勉強していないジャンルが下がる確率、`idleYears` 下がるのは何年以上勉強していないジャンルか（下の「誕生日の熟練判定と階層の移動」）
-  - `life` 寿命（`lifespanYears`±`lifespanSpread` 歳）と、体の不調を感じ始める年（寿命の `ailmentYearsBefore` 年前）、`hospital` 病院の治療（1回で延びる年数 `extendYears`、治療費 `treatmentCosts`。治療費の数が受けられる回数）、`reincarnation.multiplier` 世代ごとの倍率、`reincarnation.proficiencyCapStep` 生まれ変わるたびに上がる熟練Lvの上限、`rocket.buildCost` ロケットの建造費、`rocket.stepYears` ロケットの工程1つにかかるゲーム内の年数、`rocket.launchSuccessRateMax` 試作機で上がる本番の成功率の上限、`rocket.prototype` 試作機（`cost` 1回の費用・`successRate` 成功率・`dogBonus`／`otherBonus` 成功したときに本番の成功率が上がる量（犬／ほかのザコ）・`stepYears` 実際に宇宙を飛んだ生き物で進む工程の年数）、`barn.joinChance` ザコを倒したときになついて飼育小屋に入る確率、`barn` のそのほか（`affinityMax`・`affinityPerYear`・`affinityPerCorrect`・`affinityPerTouch`・`affinityPerFlight`・`friendlyAffinity`・`giftGoldKills`・`seeOffMax`）は懐き度（下の「飼育小屋と試作機」の「懐き度」）
+  - `life` 寿命（`lifespanYears`±`lifespanSpread` 歳）と、体の不調を感じ始める年（寿命の `ailmentYearsBefore` 年前）、`hospital` 病院の治療（1回で延びる年数 `extendYears`、治療費 `treatmentCosts`。治療費の数が受けられる回数）、`reincarnation.multiplier` 世代ごとの倍率、`reincarnation.proficiencyCapStep` 生まれ変わるたびに上がる熟練Lvの上限、`rocket.buildCost` ロケットの建造費、`rocket.stepYears` ロケットの工程1つにかかるゲーム内の年数、`rocket.launchSuccessRateMax` 試作機で上がる本番の成功率の上限、`rocket.prototype` 試作機（`cost` 1回の費用・`successRate` 成功率・`dogBonus`／`otherBonus` 成功したときに本番の成功率が上がる量（犬／ほかのザコ）・`stepYears` 実際に宇宙を飛んだ生き物で進む工程の年数）、`barn.joinChance` ザコを倒したときになついて飼育小屋に入る確率（動物行動学を専攻にしていると `ethologyJoinChance`）、`barn.ethologyAffinityRate` 動物行動学を専攻にしているときの懐き度の上がり方の倍率、`barn` のそのほか（`affinityMax`・`affinityPerYear`・`affinityPerCorrect`・`affinityPerTouch`・`affinityPerFlight`・`friendlyAffinity`・`giftGoldKills`・`seeOffMax`）は懐き度（下の「飼育小屋と試作機」の「懐き度」）
   - `fields` 学際分野：`unlockLevel` 解放と休眠の境目の熟練Lv、`shopDiscount` 行動経済学の店の値引き（0.2＝2割引）
   - `nande` 孫の「なんで？」の間隔（`firstSec`・`intervalSec`）と、正解したときの孫へのダメージ（最大HPに対する割合 `correctDamageRatio`）、答えられなかったときに孫が回復する割合（`wrongHealRatio`）
   - `advisor` 顧問（下の「顧問」）：`slots` 場所ごとに置ける人数、`citationsPerYear` 要出典の回数（誕生日に戻る）、`periodicTestProgress` 定期テストで多く進む問題数、`hrStaffBonus` 人事で社員の効果が増える割合、`rocketSubsidy` 補助金で建造費が安くなる割合、`taxCut` 税務顧問で法人税が安くなる割合
@@ -586,6 +586,7 @@ tools/check-questions.mjs … questions.json の検査
 
 - 飼育小屋：拠点の跡に建てた（`town.json` の `barn`、絵は `town_barn`）。月面の街の前線基地の跡には月面の飼育ドーム（`moon_barn`、`town_moon_barn`）。前の「拠点の跡」「前線基地の跡」の絵（`town_base`・`town_moon_outpost`）は使わなくなったので消した
   - ザコを倒すと `barn.joinChance`（1%。設計ページの案）でなついて、小屋に入る（知らせが出る）。地球のザコは飼育小屋、月面のザコは飼育ドーム。同じザコは1体まで。ボス・中ボスは入らない（中ボスは今までどおり戦いの仲間になる）。ボスの手下（月面のザコ）も、倒せばなつくことがある
+  - 学際分野の動物行動学を専攻にしている（休眠していない）間は、なつく確率が `barn.ethologyJoinChance`（2%）になる（下の「学際分野」）
   - 小屋のザコは戦わない。小屋の中（`scene_barn`・`scene_moon_barn`、90×64）を歩き回る（新しく来た12体まで。`BARN_SHOW`）。触ると下の札に、そのザコの誤解と本当のこと（言葉のザコは「よく言われる意味」と「本来の意味」、研究が割れているザコは「研究が割れている」）。小屋にいるザコの一覧も並べ、押しても同じ札が出る
   - 小屋のザコは生まれ変わっても残る（40HzP の判断。セーブの `legacy.barn`：`{ id, affinity（懐き度）, touchedOn?（最後に触った日）, space?（宇宙帰り）, flights?（飛んで帰ってきた回数） }` のなついた順。前のセーブは空の小屋。懐き度の無い前のセーブの小屋のザコは0として読む）
   - 目安（計算で再現）：勉強なしで1時間に約900体のザコを倒すので、1時間におよそ9体なつく（今いる世界のザコから。すでに小屋にいるザコは入らない）
@@ -603,6 +604,7 @@ tools/check-questions.mjs … questions.json の検査
 - 懐き度（40HzP の依頼「設計ページの『懐き度』を実装して」。設計ページ「懐き度（2026-11-08）」）：小屋のザコの懐き度（0〜`barn.affinityMax`（100））。小屋のザコと一緒に残すので、生まれ変わっても残る。下がる仕組みは無い（放っておくと減ると世話の義務になるため。設計ページ）。計算は `sim.js` の `raiseAffinity`・`touchZako`・`barnBirthday`・`seeOffFriends`・`isFriendly`・`isReformed` と `quiz.js` の `barnHelp`
   - 上がるとき：誕生日ごとに小屋のザコ全員 `affinityPerYear`（+1。起動している間に少しずつ）・そのザコの問題（「関連する魔物」がそのザコ）に正解 `affinityPerCorrect`（+5。勉強の結果に「◯◯の懐き度が上がった」）・小屋で触る `affinityPerTouch`（+3。そのザコは1日に1回。日付は端末の時計（`app.today()`））・試作機から帰ってくる `affinityPerFlight`（+10。成功・失敗とも、帰ってくれば）
   - 数値はすべて Claude Code の仮の数字（設計ページ「上がり方の数値は試遊で決める」）。誕生日だけなら懐いた（50）まで約2時間・更生（100）まで約4時間（2つの人生にまたがる）。勉強と触るので早くなる
+  - 動物行動学を専攻にしている（休眠していない）間は、どの上がり方も `barn.ethologyAffinityRate`（1.5）倍（誕生日+1.5・正解+7.5・触る+4.5・試作機+15。`sim.js` の `affinityRate`）。懐き度に0.5の端数が出るので、上がった量は小数1桁まで出し（`ui/dom.js` の `affNum`）、懐き度そのもの（帯・「◯/100」・一覧）は切り捨てて出す。小屋の画面に「動物行動学：ザコがなつく確率 2%・懐き度の上がり方 1.5倍」と出る
   - 懐き度は小屋で触ったときの札に出る（帯と「◯/100」。一覧にも「懐き度◯」）。札には、そのザコの一言（吹き出し。誤解を話す）と、懐き度で何ができるかも出す
   - ① 試作機：犬以外は、失敗しても懐き度%の確率で帰ってくる（`flyPrototype` の `cameBack`。ミニムービーの文「よく懐いていたので、ちゃんと帰ってきた」）。犬は今までどおり必ず帰ってくる。試作機の欄に「失敗しても◯%の確率で帰ってくる（懐き度◯）」
   - ② 誕生日の贈り物：懐いた（`friendlyAffinity`（50）以上の）ザコの中から1体が、誕生日ごとに小さな贈り物を持ってくる（知らせ「◯歳の誕生日。◯◯から贈り物：◯G」）。ゴールドは今の階層のザコ `giftGoldKills`（5）体分（世代の倍率も掛ける。ザコを倒して入るゴールドの1割ちょっと増えるくらい）。そのゴールドで買える値段の品物のうち、入荷していて・持っていなくて・今の装備より強いものがあれば、いちばん安いその品を持ってきて装備する（「道具」は今のゲームに無いので、装備にした。Claude Code の判断）
@@ -624,7 +626,7 @@ tools/check-questions.mjs … questions.json の検査
 - 休眠：専攻に入れた学際分野のジャンルが誕生日の判定で Lv3 を下回ると、効果が止まる。戻すと復活する。どちらも知らせる（専攻に入れていない学際分野の休眠と復活は、知らせずに熟練の記録にだけ残す）
 - 未解放の学際分野は「？？？」と、片方のジャンル（熟練の高いほう）と効果の説明だけ見せる。隠し（`group: "hidden"`）は解放するまで出さず、称号だけで専攻にはできない
 - 解放と専攻は知識なので、生まれ変わっても残る
-- 今ある12個（設計ページの中から、今のゲームの仕組みで効果を出せるものを選んだ）
+- 今ある13個（設計ページの中から、今のゲームの仕組みで効果を出せるものを選んだ）
 
   | 学際分野 | ジャンル | 効果 |
   |---|---|---|
@@ -633,6 +635,7 @@ tools/check-questions.mjs … questions.json の検査
   | 燃焼工学 | 熱力学＋化学 | 「エンジン・推進剤」が進む |
   | 軌道力学 | 天体力学＋数学 | 「軌道計算」が進む |
   | 宇宙法 | 法学＋政治経済 | 「打ち上げ許可」が進む |
+  | 動物行動学 | 生物＋心理学 | ザコがなついて飼育小屋（飼育ドーム）に入る確率が1%→2%（`barn.ethologyJoinChance`）、小屋のザコの懐き度の上がり方が1.5倍（`ethologyAffinityRate`）。設計ページの案のまま（40HzP の依頼。2026-11-09）。称号「動物行動学者」。ローレンツの刷り込みにちなむ（`sim.js` の `joinChance`・`affinityRate`） |
   | 行動経済学 | 心理学＋経済学 | 経済系の俗説の魔物（`genres` が `blockGenres` の経済学・経営学・政治経済）が問題に口を挟めない（騙されても回復しない）。店が `shopDiscount` 引き（`itemPrice`） |
   | 計量経済学 | 統計学＋経済学 | 会社で、起業できる業種ごとに期待値（得になる社員をいま雇える質で雇ったときの1か月の手取りと、元手を取り戻すまでの期間）を出し、手取りがいちばん大きい・いちばん早く取り戻せる業種に印を付ける（`industryOutlook`） |
   | 法と経済学 | 法学＋経済学 | 会社を法人化できる。利益が増えるかわりに、毎年の決算で法人税を払う（上の「会社」の法人化。`incorporate`） |

@@ -42,7 +42,7 @@
   "hospital": { "extendYears": 2, "treatmentCosts": [100000, 1000000, 10000000] },
   "reincarnation": { "multiplier": 1.5, "proficiencyCapStep": 5 },
   "rocket": { "buildCost": 300000000000, "stepYears": 5, "launchSuccessRate": 0.8, "launchSuccessRateMax": 0.95, "prototype": { "cost": 100000, "successRate": 0.7, "dogBonus": 0.1, "otherBonus": 0.005, "stepYears": 2.5 } },
-  "barn": { "joinChance": 0.01, "affinityMax": 100, "affinityPerYear": 1, "affinityPerCorrect": 5, "affinityPerTouch": 3, "affinityPerFlight": 10, "friendlyAffinity": 50, "giftGoldKills": 5, "seeOffMax": 4 },
+  "barn": { "joinChance": 0.01, "affinityMax": 100, "affinityPerYear": 1, "affinityPerCorrect": 5, "affinityPerTouch": 3, "affinityPerFlight": 10, "friendlyAffinity": 50, "giftGoldKills": 5, "seeOffMax": 4, "ethologyJoinChance": 0.02, "ethologyAffinityRate": 1.5 },
   "moon": { "floorOffset": 300, "rampFloor": 60, "rampTo": 1400, "smoothDamage": [0.5, 0.75, 1], "splashAtkMultiplier": 0.8, "sinkIntervalSec": 4, "splitAt": 0.5, "absorbSec": 3, "remainsSec": 2.5, "transportPerKg": 10000000, "radioCharge": 10, "relaySec": 2.6 },
   "fields": { "unlockLevel": 3, "shopDiscount": 0.2 },
   "nande": { "firstSec": 3, "intervalSec": 10, "correctDamageRatio": 0.1, "wrongHealRatio": 0.1 },

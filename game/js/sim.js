@@ -1816,12 +1816,21 @@ export function tameZako(state, ctx, monsterId, events, force = false) {
   const m = monsterById(ctx, monsterId);
   if (!m || m.kind !== 'monster') return false;
   if (state.legacy.barn.some((a) => a.id === monsterId)) return false;
-  if (!force && !(ctx.rng() < ctx.balance.barn.joinChance)) return false;
+  if (!force && !(ctx.rng() < joinChance(state, ctx))) return false;
   state.legacy.barn.push({ id: monsterId, affinity: 0 });
   const world = worldOf(m);
   if (events) events.push({ type: 'barnJoin', monsterId, name: m.name, world, barn: BARN_NAMES[world] });
   return true;
 }
+
+/* ---------- 動物行動学（学際分野。設計ページ「動物行動学」） ---------- */
+// 専攻にしていて休眠していない間だけ、ザコがなつく確率が上がり（balance.barn.ethologyJoinChance）、
+// 小屋のザコの懐き度の上がり方が balance.barn.ethologyAffinityRate 倍になる（誕生日・正解・触る・試作機のどれも）
+export const ETHOLOGY = 'ethology';
+/** ザコを倒したときになついて小屋に入る確率 */
+export const joinChance = (state, ctx) => (fieldActive(state, ctx, ETHOLOGY) ? ctx.balance.barn.ethologyJoinChance : ctx.balance.barn.joinChance);
+/** 懐き度の上がり方の倍率 */
+export const affinityRate = (state, ctx) => (fieldActive(state, ctx, ETHOLOGY) ? ctx.balance.barn.ethologyAffinityRate : 1);
 
 /* ---------- 懐き度（設計ページ「懐き度（2026-11-08）」） ---------- */
 // 飼育小屋のザコの懐き度（0〜balance.barn.affinityMax）。上がるだけで下がらない（放っておくと減る作りにすると、世話の義務になるため）。
@@ -1838,11 +1847,13 @@ export const isFriendly = (state, ctx, id) => !!barnEntry(state, id) && affinity
 export const isReformed = (state, ctx, id) => !!barnEntry(state, id) && affinityOf(state, id) >= ctx.balance.barn.affinityMax;
 
 /**
- * 懐き度を上げる（最大まで）。懐いたとき（friendlyAffinity を越えた）と更生したとき（最大に届いた）は知らせ（barnFriendly・barnReformed）。上がった量を返す
+ * 懐き度を上げる（最大まで）。懐いたとき（friendlyAffinity を越えた）と更生したとき（最大に届いた）は知らせ（barnFriendly・barnReformed）。上がった量を返す。
+ * 動物行動学を専攻にしていると amount の affinityRate 倍（1.5倍なので、上がる量に0.5の端数が出る）
  */
 export function raiseAffinity(state, ctx, id, amount, events) {
   const a = barnEntry(state, id);
   if (!a || !(amount > 0)) return 0;
+  amount *= affinityRate(state, ctx);
   const { affinityMax: max, friendlyAffinity: friendly } = ctx.balance.barn;
   const before = a.affinity || 0;
   if (before >= max) return 0;

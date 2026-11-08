@@ -29,6 +29,8 @@ export function fmt(n) {
   return v.toLocaleString('ja-JP');
 }
 export const stars = (n) => '☆'.repeat(n);
+/** 懐き度の上がった量の表示（動物行動学で1.5倍になると0.5の端数が出るので、小数1桁まで。7.5 → 「7.5」、3 → 「3」） */
+export const affNum = (n) => String(Math.round(n * 10) / 10);
 
 /**
  * 勉強の手伝い（設計ページ「懐き度」の④）：懐いた飼育小屋のザコが、自分の問題で誤答を1つ消してくれたときの添え書き（quiz.js の barnHelp。current.helpedBy）

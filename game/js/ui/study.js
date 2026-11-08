@@ -4,7 +4,7 @@ import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap, a
 import { fieldById, fieldActive } from '../fields.js';
 import { GENRES } from '../genres.js';
 import { spriteCanvas, cssColor } from '../sprites.js';
-import { el, stars, helpNote } from './dom.js';
+import { el, stars, helpNote, affNum } from './dom.js';
 import { teacherForAge } from './tear.js';
 import { createDoodle, attachDoodle } from './doodle.js';
 import { shareTest } from './share.js';
@@ -543,7 +543,7 @@ export function effectLines(app, r, brief = false) {
     else if (!brief && g && g.level < proficiencyCap(app.state, app.ctx.balance)) lines.push(['', `${r.question.genre}：次のLvまで ${g.progress}/${per}回`]);
     for (const z of r.zukan) lines.push(['good', `図鑑：${name(z.monsterId)}の正体が判明した`]);
     if (r.untorn && remedialOpen(app.state, app.ctx)) lines.push(['good', '破りすてた問題に正解した（補習から外れた）']);
-    if (r.affinity) lines.push(['good', `${r.affinity.name}の懐き度が上がった（+${r.affinity.gained}）`]);
+    if (r.affinity) lines.push(['good', `${r.affinity.name}の懐き度が上がった（+${affNum(r.affinity.gained)}）`]);
   } else {
     if (r.fooled) lines.push(['bad', `${r.targetName}に騙された！　${r.targetName}が${r.healed}回復した`]);
   }

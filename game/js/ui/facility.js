@@ -15,12 +15,12 @@ import {
   lifespanOf, treatmentInfo, receiveTreatment, onMoon, launchInfo,
   ADVISOR_PLACES, advisorDef, advisorSlots, advisorsAt, advisorActive, setAdvisor, citationsLeft, rocketBuildCost, hrFactor, nextBoss,
   canIncorporate, incorporate, corporateTax, LAW_ECONOMICS, farthestReached,
-  barnAnimals, barnCapacity, BARN_NAMES, isSpaceDog, prototypeInfo, prototypeEffect, launchSuccessRate, worldOf,
+  barnAnimals, barnCapacity, BARN_NAMES, isSpaceDog, joinChance, affinityRate, prototypeInfo, prototypeEffect, launchSuccessRate, worldOf,
   touchZako, isReformed,
 } from '../sim.js';
 import { fieldList, fieldById, fieldActive, isUnlocked, setMajor, MAJOR_SLOTS } from '../fields.js';
 import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor, drawHalo } from '../sprites.js';
-import { el, fmt } from './dom.js';
+import { el, fmt, affNum } from './dom.js';
 import { profLogList, profLogNote } from './proflog.js';
 
 const TOWN_W = 90;
@@ -941,7 +941,7 @@ function barnCard(app, a, touch) {
   const flights = a.flights ? `試作機で${a.flights}回飛んで帰ってきた` : '';
   const bar = el('i', { style: { width: `${(aff / b.affinityMax) * 100}%` } });
   const touchText = !touch ? '' : touch.already ? '今日はもうなでた（1日に1回、懐き度が上がる）'
-    : touch.gained > 0 ? `なでた！　懐き度 +${touch.gained}` : 'なでた！';
+    : touch.gained > 0 ? `なでた！　懐き度 +${affNum(touch.gained)}` : 'なでた！';
   const perks = reformed ? '更生した：誤解ではなく本当のことを話すようになった'
     : aff >= b.friendlyAffinity ? `懐いている：誕生日に贈り物を持ってくることがあり、${m.name}の問題で誤答を1つ消してくれる`
       : `懐き度${b.friendlyAffinity}で、誕生日の贈り物と勉強の手伝い。${b.affinityMax}で更生する`;
@@ -1029,6 +1029,10 @@ function barnPanel(app) {
     animals.length > BARN_SHOW ? note(`小屋の中を歩いているのは新しく来た${BARN_SHOW}体。ほかのザコは下の一覧から見られる`) : null,
     animals.length ? list : note(`まだ誰もいない。${world === 'moon' ? '月面の' : ''}ザコを倒すと、ときどきなついて、ここに入る`),
     elsewhere ? note(world === 'earth' ? `月面の飼育ドームにも${elsewhere}体いる（月面の街で見られる）` : `地球の飼育小屋にも${elsewhere}体いる（地球の街で見られる）`) : null,
+    // 動物行動学（学際分野）を専攻にしていると、なつきやすく、懐き度も上がりやすい
+    fieldActive(s, ctx, 'ethology')
+      ? el('div', { class: 'good' }, `動物行動学：ザコがなつく確率 ${pct(joinChance(s, ctx))}・懐き度の上がり方 ${affinityRate(s, ctx)}倍`)
+      : null,
     note(frameDone ? 'ロケット発射場で、小屋のザコ（飼育ドームのザコも）を試作機に乗せて飛ばせる' : 'ロケット計画の「機体設計」が終わると、ロケット発射場で小屋のザコを試作機に乗せて飛ばせる'),
   ];
 }

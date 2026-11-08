@@ -3,8 +3,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   tameZako, barnEntry, affinityOf, isFriendly, isReformed, raiseAffinity, touchZako, birthday, flyPrototype, seeOffFriends,
-  reincarnate, heroSnapshot, compareSnapshots, HOURS_PER_YEAR,
+  reincarnate, heroSnapshot, compareSnapshots, HOURS_PER_YEAR, joinChance, affinityRate, genreState, tick,
 } from '../js/sim.js';
+import { fieldActive, fieldById, setMajor } from '../js/fields.js';
 import { createSession, nextQuestion, presentTest, answer, barnHelp, presentQuestion } from '../js/quiz.js';
 import { serialize, deserialize } from '../js/save.js';
 import { balance, monsters, questions, items, makeCtx, newGame, constRng, seqRng } from './helpers.js';
@@ -221,4 +222,83 @@ test('起動から3分の比較：懐き度が上がったザコを、上がっ�
   raiseAffinity(s, makeCtx(), PLAIN.id, 3, []);
   const cmp = compareSnapshots(before, heroSnapshot(s, makeCtx()));
   assert.deepEqual(cmp.affinity, [{ id: OTHER.id, gain: 8 }, { id: PLAIN.id, gain: 3 }]);
+});
+
+/* ---------- 動物行動学（学際分野：生物＋心理学）。専攻にしていて休眠していない間だけ ---------- */
+
+/** 動物行動学のジャンルを Lv にして解放の判定をさせ、主専攻に入れる */
+function withEthology(s, ctx, lv = balance.fields.unlockLevel) {
+  for (const g of fieldById(ctx, 'ethology').genres) genreState(s, g).level = lv;
+  tick(s, 0.01, ctx);
+  assert.equal(setMajor(s, 0, 'ethology', ctx).ok, true);
+  return s;
+}
+
+test('動物行動学：データは生物＋心理学・冒険・称号「動物行動学者」。なつく確率は1%→2%、懐き度は1.5倍', () => {
+  const f = fieldById(makeCtx(), 'ethology');
+  assert.deepEqual(f.genres, ['生物', '心理学']);
+  assert.equal(f.group, 'adventure');
+  assert.equal(f.title, '動物行動学者');
+  assert.equal(b.joinChance, 0.01);
+  assert.equal(b.ethologyJoinChance, 0.02);
+  assert.equal(b.ethologyAffinityRate, 1.5);
+});
+
+test('動物行動学：専攻にしていると、ザコがなつく確率が上がる（していないと前のまま）', () => {
+  const p = (b.joinChance + b.ethologyJoinChance) / 2; // 1% と 2% の間の乱数
+  const ctx = makeCtx(constRng(p));
+  const s = newGame(7);
+  assert.equal(joinChance(s, ctx), b.joinChance);
+  assert.equal(tameZako(s, ctx, PLAIN.id, []), false, '専攻にしていないと、なつかない');
+  withEthology(s, ctx);
+  assert.equal(joinChance(s, ctx), b.ethologyJoinChance);
+  const ev = [];
+  assert.equal(tameZako(s, ctx, PLAIN.id, ev), true, '専攻にしていると、なつく');
+  assert.equal(ev[0].type, 'barnJoin');
+  // 解放しただけ（専攻に入れていない）では効かない
+  const s2 = newGame(7);
+  for (const g of fieldById(ctx, 'ethology').genres) genreState(s2, g).level = balance.fields.unlockLevel;
+  tick(s2, 0.01, ctx);
+  assert.equal(fieldActive(s2, ctx, 'ethology'), false);
+  assert.equal(joinChance(s2, ctx), b.joinChance);
+});
+
+test('動物行動学：懐き度の上がり方が1.5倍（誕生日・正解・触る・試作機のどれも）', () => {
+  const ctx = makeCtx();
+  const s = withEthology(withZako(PLAIN.id), ctx);
+  assert.equal(affinityRate(s, ctx), b.ethologyAffinityRate);
+  birthday(s, ctx, []);
+  assert.equal(affinityOf(s, PLAIN.id), b.affinityPerYear * 1.5);
+  assert.equal(touchZako(s, ctx, PLAIN.id, '2026-11-09', []).gained, b.affinityPerTouch * 1.5);
+  const session = createSession(s, 'quiz', ctx);
+  presentQuestion(session, PLAIN_Q, ctx);
+  const r = answer(s, session, session.current.choices.findIndex((c) => c.kind === 'answer'), ctx);
+  assert.equal(r.affinity.gained, b.affinityPerCorrect * 1.5);
+  assert.equal(affinityOf(s, PLAIN.id), (b.affinityPerYear + b.affinityPerTouch + b.affinityPerCorrect) * 1.5);
+  // 最大で止まる（はみ出さない）
+  raiseAffinity(s, ctx, PLAIN.id, 999, []);
+  assert.equal(affinityOf(s, PLAIN.id), b.affinityMax);
+});
+
+test('動物行動学：休眠する（生物か心理学が Lv3 を下回る）と効かない。専攻から外しても効かない', () => {
+  const ctx = makeCtx();
+  const s = withEthology(withZako(PLAIN.id), ctx);
+  genreState(s, '心理学').level = balance.fields.unlockLevel - 1;
+  tick(s, 0.01, ctx);
+  assert.equal(fieldActive(s, ctx, 'ethology'), false);
+  assert.equal(joinChance(s, ctx), b.joinChance);
+  assert.equal(raiseAffinity(s, ctx, PLAIN.id, 4, []), 4);
+  genreState(s, '心理学').level = balance.fields.unlockLevel;
+  tick(s, 0.01, ctx);
+  assert.equal(raiseAffinity(s, ctx, PLAIN.id, 4, []), 6, '戻すと復活する');
+  setMajor(s, 0, null, ctx);
+  assert.equal(raiseAffinity(s, ctx, PLAIN.id, 4, []), 4);
+});
+
+test('動物行動学：端数（0.5）の懐き度もセーブで残る', () => {
+  const ctx = makeCtx();
+  const s = withEthology(withZako(PLAIN.id), ctx);
+  birthday(s, ctx, []);
+  const t = deserialize(serialize(s), balance);
+  assert.equal(affinityOf(t, PLAIN.id), 1.5);
 });
