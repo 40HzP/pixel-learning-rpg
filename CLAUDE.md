@@ -116,6 +116,7 @@ game/
     render.js            … 冒険画面の描画（90×160）
     ui/                  … 画面ごとの表示（adventure / study / facility（街） / zukan / debug / dom / movie（ミニムービー） / nande（孫の「なんで？」） / tear（テスト用紙を破りすてる） / oogiri（テストに大喜利を書いて提出した） / doodle（テスト用紙の落書き） / share（テストの結果をツイートする） / launch（ロケットの打ち上げと帰還） / daily（今日の1問） / settings（設定） / floors（階層の移動） / proflog（熟練の記録） / prologue（前世の最期） / recall（前世の記憶をたどる））
                             と、main.js の部品：assets（起動のときに読む絵）/ notices（知らせと、画面全体に重ねるものの順番待ち）/ cards（札：噂のザコ・正体・図鑑の1体目・起動から3分の比較）/ intro（最初の案内）/ scenes（ミニムービーの出し方：中ボス・体の不調・生まれ変わり・ロケット・試作機）/ events（起きたことを知らせにする）
+      facility/          … 街の施設ごとの中身（facility.js は街と、施設の中の枠・毎回の更新だけ）：common（共通：今の画面・知らせ・解放の条件）/ shop（店・補給所）/ guild（仲間が集まる場所）/ library（図書館・月面の書庫）/ company（会社）/ rocket（ロケット発射場と試作機）/ major（学校・研究室）/ hospital（病院・医務室）/ hero（主人公）/ barn（飼育小屋・飼育ドーム）/ moon（通信基地・裏側の電波望遠鏡・帰還ロケット）/ advisor（顧問の欄）
   data/
     balance.json         … 数値（ここを書き換えるだけで調整できる）
     monsters.json        … 魔物・ボス・中ボス
