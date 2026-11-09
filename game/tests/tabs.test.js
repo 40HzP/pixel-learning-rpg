@@ -40,5 +40,5 @@ test('下の切り替えバーのコルクの板：ui_tabs_cork（category textu
     assert.equal(r.length, sp.w);
     for (const ch of r) assert.ok(palette.has(ch), '透明を使わない（下の地が透けない）');
   }
-  assert.ok(read('../js/main.js').includes("load('ui_tabs_cork')"), 'main.js が読む');
+  assert.ok(read('../js/ui/assets.js').includes("load('ui_tabs_cork')"), 'ui/assets.js が読む（起動のときの絵の読み込み）');
 });

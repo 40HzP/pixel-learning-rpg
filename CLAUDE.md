@@ -84,7 +84,7 @@ game/
   index.html             … 入口
   css/style.css
   js/
-    main.js              … 起動・画面切り替え・ループ・セーブ（localStorage）
+    main.js              … 起動（データを読み、app を作り、下の ui/ の部品をつなぐ）・画面切り替え・ループ・セーブ（localStorage）
     sim.js               … ゲームの計算の入口（ほかのファイルとテストはここから読み込む。どの名前がどのファイルにあるかは、ここの並び）
     sim/                 … ゲームの計算の中身（話題ごと）
       core.js            … 共通の定数（時間の単位・名前の長さ・性別）
@@ -115,6 +115,7 @@ game/
     sprites.js           … スプライトJSONの読み込みと描画
     render.js            … 冒険画面の描画（90×160）
     ui/                  … 画面ごとの表示（adventure / study / facility（街） / zukan / debug / dom / movie（ミニムービー） / nande（孫の「なんで？」） / tear（テスト用紙を破りすてる） / oogiri（テストに大喜利を書いて提出した） / doodle（テスト用紙の落書き） / share（テストの結果をツイートする） / launch（ロケットの打ち上げと帰還） / daily（今日の1問） / settings（設定） / floors（階層の移動） / proflog（熟練の記録） / prologue（前世の最期） / recall（前世の記憶をたどる））
+                            と、main.js の部品：assets（起動のときに読む絵）/ notices（知らせと、画面全体に重ねるものの順番待ち）/ cards（札：噂のザコ・正体・図鑑の1体目・起動から3分の比較）/ intro（最初の案内）/ scenes（ミニムービーの出し方：中ボス・体の不調・生まれ変わり・ロケット・試作機）/ events（起きたことを知らせにする）
   data/
     balance.json         … 数値（ここを書き換えるだけで調整できる）
     monsters.json        … 魔物・ボス・中ボス
