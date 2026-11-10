@@ -560,6 +560,8 @@ function renderResult(app) {
   else if (s.mode === 'quiz') buttons.push(el('button', { class: 'primary', onclick: () => start(app, 'quiz') }, 'もう1問'));
   else buttons.push(el('button', { class: 'primary', onclick: () => { view.phase = 'summary'; renderBody(app); } }, '結果を見る'));
   buttons.push(el('button', { onclick: () => { view.phase = 'menu'; view.session = null; renderBody(app); } }, 'メニューへ'));
+  // クイズ（今日の1問も）の結果からは、その問題と同じジャンルのテストへすぐ進める（40HzP の依頼）
+  const toTest = s.mode === 'quiz' ? testButton(app, r.question.genre) : null;
   refs.body.replaceChildren(
     el('div', { class: 'result-head ' + head[0] }, head[1]),
     el('div', { class: 'qtext' }, r.question.question),
@@ -571,7 +573,22 @@ function renderResult(app) {
     favButton(app, r.question),
     el('ul', { class: 'effects' }, effectLines(app, r).map(([cls, t]) => el('li', { class: cls }, t))),
     el('div', { class: 'btnrow' }, buttons),
+    toTest,
   );
+}
+
+/**
+ * 「（ジャンル）のテストを受ける」のボタン。テストのジャンルを選ぶ画面のボタンと同じく、まとまりの色で縁取り、
+ * ジャンルのアイコンと問題数（全◯問の中から5問出題）を出す。押すとそのジャンルのテストの用紙になる
+ */
+function testButton(app, genre) {
+  const g = app.genreGroups.find((x) => x.genres.some((y) => y.name === genre));
+  const count = app.ctx.questions.filter((q) => q.genre === genre).length;
+  return tintButton(app, {
+    cls: 'menu-btn quiz-to-test', color: g ? g.color : '3', sprite: app.genreSprites[genre],
+    title: `${genre}のテストを受ける`, sub: testCountLabel(count, app.ctx.balance.quiz.testQuestions).join(''),
+    onclick: () => start(app, 'test', genre),
+  });
 }
 
 /* ---------- 過去問復習（正解・不正解を問わず最近解いた10問と、お気に入り5問を見返す。40HzP の依頼） ---------- */

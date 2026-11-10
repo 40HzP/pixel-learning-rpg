@@ -423,6 +423,9 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .menu-btn { min-height: 60px; gap: 10px; }
 .menu-btn .tint-text b { font-size: 17px; }
 .menu-btn .tint-text small { font-size: 12px; white-space: normal; }
+/* クイズの結果の下の「（ジャンル）のテストを受ける」（study.js の testButton）：横いっぱい。ジャンルの名前が長くても折り返す */
+.quiz-to-test { width: 100%; margin-top: 8px; }
+.quiz-to-test .tint-text b { white-space: normal; }
 /* 過去問復習：最近解いた問題とお気に入りの札（開くと答えと解説）。お気に入りのボタン */
 .review-section { margin: 12px 0 16px; }
 .review-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
