@@ -99,6 +99,7 @@ export function createEventHandler(app, { notify, runOverlay, startMovie, startA
       else if (e.type === 'barnFriendly') notify(`${e.name}がすっかり懐いた！（${e.barn}）\n誕生日に贈り物を持ってきたり、${e.name}の問題で誤答を1つ消してくれたりする`, 'good');
       else if (e.type === 'barnReformed') notify(`${e.name}が自分の誤解に気づいた！（更生）\n${e.barn}で触ると、本当のことを話してくれる`, 'good');
       else if (e.type === 'barnGift') notify(`${e.age}歳の誕生日。${e.name}から贈り物：${e.itemName ? `${e.itemName}（装備した）` : `${fmt(e.gold)}G`}`, 'good');
+      else if (e.type === 'barnRoom') notify(`${e.barn}の部屋が増えた！（${e.rooms}部屋。${e.genre} Lv${e.level}）\n${e.world === 'moon' ? '月面の街の飼育ドーム' : '街の飼育小屋'}で、ザコの部屋分けと部屋の背景を選べる`, 'good');
       else if (e.type === 'barnJoin') notify(`${e.name}がなついて、${e.barn}に入った！\n${e.world === 'moon' ? '月面の街' : '街'}の${e.world === 'moon' ? '飼育ドーム' : '飼育小屋'}で見られる`, 'good');
       else if (e.type === 'titleGained') notify(`称号「${e.title}」を手に入れた！`, 'good');
       else if (e.type === 'contractEnded') notify(`ゴールドが足りず、${e.name}との契約が切れた`, 'bad');

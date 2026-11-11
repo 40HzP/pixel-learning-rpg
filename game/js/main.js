@@ -90,11 +90,12 @@ async function boot() {
   // 絵（データとコードに名前を書いた絵だけ）。下の切り替えバーの板とアイコンも貼る（ui/assets.js）
   const {
     palette, monsterSprites, recruitSprites, heroSets, heroLooks, sceneSprites,
-    stageList, townBg, townSprites, moonBg, moonSprites, genreSprites, itemSprites, menuSprites,
+    stageList, townBg, townSprites, moonBg, moonSprites, genreSprites, itemSprites, menuSprites, roomSprites,
   } = await loadAssets(PIXEL, { monsters, recruits, items, stages, town, genreGroups });
 
   // radio：月面の街の裏側の電波望遠鏡で開く図鑑の頁（town.json の moon.radio）。firstCheck：前世の記憶をたどる問題の候補（data/first-check.json）
-  const ctx = { balance, monsters, items, questions, recruits, business, fields, stages, radio: town.moon.radio, firstCheck, rng: Math.random };
+  // barnRooms：飼育小屋の部屋の背景の一覧（town.json の barnRooms）
+  const ctx = { balance, monsters, items, questions, recruits, business, fields, stages, radio: town.moon.radio, barnRooms: town.barnRooms, firstCheck, rng: Math.random };
   const app = {
     ctx, palette, monsterSprites, recruitSprites,
     submit,           // 作問フォーム（data/submit.json）
@@ -102,6 +103,7 @@ async function boot() {
     genreSprites,
     menuSprites,      // 勉強のメニューのボタンのアイコン
     itemSprites,      // 店の品物のアイコン（品物のid → スプライト）
+    roomSprites,      // 飼育小屋の部屋の背景（背景のid → スプライト。生態展示は stages の背景を切り取る）
     heroSets,
     // 今の主人公の絵：性別（男の子は hero_*、女の子は heroine_*）と、付けている装備の見た目
     get heroSprites() { return heroLooks(this.state); },

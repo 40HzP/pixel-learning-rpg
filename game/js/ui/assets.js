@@ -61,9 +61,12 @@ export async function loadAssets(pixelDir, { monsters, recruits, items, stages, 
     }
     return dressed.get(key);
   }
-  // 用紙を破りすてたときのミニモーションの教室（背景と、先生の前に重ねる教卓）。ロケットのミニムービーの打ち上げ場と飛ぶロケット。
-  // 飼育小屋と月面の飼育ドームの中（ザコが歩き回る）
-  const [classroom, lectern, launchpad, rocket, barn, moonBarn] = await Promise.all([load('scene_classroom'), load('scene_lectern'), load('scene_launchpad'), load('rocket_flight'), load('scene_barn'), load('scene_moon_barn')]);
+  // 用紙を破りすてたときのミニモーションの教室（背景と、先生の前に重ねる教卓）。ロケットのミニムービーの打ち上げ場と飛ぶロケット
+  // （飼育小屋と月面の飼育ドームの中は、部屋の背景として下の roomSprites で読む）
+  const [classroom, lectern, launchpad, rocket] = await Promise.all([load('scene_classroom'), load('scene_lectern'), load('scene_launchpad'), load('rocket_flight')]);
+  // 飼育小屋の部屋の背景（town.json の barnRooms に書いた名前だけ読む。生態展示は下の世界の背景を切り取って使う）
+  const roomSprites = {};
+  await Promise.all(((town.barnRooms || {}).backgrounds || []).filter((b) => b.sprite).map(async (b) => { roomSprites[b.id] = await load(b.sprite); }));
   // 10階層ごとの世界の背景（stages.json に書いた名前だけ読む）
   const stageList = await Promise.all(stages.map(async (st) => ({ ...st, bg: await load(st.background) })));
   // 施設画面の街：背景と施設の外観（town.json に書いた名前だけ読む）
@@ -112,7 +115,7 @@ export async function loadAssets(pixelDir, { monsters, recruits, items, stages, 
 
   return {
     palette, monsterSprites, recruitSprites, heroSets, heroLooks,
-    sceneSprites: { classroom, lectern, launchpad, rocket, barn, moonBarn },
-    stageList, townBg, townSprites, moonBg, moonSprites, genreSprites, itemSprites, menuSprites,
+    sceneSprites: { classroom, lectern, launchpad, rocket },
+    stageList, townBg, townSprites, moonBg, moonSprites, genreSprites, itemSprites, menuSprites, roomSprites,
   };
 }

@@ -54,8 +54,11 @@ export function createState(balance) {
       // 試作機で効果が出たザコ（同じザコの効果は1回まで）・試作機で上がった打ち上げの成功率
       rocket: { buildCostPaid: false, steps: {}, flown: [], rateBonus: 0 },
       // 飼育小屋（地球のザコ）と月面の飼育ドーム（月面のザコ）：なついたザコ { id, affinity（懐き度）, touchedOn?（小屋で最後に触った日 'YYYY-MM-DD'）,
-      // space?（宇宙帰り）, flights?（飛んで帰ってきた回数） } のなついた順。同じザコは1体まで。生まれ変わっても残る（40HzP の判断）
+      // space?（宇宙帰り）, flights?（飛んで帰ってきた回数）, room（いる部屋の番号。0 は広間） } の入った順（部屋を移すと後ろへ）。
+      // 同じザコは1体まで。生まれ変わっても残る（40HzP の判断）
       barn: [],
+      // 飼育小屋と飼育ドームの部屋（建築の熟練Lvで増え、減らない。生まれ変わっても残る）：{ name, bg（背景のid。null はいつもの背景） }
+      barnRooms: { earth: [{ name: '広間', bg: null }], moon: [{ name: '広間', bg: null }] },
       author: { code: null, seen: [] },            // 作問：作問者コード（はじめて起動したときに決まる）・もう知らせた採用の問題id
       // 今日の1問（現実の日付ごとに1問）：その日（'YYYY-MM-DD'）・問題id・札を開いて閉じたか・答え（{ correct, chosen, timeout }。まだなら null）
       daily: { day: null, id: null, opened: false, result: null },

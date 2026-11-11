@@ -11,6 +11,7 @@ import { logProficiency, birthdays } from './birthday.js';
 import { payContracts } from './allies.js';
 import { earnCompany, settleTaxes } from './company.js';
 import { advanceRocket } from './rocket.js';
+import { syncBarnRooms } from './barn.js';
 
 /** 経過時間 dt 秒（速さ倍率をかけた後）だけゲームを進める。起きたことを events で返す */
 export function tick(state, dt, ctx) {
@@ -28,7 +29,10 @@ export function tick(state, dt, ctx) {
     state.life.ailing = true;
     events.push({ type: 'ailment', age: ageYears(state) });
   }
+  // 飼育小屋の部屋：建築の熟練Lvに合わせて建てる（勉強の正解で上がった分と、誕生日に上がった分。下がっても部屋は残る）
+  syncBarnRooms(state, ctx, events);
   birthdays(state, ctx, events);
+  syncBarnRooms(state, ctx, events);
   payContracts(state, ctx, events);
   earnCompany(state, dt, ctx);
   settleTaxes(state, ctx, events);

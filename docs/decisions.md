@@ -14,7 +14,7 @@
 
 ## ゲームが読むスプライト
 
-- ゲームが読むスプライトは `monsters.json`（`idle`・`attack`、学校の先生は用紙を破りすてたときの `scold`（怒り顔）と `puzzled`（困惑顔）、大喜利を提出したときの `oogiri`（顔ごと）、月面のボスの `marked`・`parts` と `remains` の `sprite` も）・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`（月面の街の `moon` も）と掲示板の `board.sprite`、`stages.json` の `background`、`hero_idle` / `hero_attack` / `hero_old_idle` / `hero_old_attack`（年を取った主人公。体の不調を感じ始めてからの冒険画面とミニムービー）、`hero_bow`（先生にあやまる主人公）、`hero_blush`（大喜利を書いて赤面する主人公）と、女の子の主人公の同じ6つ（`heroine_idle` など。`hero_` を `heroine_` にした名前。下の「性別」）、`scene_classroom` / `scene_lectern`（用紙を破りすてたときの教室と教卓）、`scene_launchpad` / `rocket_flight`（ロケットのミニムービーの打ち上げ場と飛ぶロケット）、`scene_barn` / `scene_moon_barn`（飼育小屋と月面の飼育ドームの中。ザコが歩き回る）、下の切り替えバーのアイコン（`index.html` のボタンの `data-icon`：`icon_adventure`・`icon_study`・`icon_town`・`icon_zukan`・`icon_settings`）と、その背景のコルク `ui_tabs_cork`、テストのジャンルのボタンのアイコン（`genre-groups.json` の `icon`。`genre_*`）、勉強のメニューのボタンのアイコン（`study.js` の `MENU_LOOK`。`menu_*`）、店の品物のアイコン（`items.json` の `icon`。`item_*`）だけ（ブラウザはフォルダの中身を一覧できないため）
+- ゲームが読むスプライトは `monsters.json`（`idle`・`attack`、学校の先生は用紙を破りすてたときの `scold`（怒り顔）と `puzzled`（困惑顔）、大喜利を提出したときの `oogiri`（顔ごと）、月面のボスの `marked`・`parts` と `remains` の `sprite` も）・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`（月面の街の `moon` も）と掲示板の `board.sprite`、`stages.json` の `background`、`hero_idle` / `hero_attack` / `hero_old_idle` / `hero_old_attack`（年を取った主人公。体の不調を感じ始めてからの冒険画面とミニムービー）、`hero_bow`（先生にあやまる主人公）、`hero_blush`（大喜利を書いて赤面する主人公）と、女の子の主人公の同じ6つ（`heroine_idle` など。`hero_` を `heroine_` にした名前。下の「性別」）、`scene_classroom` / `scene_lectern`（用紙を破りすてたときの教室と教卓）、`scene_launchpad` / `rocket_flight`（ロケットのミニムービーの打ち上げ場と飛ぶロケット）、`town.json` の `barnRooms` の `sprite`（飼育小屋と月面の飼育ドームの部屋の背景：`scene_barn` / `scene_moon_barn` / `scene_room_*`。生態展示は `stages.json` の背景を切り取る）、下の切り替えバーのアイコン（`index.html` のボタンの `data-icon`：`icon_adventure`・`icon_study`・`icon_town`・`icon_zukan`・`icon_settings`）と、その背景のコルク `ui_tabs_cork`、テストのジャンルのボタンのアイコン（`genre-groups.json` の `icon`。`genre_*`）、勉強のメニューのボタンのアイコン（`study.js` の `MENU_LOOK`。`menu_*`）、店の品物のアイコン（`items.json` の `icon`。`item_*`）だけ（ブラウザはフォルダの中身を一覧できないため）
 
 ## 進み方と強さ（数値の調整）
 
@@ -432,8 +432,8 @@
 - 飼育小屋：拠点の跡に建てた（`town.json` の `barn`、絵は `town_barn`）。月面の街の前線基地の跡には月面の飼育ドーム（`moon_barn`、`town_moon_barn`）。前の「拠点の跡」「前線基地の跡」の絵（`town_base`・`town_moon_outpost`）は使わなくなったので消した
   - ザコを倒すと `barn.joinChance`（1%。設計ページの案）でなついて、小屋に入る（知らせが出る）。地球のザコは飼育小屋、月面のザコは飼育ドーム。同じザコは1体まで。ボス・中ボスは入らない（中ボスは今までどおり戦いの仲間になる）。ボスの手下（月面のザコ）も、倒せばなつくことがある
   - 学際分野の動物行動学を専攻にしている（休眠していない）間は、なつく確率が `barn.ethologyJoinChance`（2%）になる（下の「学際分野」）
-  - 小屋のザコは戦わない。小屋の中（`scene_barn`・`scene_moon_barn`、90×64）を歩き回る（新しく来た12体まで。`BARN_SHOW`）。触ると下の札に、そのザコの誤解と本当のこと（言葉のザコは「よく言われる意味」と「本来の意味」、研究が割れているザコは「研究が割れている」）。小屋にいるザコの一覧も並べ、押しても同じ札が出る
-  - 小屋のザコは生まれ変わっても残る（40HzP の判断。セーブの `legacy.barn`：`{ id, affinity（懐き度）, touchedOn?（最後に触った日）, space?（宇宙帰り）, flights?（飛んで帰ってきた回数） }` のなついた順。前のセーブは空の小屋。懐き度の無い前のセーブの小屋のザコは0として読む）
+  - 小屋のザコは戦わない。小屋の中（`scene_barn`・`scene_moon_barn`、90×64。部屋ごとに背景を選べる。下の「部屋分けと部屋の背景」）を歩き回る（部屋ごとに新しく来た12体まで。`BARN_SHOW`）。触ると下の札に、そのザコの誤解と本当のこと（言葉のザコは「よく言われる意味」と「本来の意味」、研究が割れているザコは「研究が割れている」）。小屋にいるザコの一覧も並べ、押しても同じ札が出る
+  - 小屋のザコは生まれ変わっても残る（40HzP の判断。セーブの `legacy.barn`：`{ id, affinity（懐き度）, touchedOn?（最後に触った日）, space?（宇宙帰り）, flights?（飛んで帰ってきた回数）, room（いる部屋） }` のなついた順（部屋を移したザコは後ろへ）。前のセーブは空の小屋。懐き度の無い前のセーブの小屋のザコは0として読む）
   - 目安（計算で再現）：勉強なしで1時間に約900体のザコを倒すので、1時間におよそ9体なつく（今いる世界のザコから。すでに小屋にいるザコは入らない）
 - 試作機：ロケット発射場の「試作機」の欄。ロケット計画の「機体設計」の工程が終わると、小屋のザコ（月面の飼育ドームのザコも）を1体乗せて飛ばせる（地球にいるときだけ）。どのザコも乗せられる
   - 1回 `rocket.prototype.cost`（10万G）。試作機の成功率は `prototype.successRate`（70%）。成功率が見えるのは確率論を専攻にしているときだけ（本番と同じ）。費用と成功率は設計ページで「試遊で決める」なので Claude Code の仮の数字（10万Gは病院の1回目の治療と同じ。会社が無くても、機体設計が終わるころには払える額）
@@ -458,6 +458,17 @@
   - ⑤ 更生：懐き度が最大になると、そのザコは誤解ではなく本当のことを話すようになる（小屋の札の吹き出しが本当のことに変わる。知らせ「◯◯が自分の誤解に気づいた！（更生）」）。姿は新しい絵を描かず、頭の上に金色の光の輪（5×3）を描き足す（小屋の中・小屋の一覧・札・図鑑の絵。`sprites.js` の `drawHalo`、`spriteCanvas` の `halo`）。図鑑の札は名前の横に「更生」の印だけ（新しい欄は作らず、図鑑の数も増やさない）。光の輪は Claude Code の判断（設計ページ「印は Claude Code が決める」）
   - 懐いたとき（50を越えた）にも知らせを出す（「◯◯がすっかり懐いた！…誕生日に贈り物…誤答を1つ消してくれたりする」。Claude Code の判断。何ができるようになったか分かるように）
   - 起動から3分の比較に、その3分で懐き度が上がったザコ（いちばん上がったザコと「ほか◯体」）を添える（`compareSnapshots` の `affinity`）
+- 部屋分けと部屋の背景（40HzP の依頼「設計ページの『部屋分け』と『部屋の背景』を実装して」。2026-11-11。設計ページ「部屋分け（2026-11-11）」「部屋の背景」のとおり）。計算は `sim/barn.js`（`syncBarnRooms`・`barnRoomInfo`・`moveToRoom`・`renameBarnRoom`・`barnBackgrounds`・`setRoomBackground`・`barnRoomList`）、画面は `ui/facility/barn.js`、データは `balance.json` の `barn.roomGenre`・`barn.roomsMax` と `town.json` の `barnRooms`
+  - 部屋の数：`barn.roomGenre`（建築）の熟練Lv n で 1+n 部屋、地球は `roomsMax.earth`（4）・月面は `roomsMax.moon`（2）まで（40HzP の判断）。熟練Lvに合わせて毎フレーム建て（`tick` の `syncBarnRooms`。勉強の正解と誕生日で上がった分）、増えたら知らせ「飼育小屋の部屋が増えた！」。熟練が下がっても、生まれ変わっても部屋は残る（設計ページの案のとおり）
+  - セーブ：`legacy.barnRooms`（`{ earth: [{ name, bg }], moon: [...] }`。`bg` は背景のid、null はその世界のいつもの背景）と、小屋のザコの `room`（部屋の番号、0 が広間）。項目を足しただけなので版は上げない（前のセーブは広間だけ・ザコはみんな広間として `fillDefaults` で読む）
+  - 新しくなついたザコ（試作機から帰らずに野に戻り、また懐いたザコも）は広間に入る。部屋の名前の既定は「広間」「部屋2」「部屋3」…で、8文字まで（主人公の名前と同じ。空にすると既定に戻る）。名前と既定の名前は Claude Code の判断
+  - 画面：部屋が2つ以上あれば、上に部屋を切り替えるボタン（名前と体数）。見ている部屋のザコだけが歩く（新しく入った `BARN_SHOW`（12）体まで）。下の一覧は部屋ごと（見ている部屋が先）。ほかの部屋のザコを選ぶと、札の下に「いる部屋」と「この部屋（◯◯）へ」が出て、押すと見ている部屋へ移る（設計ページ「ザコを選んで『この部屋へ』」をこの形にした。Claude Code の判断）。移したザコは小屋の並びの後ろへ回す（その部屋で歩くように）。「部屋の名前と背景」の欄（開け閉めできる）で名前を変え、背景を選ぶ
+  - 部屋による効果は無い（40HzP の判断）。画面にも「部屋や背景による効果は無い」と出す
+- 部屋の背景（`town.json` の `barnRooms.backgrounds`。地球でも月面でも全部選べる）：いつもの小屋（`scene_barn`）・いつものドーム（`scene_moon_barn`）・生態展示（10のエリア）・分類展示（`scene_room_taxonomy`）・行動展示（`scene_room_behavior`）・宇宙の待機室（`scene_room_space`）・更生の教室（`scene_room_classroom`）・言葉の書斎（`scene_room_study`）。新しい5枚の絵は Claude Code が描いた（`style-guide.md` 9章。40HzP が直してよい）
+  - 生態展示は、階層の背景（90×160）の y=64 から下の64行を小屋の大きさに切り取って使う（`crop`。地平線が上から34行目あたりに来て、上は景色・下は地面になる）。ザコが歩ける床の上の端は背景ごとに `floorY`（いつもの小屋と新しい5枚は15、いつものドームは20、生態展示は21。足元が地面に乗るように）
+  - 生態展示の部屋に、そのエリアに出るザコだけを集めると「ふるさと」の部屋になる（部屋の名前の横に「ふるさと」の印と一言。効果は無い。`barnRoomList` の `home`）
+  - 背景の名前に添える一言（`note`）は Claude Code が書いた。設計ページ「文を入れる前に裏取りする」の展示の説明は、日本語版ウィキペディアの「動物園」「行動展示」で確かめた（2026-11-11）：生態展示＝野生の生息環境を再現した展示、分類展示＝同じ種類の生き物を集めて見比べられるようにした展示、行動展示＝その動物らしい行動や能力を自然に引き出して見せる展示（旭山動物園の取り組みで知られる）
+  - `rooms.test.js` が確かめる
 - 地球の飼育小屋と月面の飼育ドームの説明・月の一言は Claude Code が書いた（40HzP が直してよい）
 - デバッグ画面の「飼育小屋と試作機」：今いる世界のザコを5体なつかせる（宇宙を飛んだ生き物のザコを先に）・機体設計を終える（試作機20回分のゴールドも持たせる）・小屋のザコの懐き度を+25（4回で更生）
 - `barn.test.js`・`affinity.test.js` が確かめる

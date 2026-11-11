@@ -1,4 +1,4 @@
-// ゲームの計算：飼育小屋と試作機（なつく・懐き度・誕生日の贈り物・見送り・試作機）
+// ゲームの計算：飼育小屋と試作機（なつく・部屋分けと部屋の背景・懐き度・誕生日の贈り物・見送り・試作機）
 
 import { fieldActive } from '../fields.js';
 import { HOURS_PER_YEAR } from './core.js';
@@ -8,17 +8,150 @@ import { generationMultiplier } from './life.js';
 import { worldOf, onMoon, floorStats } from './world.js';
 import { rocketSteps, launchRateVisible, launchSuccessRate } from './rocket.js';
 import { isMoonItem, itemPower } from './shop.js';
+import { genreLevel } from './allies.js';
 
 /** 飼育小屋の場所：地球のザコは飼育小屋（earth）、月面のザコは月面の飼育ドーム（moon） */
 export const BARN_NAMES = { earth: '飼育小屋', moon: '月面の飼育ドーム' };
 
 export const monsterById = (ctx, id) => ctx.monsters.find((m) => m.id === id) || null;
 
-/** 飼育小屋（world を渡すとその世界の小屋だけ）のザコ：{ id, monster, space, flights } のなついた順 */
+/**
+ * 飼育小屋（world を渡すとその世界の小屋だけ）のザコ：{ id, monster, room（いる部屋の番号）, space, flights } の入った順
+ * （なついた順。部屋を移したザコは後ろへ。moveToRoom）
+ */
 export function barnAnimals(state, ctx, world = null) {
   return (state.legacy.barn || [])
-    .map((a) => ({ ...a, monster: monsterById(ctx, a.id) }))
+    .map((a) => {
+      const monster = monsterById(ctx, a.id);
+      return { ...a, monster, room: monster ? roomIndex(state, a.room, worldOf(monster)) : 0 };
+    })
     .filter((a) => a.monster && (!world || worldOf(a.monster) === world));
+}
+
+/* ---------- 部屋分けと部屋の背景（設計ページ「部屋分け（2026-11-11）」「部屋の背景」） ---------- */
+// 飼育小屋・飼育ドームを部屋に分け、どのザコをどの部屋に入れるかは遊ぶ人が決める。部屋は balance.barn.roomGenre（建築）の
+// 熟練Lv1つにつき1部屋増え（Lv0でも広間1部屋）、地球は balance.barn.roomsMax.earth、月面は roomsMax.moon まで（40HzP の判断）。
+// 一度建てた部屋は、熟練が誕生日に下がっても、生まれ変わっても残る（セーブの legacy.barnRooms）。新しくなついたザコは広間（0番）に入る。
+// 部屋ごとに背景を選べる（town.json の barnRooms。地球でも月面でも全部選べる）。部屋や背景による効果は無い（眺めるための部屋。40HzP の判断）
+
+/** 部屋の名前の長さ（主人公の名前と同じ） */
+export const ROOM_NAME_MAX = 8;
+/** 部屋の名前の既定：0番は広間、ほかは「部屋2」のように */
+export const defaultRoomName = (index) => (index === 0 ? '広間' : `部屋${index + 1}`);
+
+/** その世界の部屋 [{ name, bg（背景のid。null ならその世界のいつもの背景） }]。前のセーブ（この欄が無い）は広間だけ */
+export function barnRoomsOf(state, world) {
+  const r = state.legacy.barnRooms && state.legacy.barnRooms[world];
+  return Array.isArray(r) && r.length ? r : [{ name: defaultRoomName(0), bg: null }];
+}
+
+/** 部屋を書き換えるときに、セーブの欄を用意する */
+function editableRooms(state, world) {
+  if (!state.legacy.barnRooms) state.legacy.barnRooms = {};
+  const r = state.legacy.barnRooms;
+  if (!Array.isArray(r[world]) || !r[world].length) r[world] = barnRoomsOf(state, world).map((x) => ({ ...x }));
+  return r[world];
+}
+
+/** ザコがいる部屋の番号（セーブの room。無い・建っていない番号なら広間） */
+export function roomIndex(state, room, world) {
+  const n = barnRoomsOf(state, world).length;
+  return Number.isInteger(room) && room >= 0 && room < n ? room : 0;
+}
+
+/** 部屋の数：{ built（建てた部屋）, max, genre（建築）, level（今の熟練Lv）, nextLevel（次の部屋が建つ熟練Lv。もう最大なら null） } */
+export function barnRoomInfo(state, ctx, world) {
+  const b = ctx.balance.barn;
+  const built = barnRoomsOf(state, world).length;
+  const max = Math.max(1, (b.roomsMax || {})[world] || 1);
+  return { built, max, genre: b.roomGenre, level: genreLevel(state, b.roomGenre), nextLevel: built < max ? built : null };
+}
+
+/**
+ * 建築の熟練Lvに合わせて部屋を建てる（毎フレーム。tick）。熟練Lv n で 1+n 部屋（最大 roomsMax）。部屋は減らない。
+ * 増えたら世界ごとに知らせ（barnRoom）
+ */
+export function syncBarnRooms(state, ctx, events) {
+  const b = ctx.balance.barn;
+  if (!b.roomsMax) return;
+  const level = genreLevel(state, b.roomGenre);
+  for (const world of Object.keys(BARN_NAMES)) {
+    const target = Math.min(Math.max(1, b.roomsMax[world] || 1), 1 + level);
+    if (barnRoomsOf(state, world).length >= target) continue;
+    const rooms = editableRooms(state, world);
+    while (rooms.length < target) rooms.push({ name: defaultRoomName(rooms.length), bg: null });
+    if (events) events.push({ type: 'barnRoom', world, barn: BARN_NAMES[world], rooms: rooms.length, max: b.roomsMax[world], genre: b.roomGenre, level });
+  }
+}
+
+/**
+ * 小屋のザコを部屋 room に移す（同じ世界の部屋だけ）。部屋の中を歩くのは新しく入った数体（画面の BARN_SHOW）なので、
+ * 移したザコは並びの後ろへ回す（移した部屋で歩くように）。{ ok, reason?, name, room（部屋の名前） }
+ */
+export function moveToRoom(state, ctx, id, room) {
+  const a = barnEntry(state, id);
+  const m = monsterById(ctx, id);
+  if (!a || !m) return { ok: false, reason: '小屋にいないザコです' };
+  const world = worldOf(m);
+  const rooms = barnRoomsOf(state, world);
+  if (!(Number.isInteger(room) && room >= 0 && room < rooms.length)) return { ok: false, reason: 'その部屋はまだありません' };
+  if (roomIndex(state, a.room, world) === room) return { ok: false, reason: `${m.name}はもう${rooms[room].name}にいる` };
+  a.room = room;
+  state.legacy.barn = [...state.legacy.barn.filter((x) => x !== a), a];
+  return { ok: true, name: m.name, room: rooms[room].name };
+}
+
+/** 部屋の名前を変える（制御文字を除き、前後の空白を取り、ROOM_NAME_MAX 文字まで。空なら既定の名前）。変えた名前（部屋が無ければ null） */
+export function renameBarnRoom(state, world, index, name) {
+  if (!(index >= 0 && index < barnRoomsOf(state, world).length)) return null;
+  const room = editableRooms(state, world)[index];
+  const s = String(name == null ? '' : name).replace(/[\u0000-\u001f\u007f]/g, '').trim();
+  room.name = Array.from(s).slice(0, ROOM_NAME_MAX).join('') || defaultRoomName(index);
+  return room.name;
+}
+
+/**
+ * 部屋の背景の一覧（town.json の barnRooms.backgrounds の順）。stages の印のある項目（生態展示）は、地球の10のエリアの
+ * 階層の背景に広げる（id は「habitat:始まる階層」、area はエリアの名前、crop は階層の背景を切り取る上の行）。
+ * { id, name, note, sprite, floorY（ザコが歩ける床の上の端）, crop?, area?, group? }
+ */
+export function barnBackgrounds(ctx) {
+  const list = (ctx.barnRooms && ctx.barnRooms.backgrounds) || [];
+  return list.flatMap((b) => (b.stages
+    ? (ctx.stages || []).filter((st) => (st.world || 'earth') === 'earth').map((st) => ({
+      ...b, id: `${b.id}:${st.from}`, name: `${b.name}（${st.name}）`, group: b.name, area: st.name, sprite: st.background, note: String(b.note || '').replaceAll('{area}', st.name),
+    }))
+    : [b]));
+}
+export const barnBackgroundById = (ctx, id) => barnBackgrounds(ctx).find((b) => b.id === id) || null;
+
+/** 部屋の背景（選んでいなければ、その世界のいつもの背景。town.json の barnRooms.defaults） */
+export function roomBackground(ctx, room, world) {
+  const defaults = (ctx.barnRooms && ctx.barnRooms.defaults) || {};
+  return (room && room.bg && barnBackgroundById(ctx, room.bg)) || barnBackgroundById(ctx, defaults[world]) || null;
+}
+
+/** 部屋の背景を選ぶ。{ ok, reason?, name（背景の名前） } */
+export function setRoomBackground(state, ctx, world, index, id) {
+  const bg = barnBackgroundById(ctx, id);
+  if (!bg) return { ok: false, reason: 'その背景はありません' };
+  if (!(index >= 0 && index < barnRoomsOf(state, world).length)) return { ok: false, reason: 'その部屋はまだありません' };
+  editableRooms(state, world)[index].bg = bg.id;
+  return { ok: true, name: bg.name };
+}
+
+/**
+ * その世界の部屋の一覧：{ index, name, bg（背景）, animals（その部屋のザコ。入った順）, home（ふるさと） }。
+ * 生態展示の部屋に、そのエリアに出るザコだけを集めると「ふるさと」の部屋になる（home にエリアの名前。効果は無い）
+ */
+export function barnRoomList(state, ctx, world) {
+  const animals = barnAnimals(state, ctx, world);
+  return barnRoomsOf(state, world).map((r, index) => {
+    const inRoom = animals.filter((a) => a.room === index);
+    const bg = roomBackground(ctx, r, world);
+    const home = bg && bg.area && inRoom.length && inRoom.every((a) => (a.monster.areas || []).includes(bg.area)) ? bg.area : null;
+    return { index, name: r.name, bg, animals: inRoom, home };
+  });
 }
 
 /** 小屋に入れるザコの数（その世界のザコの全数） */
@@ -33,7 +166,7 @@ export function tameZako(state, ctx, monsterId, events, force = false) {
   if (!m || m.kind !== 'monster') return false;
   if (state.legacy.barn.some((a) => a.id === monsterId)) return false;
   if (!force && !(ctx.rng() < joinChance(state, ctx))) return false;
-  state.legacy.barn.push({ id: monsterId, affinity: 0 });
+  state.legacy.barn.push({ id: monsterId, affinity: 0, room: 0 }); // 新しくなついたザコは広間に入る
   const world = worldOf(m);
   if (events) events.push({ type: 'barnJoin', monsterId, name: m.name, world, barn: BARN_NAMES[world] });
   return true;
