@@ -221,8 +221,8 @@ export function update(app, force) {
     fieldList(s, app.ctx).map((f) => [f.unlocked, f.dormant, f.slot, f.levels]), s.knowledge.radio, rocketSteps(s, app.ctx).map((st) => [st.done, st.active]), (nextBoss(s, app.ctx) || {}).id,
     // 飼育小屋のザコ（懐き度は触るたび・誕生日ごとに変わるので、更生したかだけ）といる部屋、部屋（名前と背景）、試作機の効果
     s.legacy.barn.map((a) => [a.id, !!a.space, (a.affinity || 0) >= app.ctx.balance.barn.affinityMax, a.room || 0]), s.legacy.barnRooms, s.legacy.rocket.flown, s.legacy.rocket.rateBonus]);
-  // 名前を入力している途中は作り直さない（入力が消えないように）
-  const typing = root.contains(document.activeElement) && document.activeElement.tagName === 'INPUT';
+  // 名前を入力している途中と、選ぶ欄（飼育小屋の部屋の背景）を開いている間は作り直さない（入力が消えたり、選ぶ欄が閉じたりしないように）
+  const typing = root.contains(document.activeElement) && ['INPUT', 'SELECT'].includes(document.activeElement.tagName);
   if (force || ((k !== key || !live) && !typing)) { key = k; buildPanel(app); }
   const hs = heroStats(s, app.ctx);
   live.gold.textContent = fmt(s.gold);

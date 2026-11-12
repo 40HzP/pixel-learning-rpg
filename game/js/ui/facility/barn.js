@@ -111,21 +111,12 @@ export function barnPanel(app) {
   const cur = rooms[roomPick[world]];
   const info = barnRoomInfo(s, ctx, world);
   const many = rooms.length > 1;
-  const canvas = el('canvas', { class: 'pixel barn-scene', width: BARN_W, height: BARN_H, 'aria-label': `${BARN_NAMES[world]}の${cur.name}の中` });
-  const g = canvas.getContext('2d');
-  g.imageSmoothingEnabled = false;
   const hint = !animals.length ? ''
     : cur.animals.length ? 'ザコを触ると、懐き度と、誤解と本当のことが見られる（1日に1回、なでると懐き度が上がる）'
       : `${cur.name}にはまだ誰もいない。下の一覧からザコを選んで「この部屋へ」で移せる`;
   const card = el('div', { class: 'barn-card', 'aria-live': 'polite' }, el('div', { class: 'muted' }, hint));
-  // ザコが歩ける床（ザコの絵の左上。足元が床に乗るように。床の上の端は背景ごと：town.json の floorY）
-  const area = { x0: 0, x1: BARN_W - 16, y0: cur.bg ? cur.bg.floorY : 15, y1: BARN_H - 17 };
-  const rnd = (a, b) => a + Math.random() * (b - a);
-  const walkers = cur.animals.slice(-BARN_SHOW).map((a) => {
-    const x = rnd(area.x0, area.x1), y = rnd(area.y0, area.y1);
-    return { a, sp: (app.monsterSprites[a.id] || {}).idle, x, y, tx: x, ty: y, wait: rnd(0, 2), flip: Math.random() < 0.5, speed: rnd(5, 9), reformed: isReformed(s, ctx, a.id) };
-  });
-  const barn = { canvas, g, walkers, world, area, bg: cur.bg, sprite: roomSprite(app, cur.bg), selected: null, last: 0 };
+  // 部屋の中の絵（作り直しても同じ絵とザコの歩く位置を使い続ける。roomScene）
+  const barn = roomScene(app, world, cur);
   // ほかの部屋のザコを、見ている部屋へ移す
   const move = (id) => {
     const r = moveToRoom(app.state, ctx, id, cur.index);
@@ -157,16 +148,10 @@ export function barnPanel(app) {
     if (touch.gained > 0) app.save();
     if (ev.length) app.handleEvents(ev);
     show(id, touch);
-    const w = walkers.find((x) => x.a.id === id);
+    const w = barn.walkers.get(id);
     if (w) w.reformed = isReformed(app.state, app.ctx, id);
   };
-  canvas.addEventListener('click', (ev) => {
-    const r = canvas.getBoundingClientRect();
-    const px = ((ev.clientX - r.left) / r.width) * BARN_W, py = ((ev.clientY - r.top) / r.height) * BARN_H;
-    // 手前（足元が下）のザコから。指でも押しやすいように少し広めに
-    const hit = [...walkers].sort((p, q) => q.y - p.y).find((w) => px >= w.x - 2 && px <= w.x + 18 && py >= w.y - 2 && py <= w.y + 18);
-    if (hit) select(hit.a.id);
-  });
+  barn.onPick = select; // 絵の中のザコを押したとき（絵は使い続けるので、押したときの動きはここで差し替える）
   const zakoButton = (a) => el('button', { 'data-id': a.id, onclick: () => select(a.id) },
     spriteCanvas((app.monsterSprites[a.id] || {}).idle, 2, app.palette, { halo: isReformed(s, ctx, a.id) }),
     el('span', {}, a.monster.name, el('small', {}, `懐き度 ${Math.floor(a.affinity || 0)}`)),
@@ -178,13 +163,7 @@ export function barnPanel(app) {
     el('div', { class: 'barn-list' }, r.animals.map(zakoButton)))));
   // 作り直したときは、前に触ったザコの札を出したままにする（触ったことにはしない）
   if (barnPick && barnPick.view === view && animals.some((a) => a.id === barnPick.id)) show(barnPick.id, null);
-  // 歩くザコは画面の更新（0.2秒ごと）より細かく動かす。施設を出て絵が外れたら止まる
-  const loop = () => {
-    if (!canvas.isConnected) return;
-    if (!root.hidden) drawBarn(app, barn, performance.now() / 1000);
-    requestAnimationFrame(loop);
-  };
-  requestAnimationFrame(loop);
+  else barn.selected = null;
   const frameDone = rocketSteps(s, ctx).some((st) => st.id === 'airframe' && st.done);
   const roomsText = `部屋 ${info.built}／${info.max}`
     + (info.nextLevel != null ? `（${info.genre}の熟練がLv${info.nextLevel}になると部屋が増える。今 Lv${info.level}）` : '');
@@ -198,7 +177,7 @@ export function barnPanel(app) {
     }, el('span', {}, r.name), el('small', {}, `${r.animals.length}体`)))) : null,
     el('div', { class: 'barn-room-head' }, el('b', {}, cur.name), cur.home ? el('span', { class: 'space-badge home' }, 'ふるさと') : null,
       el('small', { class: 'muted' }, cur.bg ? cur.bg.name : '')),
-    el('div', { class: 'barn-box' }, canvas),
+    el('div', { class: 'barn-box' }, barn.canvas),
     card,
     roomSettings(app, world, cur),
     cur.home ? note(`${cur.home}に出るザコだけが集まった「ふるさと」の部屋`) : null,
@@ -213,6 +192,64 @@ export function barnPanel(app) {
   ];
 }
 
+/**
+ * 部屋の中の絵（世界と部屋ごとに1つ）。施設の画面は、階層が進む・Lvが上がる・契約料を払うなどで数秒ごとに作り直されるが、
+ * 絵（canvas）とザコの歩く位置は使い続ける（前は作り直すたびにザコが別の場所に置き直され、短い動画を切り替えているように見えた。
+ * 40HzP の指摘で直した）。部屋のザコが変わったら、いなくなったザコを外し、来たザコだけを新しい場所に置く
+ */
+const scenes = new Map();
+function roomScene(app, world, cur) {
+  const key = `${world}:${cur.index}`;
+  let sc = scenes.get(key);
+  if (!sc) {
+    const canvas = el('canvas', { class: 'pixel barn-scene', width: BARN_W, height: BARN_H });
+    const g = canvas.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    sc = { canvas, g, walkers: new Map(), selected: null, last: 0, running: false, onPick: null };
+    canvas.addEventListener('click', (ev) => {
+      const r = canvas.getBoundingClientRect();
+      const px = ((ev.clientX - r.left) / r.width) * BARN_W, py = ((ev.clientY - r.top) / r.height) * BARN_H;
+      // 手前（足元が下）のザコから。指でも押しやすいように少し広めに
+      const hit = [...sc.walkers.values()].sort((p, q) => q.y - p.y).find((w) => px >= w.x - 2 && px <= w.x + 18 && py >= w.y - 2 && py <= w.y + 18);
+      if (hit && sc.onPick) sc.onPick(hit.a.id);
+    });
+    scenes.set(key, sc);
+  }
+  sc.canvas.setAttribute('aria-label', `${BARN_NAMES[world]}の${cur.name}の中`);
+  sc.bg = cur.bg;
+  sc.sprite = roomSprite(app, cur.bg);
+  // ザコが歩ける床（ザコの絵の左上。足元が床に乗るように。床の上の端は背景ごと：town.json の floorY）
+  const area = sc.area = { x0: 0, x1: BARN_W - 16, y0: cur.bg ? cur.bg.floorY : 15, y1: BARN_H - 17 };
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const next = new Map();
+  for (const a of cur.animals.slice(-BARN_SHOW)) {
+    let w = sc.walkers.get(a.id);
+    if (!w) {
+      const x = rnd(area.x0, area.x1), y = rnd(area.y0, area.y1);
+      w = { x, y, tx: x, ty: y, wait: rnd(0, 2), flip: Math.random() < 0.5, speed: rnd(5, 9) };
+    }
+    // 背景を替えて床の高さが変わっても、床の上に収める
+    w.y = clamp(w.y, area.y0, area.y1); w.ty = clamp(w.ty, area.y0, area.y1);
+    Object.assign(w, { a, sp: (app.monsterSprites[a.id] || {}).idle, reformed: isReformed(app.state, app.ctx, a.id) });
+    next.set(a.id, w);
+  }
+  sc.walkers = next;
+  // 作ってすぐに1枚描いておく（画面に入れた瞬間に空の絵が見えないように）
+  drawBarn(app, sc, performance.now() / 1000);
+  // 歩くザコは画面の更新（0.2秒ごと）より細かく動かす。施設を出て絵が外れたら止まり、また入ったら動き出す
+  if (!sc.running) {
+    sc.running = true;
+    const loop = () => {
+      if (!sc.canvas.isConnected) { sc.running = false; sc.last = 0; return; }
+      if (!root.hidden) drawBarn(app, sc, performance.now() / 1000);
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
+  return sc;
+}
+
 /** 部屋の中のザコを歩かせて描く（毎フレーム）。生態展示の背景は、階層の背景（90×160）の crop 行目から下を見せる */
 function drawBarn(app, barn, now) {
   const dt = barn.last ? Math.min(0.1, now - barn.last) : 0;
@@ -221,7 +258,7 @@ function drawBarn(app, barn, now) {
   g.clearRect(0, 0, BARN_W, BARN_H);
   if (barn.sprite) drawSprite(g, barn.sprite, 0, 0, -((barn.bg && barn.bg.crop) || 0));
   else drawPlaceholder(g, 0, 0, BARN_W, BARN_H, app.palette);
-  for (const w of barn.walkers) {
+  for (const w of barn.walkers.values()) {
     if (w.wait > 0) w.wait -= dt;
     else {
       const dx = w.tx - w.x, dy = w.ty - w.y, d = Math.hypot(dx, dy);
@@ -237,7 +274,7 @@ function drawBarn(app, barn, now) {
       }
     }
   }
-  for (const w of [...barn.walkers].sort((p, q) => p.y - q.y)) {
+  for (const w of [...barn.walkers.values()].sort((p, q) => p.y - q.y)) {
     if (w.sp) drawSprite(g, w.sp, frameAt(w.sp, now), w.x, w.y, { flip: w.flip });
     else drawPlaceholder(g, w.x, w.y, 16, 16, app.palette);
     if (w.reformed && w.sp) drawHalo(g, w.sp, w.x, w.y, app.palette, { flip: w.flip }); // 更生した印（光の輪）
