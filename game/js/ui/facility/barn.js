@@ -17,11 +17,21 @@ let barnPick = null; // 小屋で最後に触ったザコ（{ view, id }。階�
 const roomPick = { earth: 0, moon: 0 }; // 見ている部屋（世界ごと）
 let settingsOpen = false; // 「部屋の名前と背景」を開いているか（作り直しても開いたまま）
 
+/** なでた行の文（いつも1行置いて、なでる前とあとで札の大きさが変わらないようにする） */
+const TOUCH_TEXT = {
+  gained: (n) => `なでた！　懐き度 +${affNum(n)}`,
+  touched: 'なでた！',
+  already: '今日はもうなでた（懐き度が上がるのは1日1回）',
+  ready: 'なでると懐き度が上がる（1日1回）',
+};
+let lastTouch = null; // 最後になでた結果 { id, day, touch }（画面を作り直しても、なでた行をそのまま出すため）
+
 /**
- * 小屋のザコの札：懐き度（帯）・触った結果・そのザコの一言（誤解。更生すると本当のこと）・「誤解」と「本当のこと」
- * （言葉のザコは「よく言われる意味」と「本来の意味」、研究が割れているザコは「研究が割れている」）。touch は触った結果（touchZako）
+ * 小屋のザコの札：懐き度（帯）・なでた行・そのザコの一言（誤解。更生すると本当のこと）・「誤解」と「本当のこと」
+ * （言葉のザコは「よく言われる意味」と「本来の意味」、研究が割れているザコは「研究が割れている」）。touch は触った結果（touchZako）。
+ * worst は札の高さを測るための形：変わりうる文をいちばん長いものにして測る（fitCard）
  */
-function barnCard(app, a, touch) {
+function barnCard(app, a, touch, worst = false) {
   const m = a.monster;
   const b = app.ctx.balance.barn;
   const aff = Math.floor(a.affinity || 0);
@@ -30,25 +40,61 @@ function barnCard(app, a, touch) {
   const truthLabel = m.wordType ? '本来の意味' : '本当のこと';
   const flights = a.flights ? `試作機で${a.flights}回飛んで帰ってきた` : '';
   const bar = el('i', { style: { width: `${(aff / b.affinityMax) * 100}%` } });
-  const touchText = !touch ? '' : touch.already ? '今日はもうなでた（1日に1回、懐き度が上がる）'
-    : touch.gained > 0 ? `なでた！　懐き度 +${affNum(touch.gained)}` : 'なでた！';
-  const perks = reformed ? '更生した：誤解ではなく本当のことを話すようになった'
-    : aff >= b.friendlyAffinity ? `懐いている：誕生日に贈り物を持ってくることがあり、${m.name}の問題で誤答を1つ消してくれる`
-      : `懐き度${b.friendlyAffinity}で、誕生日の贈り物と勉強の手伝い。${b.affinityMax}で更生する`;
+  const today = app.today();
+  const touchText = worst ? TOUCH_TEXT.already
+    : touch ? (touch.already ? TOUCH_TEXT.already : touch.gained > 0 ? TOUCH_TEXT.gained(touch.gained) : TOUCH_TEXT.touched)
+      : a.touchedOn === today ? TOUCH_TEXT.already : TOUCH_TEXT.ready;
+  const perkTexts = [
+    '更生した：誤解ではなく本当のことを話すようになった',
+    `懐いている：誕生日に贈り物を持ってくることがあり、${m.name}の問題で誤答を1つ消してくれる`,
+    `懐き度${b.friendlyAffinity}で、誕生日の贈り物と勉強の手伝い。${b.affinityMax}で更生する`,
+  ];
+  const perks = worst ? perkTexts.reduce((x, y) => (y.length > x.length ? y : x))
+    : perkTexts[reformed ? 0 : aff >= b.friendlyAffinity ? 1 : 2];
+  const truthSay = m.debated ? '本当のところは、研究が割れているんだ' : m.truth;
+  const say = worst ? (truthSay.length > m.myth.length ? truthSay : m.myth) : reformed ? truthSay : m.myth;
   return [
     el('div', { class: 'barn-card-head' },
-      spriteCanvas((app.monsterSprites[m.id] || {}).idle, 3, app.palette, { halo: reformed }),
+      spriteCanvas((app.monsterSprites[m.id] || {}).idle, 3, app.palette, { halo: reformed || worst }),
       el('div', {}, el('b', {}, m.name), a.space ? el('span', { class: 'space-badge' }, '宇宙帰り') : null,
-        reformed ? el('span', { class: 'space-badge reformed' }, '更生') : null, flights ? el('small', {}, flights) : null)),
+        reformed || worst ? el('span', { class: 'space-badge reformed' }, '更生') : null, flights ? el('small', {}, flights) : null)),
     el('div', { class: 'affinity' }, el('span', {}, '懐き度'), el('div', { class: 'affbar' }, bar), el('b', {}, `${aff}/${b.affinityMax}`)),
-    touchText ? el('div', { class: touch && touch.gained > 0 ? 'good' : 'muted' }, touchText) : null,
+    el('div', { class: 'barn-touch ' + (touch && touch.gained > 0 ? 'good' : 'muted') }, touchText),
     el('small', { class: 'muted' }, perks),
     // そのザコの一言：誤解を話す。更生すると本当のことを話す（設計ページ「懐き度」の⑤）
-    el('div', { class: 'barn-say' + (reformed ? ' reformed' : '') }, `「${reformed ? (m.debated ? '本当のところは、研究が割れているんだ' : m.truth) : m.myth}」`),
+    el('div', { class: 'barn-say' + (reformed ? ' reformed' : '') }, `「${say}」`),
     el('span', { class: 'label' }, mythLabel), el('div', {}, m.myth),
     el('span', { class: 'label' }, truthLabel), el('div', { class: 'good' }, m.debated ? '研究が割れている' : m.truth),
     a.space && m.space && m.space.history ? el('div', { class: 'muted barn-history' }, m.space.history) : null,
   ].filter(Boolean);
+}
+
+/**
+ * 札の高さをそろえる（40HzP の依頼「ザコによって説明文の長さが違って枠のサイズが統一されてない」）。
+ * その世界の小屋のザコ全員の札を、変わりうる文をいちばん長くした形（barnCard の worst）で画面の外に並べて測り、
+ * いちばん高い札の高さを札の最低の高さにする。札の大きさが変わらないので、なでても・ほかのザコを選んでも、下の一覧が動かない
+ * （前は札が伸びて一覧が下へずれ、スクロールした位置から飛んだように見えた）。
+ * 測った高さは、ザコの顔ぶれ（と宇宙帰り・更生など札の形が変わること）と札の幅が同じあいだは使い回す
+ */
+let cardFit = { key: '', width: 0, h: 0 };
+function fitCard(app, card, animals, worstRow) {
+  if (!animals.length) return;
+  const key = JSON.stringify([animals.map((a) => [a.id, !!a.space, a.flights || 0]), worstRow ? worstRow.textContent : '']);
+  if (cardFit.key === key && cardFit.h) card.style.minHeight = `${cardFit.h}px`; // 作り直したときに、すぐに同じ高さで出す
+  // 画面に入ったあと（幅が分かってから）、描く前に測る
+  queueMicrotask(() => {
+    if (!card.isConnected) return;
+    const width = card.offsetWidth;
+    if (!width || (cardFit.key === key && cardFit.width === width)) return;
+    const probe = el('div', { 'aria-hidden': 'true', style: { position: 'fixed', left: '-10000px', top: '0', width: `${width}px`, visibility: 'hidden' } });
+    const cards = animals.map((a) => el('div', { class: 'barn-card' }, ...barnCard(app, a, null, true), worstRow ? worstRow.cloneNode(true) : null));
+    probe.append(...cards);
+    document.body.append(probe);
+    const h = Math.max(...cards.map((c) => c.offsetHeight));
+    probe.remove();
+    cardFit = { key, width, h };
+    card.style.minHeight = `${h}px`;
+  });
 }
 
 /** 部屋の背景の絵：生態展示は10階層ごとの世界の背景（stages.json）、ほかは town.json の barnRooms に書いた絵 */
@@ -137,6 +183,8 @@ export function barnPanel(app) {
   // 触る（なでる）：そのザコは1日に1回、懐き度が上がる。懐いた・更生したときは知らせが出る
   const show = (id, touch) => {
     barn.selected = id;
+    // 作り直したとき（touch が無い）は、今日なでた結果をそのまま出す
+    if (!touch && lastTouch && lastTouch.id === id && lastTouch.day === app.today()) touch = lastTouch.touch;
     const a = barnAnimals(app.state, app.ctx, world).find((x) => x.id === id);
     if (a) card.replaceChildren(...barnCard(app, a, touch), ...[roomRow(a)].filter(Boolean));
     for (const b of list.querySelectorAll('button[data-id]')) b.classList.toggle('on', b.dataset.id === id);
@@ -145,6 +193,7 @@ export function barnPanel(app) {
     barnPick = { view, id };
     const ev = [];
     const touch = touchZako(app.state, app.ctx, id, app.today(), ev);
+    lastTouch = { id, day: app.today(), touch };
     if (touch.gained > 0) app.save();
     if (ev.length) app.handleEvents(ev);
     show(id, touch);
@@ -164,6 +213,10 @@ export function barnPanel(app) {
   // 作り直したときは、前に触ったザコの札を出したままにする（触ったことにはしない）
   if (barnPick && barnPick.view === view && animals.some((a) => a.id === barnPick.id)) show(barnPick.id, null);
   else barn.selected = null;
+  // 札の高さをそろえる。部屋が2つ以上なら、札の下の「この部屋へ」の行（部屋の名前がいちばん長いとき）も入れて測る
+  const longest = rooms.reduce((x, y) => (y.name.length > x.name.length ? y : x)).name;
+  fitCard(app, card, animals, many ? el('div', { class: 'barn-room-row' }, el('span', {}, `いる部屋：${longest}`),
+    el('button', { class: 'primary' }, `この部屋（${longest}）へ`)) : null);
   const frameDone = rocketSteps(s, ctx).some((st) => st.id === 'airframe' && st.done);
   const roomsText = `部屋 ${info.built}／${info.max}`
     + (info.nextLevel != null ? `（${info.genre}の熟練がLv${info.nextLevel}になると部屋が増える。今 Lv${info.level}）` : '');
