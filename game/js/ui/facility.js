@@ -29,7 +29,7 @@ import { rocketPanel } from './facility/rocket.js';
 import { majorPanel } from './facility/major.js';
 import { hospitalPanel } from './facility/hospital.js';
 import { heroPanel } from './facility/hero.js';
-import { barnPanel } from './facility/barn.js';
+import { barnPanel, barnKey } from './facility/barn.js';
 import { moonRocketPanel, commPanel, telescopePanel } from './facility/moon.js';
 
 const TOWN_W = 90;
@@ -166,12 +166,17 @@ const PANELS = {
   moon_supply: shopPanel, moon_clinic: hospitalPanel,
   barn: barnPanel, moon_barn: barnPanel,
 };
+// 作り直しの目印を画面ごとに決める施設（ここに無い施設は、下の update の目印をみんなで使う）。
+// 飼育小屋は小屋に関わることが変わったときだけ作り直す（階層が進む・Lvが上がるたびに作り直すと、
+// スマホでスクロールした位置から上に飛ぶことがあったため。40HzP の指摘）
+const PANEL_KEYS = { barn: barnKey, moon_barn: barnKey };
 // 月の一言（town.json の note）
 const moonNote = (f) => (f && f.note ? el('div', { class: 'moon-note' }, el('b', {}, '月のこと'), f.note) : null);
 
 function buildPanel(app) {
   const t = activeTown(app);
-  setLive({ gold: el('span'), hp: el('b'), mp: el('b'), buttons: [], rocket: [], exam: null, tax: null });
+  // refresh：作り直さずに書き換える関数（毎回の更新で呼ぶ。飼育小屋の一覧の懐き度など）
+  setLive({ gold: el('span'), hp: el('b'), mp: el('b'), buttons: [], rocket: [], exam: null, tax: null, refresh: [] });
   const f = t.facilities.find((x) => x.id === view);
   let title, sprite, body;
   if (view === 'hero') {
@@ -192,6 +197,8 @@ function buildPanel(app) {
     if (lock && f.id === 'company') body.push(el('div', { class: 'muted', style: { fontSize: '14px', marginTop: '8px' } }, `解放されると選べる業種：${app.ctx.business.industries.map((x) => x.name).join('・')}`));
   }
   root.className = 'screen pad';
+  // 作り直しても、スクロールした位置のままにする（中身を入れ替えた瞬間に、スマホのブラウザが上へ戻すことがあるため）
+  const scroll = root.scrollTop;
   root.replaceChildren(
     el('div', { class: 'fhead' },
       el('button', { class: 'back', onclick: () => enter(app, 'town') }, '← 街へ'),
@@ -199,6 +206,7 @@ function buildPanel(app) {
       el('h2', {}, title)),
     el('div', { class: 'section' }, body),
   );
+  if (scroll && root.scrollTop !== scroll) root.scrollTop = scroll;
 }
 
 /* ================= 毎回の更新 ================= */
@@ -216,7 +224,7 @@ export function update(app, force) {
     return;
   }
   town = null;
-  const k = JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.hero.gender, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched, !!a.advisor]), s.citationsUsed, s.knowledge.torn.length, s.tax.owed > 0, (s.knowledge.profLog || []).length && s.knowledge.profLog[0], heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket.buildCostPaid, s.life.generation, s.life.ailing, s.life.treatments, s.life.maxFloor, s.life.moonMaxFloor,
+  const k = PANEL_KEYS[view] ? JSON.stringify([view, PANEL_KEYS[view](app)]) : JSON.stringify([view, s.owned, s.equipment, s.knowledge.totalCorrect, s.hero.level, s.hero.name, s.hero.gender, s.allies.map((a) => [a.id, a.hired ? a.paidUntil : 0, !!a.benched, !!a.advisor]), s.citationsUsed, s.knowledge.torn.length, s.tax.owed > 0, (s.knowledge.profLog || []).length && s.knowledge.profLog[0], heroTitles(s, app.ctx), JSON.stringify(s.companies), companiesProfit(s, app.ctx).total, canFound(s, app.ctx), bestStaffGrade(s, app.ctx), genreLv(s, '経営学'), s.legacy.rocket.buildCostPaid, s.life.generation, s.life.ailing, s.life.treatments, s.life.maxFloor, s.life.moonMaxFloor,
     // 学際分野（解放・休眠・専攻・熟練）とロケットの工程（進み具合は作り直さずに書き換える）
     fieldList(s, app.ctx).map((f) => [f.unlocked, f.dormant, f.slot, f.levels]), s.knowledge.radio, rocketSteps(s, app.ctx).map((st) => [st.done, st.active]), (nextBoss(s, app.ctx) || {}).id,
     // 飼育小屋のザコ（懐き度は触るたび・誕生日ごとに変わるので、更生したかだけ）といる部屋、部屋（名前と背景）、試作機の効果
@@ -229,6 +237,7 @@ export function update(app, force) {
   live.hp.textContent = `${Math.ceil(s.hero.hp)}/${hs.maxHp}`;
   live.mp.textContent = `${Math.floor(s.hero.mp)}/${hs.maxMp}`;
   for (const b of live.buttons) b.btn.disabled = s.gold < b.price;
+  for (const f of live.refresh) f();
   if (live.rocket.length) {
     const steps = Object.fromEntries(rocketSteps(s, app.ctx).map((st) => [st.id, st]));
     for (const r of live.rocket) {

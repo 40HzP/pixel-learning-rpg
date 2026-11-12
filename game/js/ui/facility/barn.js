@@ -8,7 +8,7 @@ import {
 import { fieldActive } from '../../fields.js';
 import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor, drawHalo } from '../../sprites.js';
 import { el, affNum } from '../dom.js';
-import { root, view, say, update, note, pct } from './common.js';
+import { root, view, live, say, update, note, pct } from './common.js';
 
 const BARN_W = 90;
 const BARN_H = 64;
@@ -95,6 +95,22 @@ function fitCard(app, card, animals, worstRow) {
     cardFit = { key, width, h };
     card.style.minHeight = `${h}px`;
   });
+}
+
+/**
+ * 飼育小屋の画面を作り直す目印（ui/facility.js の PANEL_KEYS）。小屋に関わることだけ：ザコの顔ぶれ・宇宙帰り・更生・いる部屋、
+ * 部屋（名前と背景）、部屋の数を決める建築の熟練Lv、動物行動学の専攻、機体設計が終わったか。
+ * 懐き度の数は作り直さずに書き換える（barnPanel の live.refresh）
+ */
+export function barnKey(app) {
+  const s = app.state;
+  const ctx = app.ctx;
+  const b = ctx.balance.barn;
+  return [
+    s.legacy.barn.map((a) => [a.id, !!a.space, a.flights || 0, (a.affinity || 0) >= b.affinityMax, a.room || 0]),
+    s.legacy.barnRooms, (s.knowledge.genres[b.roomGenre] || { level: 0 }).level,
+    fieldActive(s, ctx, 'ethology'), rocketSteps(s, ctx).some((st) => st.id === 'airframe' && st.done),
+  ];
 }
 
 /** 部屋の背景の絵：生態展示は10階層ごとの世界の背景（stages.json）、ほかは town.json の barnRooms に書いた絵 */
@@ -201,10 +217,17 @@ export function barnPanel(app) {
     if (w) w.reformed = isReformed(app.state, app.ctx, id);
   };
   barn.onPick = select; // 絵の中のザコを押したとき（絵は使い続けるので、押したときの動きはここで差し替える）
-  const zakoButton = (a) => el('button', { 'data-id': a.id, onclick: () => select(a.id) },
-    spriteCanvas((app.monsterSprites[a.id] || {}).idle, 2, app.palette, { halo: isReformed(s, ctx, a.id) }),
-    el('span', {}, a.monster.name, el('small', {}, `懐き度 ${Math.floor(a.affinity || 0)}`)),
-    a.space ? el('span', { class: 'space-badge' }, '宇宙') : null);
+  // 一覧の懐き度の数（作り直さずに書き換える。下の live.refresh）
+  const affShown = new Map();
+  const zakoButton = (a) => {
+    const v = Math.floor(a.affinity || 0);
+    const small = el('small', {}, `懐き度 ${v}`);
+    affShown.set(a.id, { small, v });
+    return el('button', { 'data-id': a.id, onclick: () => select(a.id) },
+      spriteCanvas((app.monsterSprites[a.id] || {}).idle, 2, app.palette, { halo: isReformed(s, ctx, a.id) }),
+      el('span', {}, a.monster.name, small),
+      a.space ? el('span', { class: 'space-badge' }, '宇宙') : null);
+  };
   // 一覧：部屋ごと（部屋が1つなら見出しなし）。見ている部屋を先に
   const order = [cur, ...rooms.filter((r) => r !== cur)].filter((r) => r.animals.length);
   const list = el('div', { class: 'barn-groups' }, order.map((r) => el('div', { class: 'barn-group' + (r === cur ? ' here' : '') },
@@ -213,6 +236,17 @@ export function barnPanel(app) {
   // 作り直したときは、前に触ったザコの札を出したままにする（触ったことにはしない）
   if (barnPick && barnPick.view === view && animals.some((a) => a.id === barnPick.id)) show(barnPick.id, null);
   else barn.selected = null;
+  // 懐き度が上がったら（なでた・誕生日・勉強の正解）、一覧の数と、選んでいるザコの札だけを書き換える（画面は作り直さない）
+  live.refresh.push(() => {
+    for (const x of barnAnimals(app.state, app.ctx, world)) {
+      const r = affShown.get(x.id);
+      const v = Math.floor(x.affinity || 0);
+      if (!r || r.v === v) continue;
+      r.v = v;
+      r.small.textContent = `懐き度 ${v}`;
+      if (barn.selected === x.id) show(x.id, null);
+    }
+  });
   // 札の高さをそろえる。部屋が2つ以上なら、札の下の「この部屋へ」の行（部屋の名前がいちばん長いとき）も入れて測る
   const longest = rooms.reduce((x, y) => (y.name.length > x.name.length ? y : x)).name;
   fitCard(app, card, animals, many ? el('div', { class: 'barn-room-row' }, el('span', {}, `いる部屋：${longest}`),
