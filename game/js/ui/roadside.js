@@ -1,0 +1,155 @@
+// 道端のもの（設計ページ「散歩の要素」の③）：階層を歩き切って次の階層に進むと、ときどき（balance.walk.roadsideChance）
+// その世界の道端に物が出て、上に「？」が出る（描くのは render.js）。冒険の絵をタップすると、その物にまつわる1問を
+// 前世の記憶をたどると同じ白い紙で出す（ゲームは止めない。主人公は後ろで戦い続ける。攻略を遅らせないため）。
+// 正解すると散歩帳に載る（図書館・月面の書庫で見る）。間違えても罰は無く、載らないだけ。
+// タップしなければ walk.roadsideShowSec 秒で主人公は通り過ぎ、物は消える（取り逃しても損はなく、同じ物はまた道端に出る）
+import { pickRoadside } from '../sim.js';
+import { beginRoadside, answerRoadside } from '../quiz.js';
+import { el } from './dom.js';
+
+const RESULT_SEC = 12;       // 答えたあと、結果と解説を見せておく時間（タップで閉じる）
+const REVEAL_GUARD_MS = 300; // 出してすぐは押せない（「？」をタップしたつもりで答えないように）
+
+let box = null;
+// 道端に出ている物：{ question, phase: shown（「？」が出ている）| question（問題を出している）| result, remaining, wait, session, answered, picked, res, shownAt }
+let cur = null;
+
+export function init(app, parent) {
+  box = el('div', { class: 'first-check recall roadside', hidden: true });
+  parent.append(box);
+  box.addEventListener('click', () => { if (cur && cur.phase === 'result') close(app); });
+  // 冒険の絵をタップすると、道端の物の問題を出す（「？」が出ている間）
+  document.getElementById('scene').addEventListener('click', () => open(app));
+  // 描く側（render.js）に渡す道端の物：{ sprite, name, t0（出た時刻）, leaveAt（通り過ぎ始めた時刻）, opened（問題を出した） }
+  app.walkView = { roadside: null };
+}
+
+/** 白い紙を出しているか（出している間はステータスを短くし、今日の1問の札を後にする） */
+export const showing = () => !!cur && (cur.phase === 'question' || cur.phase === 'result');
+
+/** 道端に物を出す（question を渡すとその問題。デバッグ用）。出したら true */
+export function show(app, question = null) {
+  if (cur) return false;
+  const q = question || pickRoadside(app.state, app.ctx, app.ctx.rng);
+  if (!q) return false;
+  cur = { question: q, phase: 'shown', remaining: app.ctx.balance.walk.roadsideShowSec };
+  app.walkView.roadside = { sprite: (app.walkSprites.items || {})[q.roadside.name] || null, name: q.roadside.name, t0: performance.now() / 1000, leaveAt: null, opened: false };
+  app.notify(`道端に「${q.roadside.name}」（タップで1問）`);
+  return true;
+}
+
+/** 起きたこと：階層を歩き切って次の階層に進んだら、ときどき道端に物を出す（冒険画面を見ているときだけ） */
+export function onEvents(app, events) {
+  if (app.tab !== 'adventure' || app.overlay || cur) return;
+  if (events.some((e) => e.type === 'floorUp' && e.world !== 'moon')) show(app);
+}
+
+/** 主人公が道端の物を通り過ぎる（絵は render.js が左へ流して消す） */
+function passBy(app) {
+  const v = app.walkView.roadside;
+  if (v && v.leaveAt == null) v.leaveAt = performance.now() / 1000;
+}
+
+/** 「？」をタップした：問題を出す */
+function open(app) {
+  if (!cur || cur.phase !== 'shown' || app.overlay) return;
+  const session = beginRoadside(app.state, app.ctx, cur.question.id);
+  if (!session) { cur = null; passBy(app); return; }
+  Object.assign(cur, { phase: 'question', session, remaining: session.current.timeLimit, shownAt: performance.now() });
+  app.walkView.roadside.opened = true;
+  render(app);
+}
+
+function pick(app, index) {
+  if (!cur || cur.phase !== 'question' || performance.now() - cur.shownAt < REVEAL_GUARD_MS) return;
+  submit(app, index);
+}
+
+function submit(app, index) {
+  const answered = cur.session.current;
+  const res = answerRoadside(app.state, cur.session, index, app.ctx);
+  app.handleEvents(res.events);
+  app.save();
+  Object.assign(cur, { phase: 'result', picked: index, res, answered, wait: RESULT_SEC });
+  passBy(app);
+  render(app);
+}
+
+function close(app) {
+  cur = null;
+  passBy(app);
+  render(app);
+  app.refresh();
+}
+
+/** 描き直して、知らせの位置を合わせる（用紙の高さが変わると、その下に出す知らせが重なるため） */
+function render(app) {
+  draw(app);
+  app.placeNotices();
+}
+
+function draw(app) {
+  if (!showing()) { box.hidden = true; box.replaceChildren(); return; }
+  box.hidden = false;
+  const c = cur.phase === 'question' ? cur.session.current : cur.answered;
+  const q = c.question;
+  const bar = el('i');
+  bar.style.width = `${Math.max(0, cur.remaining / c.timeLimit) * 100}%`;
+  const choices = c.choices.map((ch, i) => {
+    const b = el('button', { class: 'fc-choice', onclick: (ev) => { ev.stopPropagation(); pick(app, i); } }, ch.text);
+    if (cur.phase === 'result') {
+      b.disabled = true;
+      if (ch.kind === 'answer') b.classList.add('right');
+      else if (i === cur.picked) b.classList.add('wrong');
+    }
+    return b;
+  });
+  const parts = [
+    el('div', { class: 'fc-head' }, el('b', {}, `道端の${q.roadside.name}`), el('span', {}, '☆'.repeat(q.difficulty))),
+    el('div', { class: 'fc-time' + (cur.phase === 'result' ? ' stop' : '') }, bar),
+    el('p', { class: 'fc-q' }, q.question),
+    el('div', { class: 'fc-choices' }, choices),
+  ];
+  if (cur.phase === 'result') {
+    const r = cur.res;
+    const book = r.walkBook;
+    const text = r.correct
+      ? (book && book.added ? `正解！　散歩帳に「${q.roadside.name}」が載った（${book.count}／${book.total}）` : '正解！（散歩帳にはもう載っている）')
+      : `${r.timeout ? '時間切れ' : 'ちがう'}。正解は「${q.answer}」（散歩帳には載らなかった。また道端で会える）`;
+    parts.push(el('p', { class: 'fc-result ' + (r.correct ? 'good' : 'bad') }, text));
+    if (q.explanation) parts.push(el('p', { class: 'fc-explain' }, q.explanation));
+    parts.push(el('small', { class: 'fc-note' }, `散歩帳は街の図書館で見られる　（タップで閉じる）`));
+  }
+  box.replaceChildren(...parts);
+}
+
+/** 毎フレーム（ゲームの時間が進んでいる間）：道端の物が通り過ぎるまでの時間・問題の制限時間・結果を閉じる */
+export function frame(app, realDt) {
+  if (!cur || app.tab !== 'adventure') return; // 冒険画面を見ていない間は止める
+  if (cur.phase === 'shown') {
+    cur.remaining -= realDt;
+    if (cur.remaining <= 0) { cur = null; passBy(app); }
+    return;
+  }
+  if (cur.phase === 'question') {
+    cur.remaining -= realDt;
+    const limit = cur.session.current.timeLimit;
+    const bar = box.querySelector('.fc-time i');
+    if (bar) {
+      const ratio = Math.max(0, cur.remaining / limit);
+      bar.style.width = ratio * 100 + '%';
+      bar.parentNode.classList.toggle('low', ratio < 0.3);
+    }
+    if (cur.remaining <= 0) submit(app, null);
+    return;
+  }
+  cur.wait -= realDt;
+  if (cur.wait <= 0) close(app);
+}
+
+/** 最初からやり直したとき（セーブを読んだ・生まれ変わった） */
+export function reset(app) {
+  cur = null;
+  if (box) { box.hidden = true; box.replaceChildren(); }
+  if (app && app.walkView) app.walkView.roadside = null;
+}

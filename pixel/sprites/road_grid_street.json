@@ -1,0 +1,29 @@
+{
+  "name": "road_grid_street",
+  "category": "prop",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      ".00000000000000.",
+      "0nnnnnnnnnnnnnn0",
+      "0nkk3kkk3kkk3kn0",
+      "0nkk3kkk3kkk3kn0",
+      "0n333333d33333n0",
+      "0nkk3kkk3kkk3kn0",
+      "0nkk3kkk3kkk3kn0",
+      "0n333333333333n0",
+      "0nkk3kkk3kkk3kn0",
+      "0nnnnnnnnnnnnnl0",
+      ".00000033000000.",
+      "......0310......",
+      "......0310......",
+      "......0310......",
+      ".....031130.....",
+      "......0000......"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

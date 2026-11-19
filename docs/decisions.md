@@ -23,7 +23,7 @@
 
 ## ゲームが読むスプライト
 
-- ゲームが読むスプライトは `monsters.json`（`idle`・`attack`、学校の先生は用紙を破りすてたときの `scold`（怒り顔）と `puzzled`（困惑顔）、大喜利を提出したときの `oogiri`（顔ごと）、月面のボスの `marked`・`parts` と `remains` の `sprite` も）・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`（月面の街の `moon` も）と掲示板の `board.sprite`、`stages.json` の `background`、`hero_idle` / `hero_attack` / `hero_old_idle` / `hero_old_attack`（年を取った主人公。体の不調を感じ始めてからの冒険画面とミニムービー）、`hero_bow`（先生にあやまる主人公）、`hero_blush`（大喜利を書いて赤面する主人公）と、女の子の主人公の同じ6つ（`heroine_idle` など。`hero_` を `heroine_` にした名前。下の「性別」）、`scene_classroom` / `scene_lectern`（用紙を破りすてたときの教室と教卓）、`scene_launchpad` / `rocket_flight`（ロケットのミニムービーの打ち上げ場と飛ぶロケット）、`town.json` の `barnRooms` の `sprite`（飼育小屋と月面の飼育ドームの部屋の背景：`scene_barn` / `scene_moon_barn` / `scene_room_*`。生態展示は `stages.json` の背景を切り取る）、下の切り替えバーのアイコン（`index.html` のボタンの `data-icon`：`icon_adventure`・`icon_study`・`icon_town`・`icon_zukan`・`icon_settings`）と、その背景のコルク `ui_tabs_cork`、テストのジャンルのボタンのアイコン（`genre-groups.json` の `icon`。`genre_*`）、勉強のメニューのボタンのアイコン（`study.js` の `MENU_LOOK`。`menu_*`）、店の品物のアイコン（`items.json` の `icon`。`item_*`）だけ（ブラウザはフォルダの中身を一覧できないため）
+- ゲームが読むスプライトは `monsters.json`（`idle`・`attack`、学校の先生は用紙を破りすてたときの `scold`（怒り顔）と `puzzled`（困惑顔）、大喜利を提出したときの `oogiri`（顔ごと）、月面のボスの `marked`・`parts` と `remains` の `sprite` も）・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`（月面の街の `moon` も）と掲示板の `board.sprite`、`stages.json` の `background`、`hero_idle` / `hero_attack` / `hero_old_idle` / `hero_old_attack`（年を取った主人公。体の不調を感じ始めてからの冒険画面とミニムービー）、`hero_bow`（先生にあやまる主人公）、`hero_blush`（大喜利を書いて赤面する主人公）と、女の子の主人公の同じ6つ（`heroine_idle` など。`hero_` を `heroine_` にした名前。下の「性別」）、`scene_classroom` / `scene_lectern`（用紙を破りすてたときの教室と教卓）、`scene_launchpad` / `rocket_flight`（ロケットのミニムービーの打ち上げ場と飛ぶロケット）、`town.json` の `barnRooms` の `sprite`（飼育小屋と月面の飼育ドームの部屋の背景：`scene_barn` / `scene_moon_barn` / `scene_room_*`。生態展示は `stages.json` の背景を切り取る）、下の切り替えバーのアイコン（`index.html` のボタンの `data-icon`：`icon_adventure`・`icon_study`・`icon_town`・`icon_zukan`・`icon_settings`）と、その背景のコルク `ui_tabs_cork`、テストのジャンルのボタンのアイコン（`genre-groups.json` の `icon`。`genre_*`）、勉強のメニューのボタンのアイコン（`study.js` の `MENU_LOOK`。`menu_*`）、店の品物のアイコン（`items.json` の `icon`。`item_*`）、散歩の要素の石碑と道端の物（`roadside.json` の `stele` と `items`。`walk_stele`・`road_*`）だけ（ブラウザはフォルダの中身を一覧できないため）
 
 ## 進み方と強さ（数値の調整）
 
@@ -144,6 +144,7 @@
   - `nande` 孫の「なんで？」の間隔（`firstSec`・`intervalSec`）と、正解したときの孫へのダメージ（最大HPに対する割合 `correctDamageRatio`）、答えられなかったときに孫が回復する割合（`wrongHealRatio`）
   - `advisor` 顧問（下の「顧問」）：`slots` 場所ごとに置ける人数、`citationsPerYear` 要出典の回数（誕生日に戻る）、`periodicTestProgress` 定期テストで多く進む問題数、`hrStaffBonus` 人事で社員の効果が増える割合、`rocketSubsidy` 補助金で建造費が安くなる割合、`taxCut` 税務顧問で法人税が安くなる割合
   - `authoring` 作問権（下の「作問」）：`rightsLevel` 作問権に要る熟練Lv、`rightsGenres` その熟練Lvのジャンルの数
+  - `walk` 散歩の要素（下の「散歩の要素」）：`kmPerFloor` 1階層を歩き切ったときの距離（km）、`moonKm` 地球から月までの距離（歴代の合計がここに届くと称号）、`moonTitle` その称号、`likenKm` 距離のたとえ（`tokyoOsaka` 東京〜大阪の直線・`earth` 地球1周）、`steleLives` 石碑を置く前世の人数（直近から）、`steleStopSec` 石碑の前で立ち止まる秒数、`roadsideChance` 次の階層に進んだときに道端に物が出る確率、`roadsideShowSec` 道端の物が出ている秒数（タップしなければ通り過ぎる）
   - `corporation` 法人化（下の「会社」）：`profitBonus` 法人化した会社の利益が増える割合、`taxRate` 法人税の割合（今年の法人の利益に掛ける）
   - `boss` ボスの強さ：その階層のザコの数値に `hpMultiplier`・`atkMultiplier`・`defMultiplier`・`expMultiplier`・`goldMultiplier` を掛ける
   - `rocket.launchSuccessRate` 打ち上げの成功率、`moon.floorOffset`・`rampFloor`・`rampTo` 月面の敵の強さ（月面F階層＝地球の floorOffset＋F 階層の強さ×月面の倍率。下の「月面」）。`moon` のそのほか（`smoothDamage`・`splashAtkMultiplier`・`sinkIntervalSec`・`splitAt`・`absorbSec`・`remainsSec`）は月面のボスの仕掛け（下の「月面」の表）。`moon.transportPerKg` 補給所の輸送費（重さ1kgあたり）、`moon.radioCharge` 電波望遠鏡の頁が開くまでの正解の数、`moon.relaySec` 通信基地の返事が届くまでの秒数（下の「月面の街」）
@@ -653,6 +654,29 @@
   - 学際分野（2つのジャンルの組み合わせ）ではなく、専攻に入れなくても働く（Claude Code の判断。設計ページは学際分野の一覧に書いているが、組み合わせが決まっていないため）
 - まだ作っていないもの：ファンサーバーの「出題者」欄とスタッフロール
 - セーブ：`legacy.author`（`{ code, seen }`）。前のセーブは既定値で読め、起動したときにコードが決まる
+
+## 散歩の要素（前世の足跡・歩いた距離・道端のものと散歩帳）
+
+- 2026-11-20：設計ページ「散歩の要素」の3つ（前世の足跡・歩いた距離・道端のものと散歩帳）を作った（40HzP の依頼）。計算は `sim/walk.js`、道端の物の問題は `quiz.js` の `beginRoadside`・`answerRoadside` と `ui/roadside.js`、絵は `render.js`、散歩帳は図書館（`ui/facility/library.js`）。テストは `walk.test.js`
+- 前世の足跡（石碑）：
+  - 石碑を置くのは直近 `walk.steleLives` 人の前世だけ（設計ページで Claude Code に任された点。全部にすると、何世代も生まれ変わったあとの最初の数分で古い石碑を次々に通り過ぎ、立ち止まりと札が続くため）。地球は前世の `maxFloor`、月面は `moonFloor`（月面に行っていない前世の石碑は置かない）。同じ階層の石碑は1つの札にまとめる
+  - 立ち止まるのは、その階層を歩き始めたとき（次の階層に進んだ・やられて1つ手前からやり直した・階層を移動した・地球と月面を行き来した）。群れを出す前に `walk.steleStopSec` 秒（`adventure.stop`。群れのいない間だけ数える。中ボスに挑んで群れが出たら終わり）。札は「◯階層の石碑／◯世代目 ◯◯　ここまで歩いた（◯歳）」。立ち止まり終わると、石碑は主人公が通り過ぎるように左へ流れて消える
+  - 「前世の自分を追い越した」の札は、石碑の階層を歩き切ったとき（その階層から次の階層に進んだとき）に、石碑ごとにその人生で一度だけ（`life.stelesPassed`）
+- 歩いた距離：
+  - 階層を歩き切るたびに `life.walkedFloors` を1足す（地球も月面も。やられてやり直した分も歩いたので数える。階層の移動・ロケットでは数えない）。生まれ変わると `legacy.walkedFloors` に足し、前世のまとめにも `walked`。距離は階層の数×`walk.kmPerFloor`
+  - `walk.kmPerFloor` は40（Claude Code の判断。設計ページ「数値は試遊で決める」）。勉強なし・装備と仲間ありで6世代を計算すると、1つの人生で歩き切る階層は約750・1,130・1,670・2,610・3,880・5,550（やられてやり直す分が多い）。40kmなら1世代目で約3万km（地球1周の4分の3）、歴代の合計が38万kmに届くのは5世代目の終わりごろ（ロケットで月面に行くのは3世代目、月面を踏破するのは10世代目なので、その間）。勉強や月面を歩く分で早くなる
+  - たとえ（`likenDistance`）：東京〜大阪の直線（`walk.likenKm.tokyoOsaka`）に届くまでは残りの距離、地球1周（`likenKm.earth`）までは東京〜大阪の何倍、月（`walk.moonKm`）までは地球何周分、その先は月まで行ける距離の何倍
+  - 歴代の合計が `walk.moonKm` に届くと札「歩いて月まで行ける距離を歩いた！」と称号 `walk.moonTitle`（「月まで歩いた人」。設計ページでは名前が未定なので仮の名前。Claude Code の判断）。`legacy.moonWalk` で生まれ変わっても残る
+  - 見る場所：街の主人公のステータス（この人生と歴代の合計）と、生まれ変わりの場面の前世のまとめ（「◯km歩いた」）。強さには効かない
+  - 前の版のセーブは、前世までの分を数えていないので0kmから（この人生の分も、この版から）
+- 道端のものと散歩帳：
+  - 次の階層に進んだとき、冒険画面を見ていれば `walk.roadsideChance` の確率で、その世界の道端の物（問題リストの「道端の世界」がその世界の問題）から1つ出す。まだ散歩帳に載っていない物を先に。月面・石碑の前で立ち止まる階層・前世の記憶をたどるの5問の間は出さない
+  - 主人公は立ち止まらず、戦い続ける（設計ページは「主人公が足を止め」だが、攻略を遅らせないため。主人公の頭に「！」を出し、物を主人公の右前の地面に置く。Claude Code の判断）。物の上に「？」の吹き出しが出て、冒険の絵をタップすると、前世の記憶をたどると同じ白い紙で1問。`walk.roadsideShowSec` 秒タップしなければ、物は左へ流れて消える（冒険画面を見ていない間は数えない）
+  - 答えたあとは正解と解説を出す（散歩帳と同じ解説。12秒かタップで閉じる）。正解すると散歩帳（`knowledge.walkBook`。生まれ変わっても残る）に載る。数え方はふつうの勉強と同じ（熟練・累計正解数・過去問復習・間違えたままの問題）
+  - 散歩帳は図書館と月面の書庫の「散歩帳（◯／◯）」：載った物は絵・名前・見つけた世界と世代・解説、まだの物は影絵と「◯◯の道端」
+  - 物の絵は `game/data/roadside.json` の `items`（物の名前 → 絵の名前）。物の名前と世界は問題リストが正本（「問題を同期して」で入る。`docs/sync-questions.md` の「道端」）
+- 絵：石碑 `walk_stele`（足あとを刻んだ丸い頭の石と台石、根もとに苔）と道端の物16枚（`road_*`、16×16）を描いた。category は新しく `prop`（`pixel/style-guide.md` の14章）
+- セーブ：足した項目（`adventure.stop`・`life.walkedFloors`・`life.stelesPassed`・`knowledge.walkBook`・`legacy.walkedFloors`・`legacy.moonWalk`）は `fillDefaults` が埋めるので版は上げていない
 
 ## セーブの版
 

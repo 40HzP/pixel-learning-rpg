@@ -77,6 +77,7 @@
 | 問題と魔物（俗説）の決まり | 魔物系「誤答選択肢との関係」・問題ジャンル・選択肢の書き方 | （`docs/sync-questions.md`） | `tools/check-questions.mjs` |
 | セーブ | （無し） | セーブの版 | save |
 | ゲームの名前（タブの名前・ツイートのハッシュタグ） | （設計ページの題名） | ゲームの名前 | share |
+| 散歩の要素（前世の足跡・歩いた距離・道端のものと散歩帳） | 散歩の要素（2026-11-20） | 散歩の要素 | walk |
 
 ## フォルダ
 
@@ -108,6 +109,7 @@ game/
       barn.js            … 飼育小屋と試作機・懐き度
       shop.js            … 店
       firstrun.js        … 最初の3分（噂のザコ・寿命と経験値の帯・起動から3分の比較）
+      walk.js            … 散歩の要素（前世の足跡の石碑・歩いた距離・道端のものと散歩帳）
     quiz.js              … 出題・判定・熟練・干渉
     fields.js            … 学際分野（解放・専攻・休眠）
     save.js              … セーブの文字列化・読み込み・版の移行
@@ -115,7 +117,7 @@ game/
     outfit.js            … 装備に合わせた主人公の見た目（主人公の絵の色を塗り替える計算）
     sprites.js           … スプライトJSONの読み込みと描画
     render.js            … 冒険画面の描画（90×160）
-    ui/                  … 画面ごとの表示（adventure / study / facility（街） / zukan / debug / dom / movie（ミニムービー） / nande（孫の「なんで？」） / tear（テスト用紙を破りすてる） / oogiri（テストに大喜利を書いて提出した） / doodle（テスト用紙の落書き） / share（テストの結果をツイートする） / launch（ロケットの打ち上げと帰還） / daily（今日の1問） / settings（設定） / floors（階層の移動） / proflog（熟練の記録） / prologue（前世の最期） / recall（前世の記憶をたどる））
+    ui/                  … 画面ごとの表示（adventure / study / facility（街） / zukan / debug / dom / movie（ミニムービー） / nande（孫の「なんで？」） / tear（テスト用紙を破りすてる） / oogiri（テストに大喜利を書いて提出した） / doodle（テスト用紙の落書き） / share（テストの結果をツイートする） / launch（ロケットの打ち上げと帰還） / daily（今日の1問） / settings（設定） / floors（階層の移動） / proflog（熟練の記録） / prologue（前世の最期） / recall（前世の記憶をたどる） / roadside（道端の物の問題））
                             と、main.js の部品：assets（起動のときに読む絵）/ notices（知らせと、画面全体に重ねるものの順番待ち）/ cards（札：噂のザコ・正体・図鑑の1体目・起動から3分の比較）/ intro（最初の案内）/ scenes（ミニムービーの出し方：中ボス・体の不調・生まれ変わり・ロケット・試作機）/ events（起きたことを知らせにする）
       facility/          … 街の施設ごとの中身（facility.js は街と、施設の中の枠・毎回の更新だけ）：common（共通：今の画面・知らせ・解放の条件）/ shop（店・補給所）/ guild（仲間が集まる場所）/ library（図書館・月面の書庫）/ company（会社）/ rocket（ロケット発射場と試作機）/ major（学校・研究室）/ hospital（病院・医務室）/ hero（主人公）/ barn（飼育小屋・飼育ドーム）/ moon（通信基地・裏側の電波望遠鏡・帰還ロケット）/ advisor（顧問の欄）
   data/
@@ -131,6 +133,7 @@ game/
     submit.json          … 作問フォームのリンク（formUrl）と、フォームで必ず書くこと・書かなくてもよいことの説明
     genre-groups.json    … テストのジャンルを選ぶボタン：ジャンルのまとまり（名前・色＝パレットのキー）と、ジャンルごとのアイコン
     first-check.json     … 最初の人生の前世の記憶をたどる5問の候補（問題を同期するときに一緒に見直す）
+    roadside.json        … 散歩の要素の絵の名前：前世の足跡の石碑（stele）と、道端の物の名前 → 絵の名前（items。物の名前と世界は問題リストの「道端」の欄）
   fonts/                 … DotGothic16 と OFL.txt、klee-one/（テストの用紙の字）
   tests/                 … node --test 用
 docs/

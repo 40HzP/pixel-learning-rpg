@@ -1,16 +1,17 @@
 // ゲームの計算で起きたこと（tick などが返す events）を、知らせ・札・ミニムービーにする。2026-11-09 に main.js から分けた
 import { trackGain, stageFor, ADVISOR_PLACES } from '../sim.js';
 import { MAJOR_SLOTS } from '../fields.js';
-import { fmt } from './dom.js';
+import { el, fmt } from './dom.js';
 import { askNande } from './nande.js';
 import { profChangeText } from './proflog.js';
 import { showing as recallShowing } from './recall.js';
+import * as roadside from './roadside.js';
 
 /**
  * events を受け取って知らせる関数（handleEvents）を作る（main.js の起動で1回だけ）。
- * 知らせ（notify・runOverlay）・札（rumorDefeated・notifyFirstZukan・notifyMisbeliefs）・ミニムービー（startMovie・startAilmentMovie・onReincarnated）は main.js から渡す
+ * 知らせ（notify・notifyCard・runOverlay）・札（rumorDefeated・notifyFirstZukan・notifyMisbeliefs）・ミニムービー（startMovie・startAilmentMovie・onReincarnated）は main.js から渡す
  */
-export function createEventHandler(app, { notify, runOverlay, startMovie, startAilmentMovie, onReincarnated, rumorDefeated, notifyFirstZukan, notifyMisbeliefs }) {
+export function createEventHandler(app, { notify, notifyCard, runOverlay, startMovie, startAilmentMovie, onReincarnated, rumorDefeated, notifyFirstZukan, notifyMisbeliefs }) {
   const ctx = app.ctx;
   const monsters = ctx.monsters;
   const balance = ctx.balance;
@@ -28,8 +29,25 @@ export function createEventHandler(app, { notify, runOverlay, startMovie, startA
     notify(lines.join('\n'), e.changes.some((c) => c.to < c.from) ? '' : 'good');
   }
 
+  /** 散歩の要素の札：前世の石碑の前で立ち止まった・前世の自分を追い越した・歩いた距離が月まで届いた（sim/walk.js） */
+  const where = (e) => `${e.world === 'moon' ? '月面' : ''}${e.floor}階層`;
+  function notifyWalk(e) {
+    if (e.type === 'stele') {
+      notifyCard([el('b', { class: 'nt-title' }, `${where(e)}の石碑`),
+        ...e.steles.map((st) => el('span', {}, `${st.generation}世代目 ${st.name}　ここまで歩いた（${st.age}歳）`))], 'stele', 4500);
+    } else if (e.type === 'steleOvertaken') {
+      notifyCard([el('b', { class: 'nt-title' }, '前世の自分を追い越した！'),
+        el('span', {}, `${e.generation}世代目 ${e.name}が歩いた${where(e)}の先へ`)], 'stele good', 5000);
+    } else if (e.type === 'walkedToMoon') {
+      notifyCard([el('b', { class: 'nt-title' }, '歩いて月まで行ける距離を歩いた！'),
+        el('span', {}, `歴代の合計 ${fmt(e.km)}km（地球から月まで約${fmt(balance.walk.moonKm)}km）`),
+        el('small', {}, `称号「${e.title}」を手に入れた`)], 'stele good', 9000);
+    }
+  }
+
   function handleEvents(events) {
     app.renderer.onEvents(events, performance.now() / 1000);
+    roadside.onEvents(app, events); // 次の階層に進んだら、ときどき道端に物が出る（散歩の要素）
     const met = [];
     const found = []; // 新しく解放した学際分野（まとめて知らせる）
     const misbelief = [];
@@ -55,6 +73,7 @@ export function createEventHandler(app, { notify, runOverlay, startMovie, startA
         else notify(st && st.from === e.floor && e.floor > 1 ? `${e.floor}階層　${st.name}に入った` : `${e.floor}階層に進んだ`);
       }
       else if (e.type === 'heroDefeated') notifyDefeat(e);
+      else if (e.type === 'stele' || e.type === 'steleOvertaken' || e.type === 'walkedToMoon') notifyWalk(e);
       else if (e.type === 'birthday') notifyBirthday(e);
       else if (e.type === 'scaffold') notify(`足場（構造工学）：ボス「${e.name}」には前の挑戦のダメージが残っている（残りHP ${Math.round(e.left * 100)}%）`, 'good');
       else if (e.type === 'retreat') notify(`${e.name}から逃げた。また挑戦できる`);

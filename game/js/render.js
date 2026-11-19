@@ -33,6 +33,13 @@ const partOf = (slot) => (slot === PART_SLOT ? 'earth' : slot === PART_SLOT + 1 
 const REMAINS_SEC = 3; // 倒したあとに残るもの（干上がった海の立て札）を見せる秒数（次の群れは balance.moon.remainsSec 秒あとに出る）
 // 世界が変わるときの暗転（前半で暗くなり、真っ暗の瞬間に背景を入れ替え、後半で明るくなる）
 const STAGE_FADE_SEC = 0.5;
+// 散歩の要素（sim/walk.js・ui/roadside.js）：前世の石碑は群れの先頭の場所に立ち、立ち止まり終わると主人公が通り過ぎる（左へ流れる）。
+// 道端の物は主人公の右前の地面（敵の並びにかからない所）に出て、上に「？」の吹き出し
+const STELE = { x: 46, feet: 138 };
+const ROADSIDE = { x: 30, feet: 158 };
+const PASS_SEC = 0.7; // 通り過ぎて画面の左へ消えるまでの秒数
+// 「？」の吹き出し（7×9。0＝輪郭、4＝白）と、主人公の頭の上の「！」（1×5）
+const BUBBLE = ['.00000.', '0444440', '0400040', '0444040', '0440440', '0444440', '0440440', '.00000.', '..00...'];
 
 // 3×5 のドット数字（ダメージ表示用）
 const DIGITS = {
@@ -70,7 +77,7 @@ export function createRenderer(canvas, app) {
   const pal = app.palette;
   const col = (k, fallback) => cssColor(pal, k, fallback);
   const fx = [];
-  const anim = { heroAt: -9, spellAt: -9, spawnAt: -9 };
+  const anim = { heroAt: -9, spellAt: -9, spawnAt: -9, steleAt: -9, steleOutAt: null };
   const allyAt = new Map();        // 仲間id → 攻撃・回復した時刻
   const enemyAttackAt = new Map(); // uid → 時刻
   const enemyHitAt = new Map();    // uid → 時刻
@@ -153,6 +160,11 @@ export function createRenderer(canvas, app) {
         anim.heroAt = now;
       } else if (e.type === 'spawn') {
         anim.spawnAt = now;
+      } else if (e.type === 'stele') {
+        anim.steleAt = now;
+        anim.steleOutAt = null;
+      } else if (e.type === 'steleDone') {
+        anim.steleOutAt = now;
       } else if (e.type === 'misbelief' && e.swapped) {
         // 前世の記憶をたどるで間違えた問題のザコが、群れの中にその場で現れた
         const p = enemyBox(e.monsterId, e.slot);
@@ -180,6 +192,46 @@ export function createRenderer(canvas, app) {
     else drawPlaceholder(g, x + dx, feet - size, size, size, pal);
   }
 
+  /** 小物（石碑・道端の物）を足元 feet に立たせて描く。絵が無ければ白い光の粒 */
+  function drawProp(sp, x, feet, now) {
+    if (sp) { drawSprite(g, sp, frameAt(sp, now), x, feet - sp.h); return; }
+    g.fillStyle = col('4');
+    for (const [dx, dy] of [[7, -9], [6, -8], [8, -8], [7, -7], [3, -4], [12, -3]]) g.fillRect(x + dx, feet + dy, 1, 1);
+  }
+  /** 文字の形（'0' と '4' などの並び）をパレットの色で描く */
+  function drawPattern(rows, x, y) {
+    rows.forEach((r, yy) => [...r].forEach((c, xx) => { if (c !== '.') { g.fillStyle = col(c); g.fillRect(x + xx, y + yy, 1, 1); } }));
+  }
+  /** 散歩の要素：前世の石碑（立ち止まっている間と、通り過ぎるところ） */
+  function drawStele(state, now) {
+    const sp = (app.walkSprites || {}).stele || null;
+    const stop = state.adventure.stop;
+    if (stop && stop.kind === 'stele' && stop.started) {
+      const enter = Math.min(1, (now - anim.steleAt) / 0.35);
+      drawProp(sp, STELE.x + Math.round((1 - enter) * 40), STELE.feet, now);
+    } else if (anim.steleOutAt != null) {
+      const t = (now - anim.steleOutAt) / PASS_SEC;
+      if (t >= 1) anim.steleOutAt = null;
+      else drawProp(sp, STELE.x - Math.round(t * (STELE.x + 18)), STELE.feet, now);
+    }
+  }
+  /** 散歩の要素：道端の物（出てくる・「？」の吹き出し・通り過ぎる）と、見つけた主人公の頭の上の「！」 */
+  function drawRoadside(now) {
+    const v = app.walkView && app.walkView.roadside;
+    if (!v) return;
+    const enter = Math.min(1, (now - v.t0) / 0.35);
+    let x = ROADSIDE.x + Math.round((1 - enter) * 40);
+    if (v.leaveAt != null) {
+      const t = (now - v.leaveAt) / PASS_SEC;
+      if (t >= 1) return;
+      x = ROADSIDE.x - Math.round(t * (ROADSIDE.x + 18));
+    }
+    drawProp(v.sprite, x, ROADSIDE.feet, now);
+    // 吹き出しは主人公と群れの先頭のすき間（知らせの札に隠れにくい低いところ）
+    if (v.leaveAt == null && !v.opened && enter >= 1) drawPattern(BUBBLE, x + 9, ROADSIDE.feet - 21 + (Math.floor(now * 2) % 2));
+    if (now - v.t0 < 1.2) drawPattern(['0g0', '0g0', '0g0', '000', '0g0', '000'], X.hero + 11, FEET_Y - 28);
+  }
+
   function bar(x, y, w, ratio, color) {
     g.fillStyle = col('0'); g.fillRect(x - 1, y - 1, w + 2, 4);
     g.fillStyle = col('1'); g.fillRect(x, y, w, 2);
@@ -192,6 +244,9 @@ export function createRenderer(canvas, app) {
     const { shown: stage, dark } = stageFade(currentStage(state, app.stages), now);
     if (stage && stage.bg) drawSprite(g, stage.bg, 0, 0, 0);
     else { g.fillStyle = col('o', '#a6d8f2'); g.fillRect(0, 0, SCENE_W, SCENE_H); g.fillStyle = col('j', '#6fb042'); g.fillRect(0, 98, SCENE_W, 62); }
+
+    // 前世の石碑（群れの先頭の場所。主人公より奥に描く）
+    drawStele(state, now);
 
     // 仲間と主人公（奥から順に描く）。中ボスだった仲間は左向きに描かれているので左右反転して右向きにする。
     // 契約した仲間は最初から右向き
@@ -283,6 +338,8 @@ export function createRenderer(canvas, app) {
 
     const hs = heroStats(state, app.ctx);
     bar(X.hero, FEET_Y - 20, 16, state.hero.hp / hs.maxHp, col('j'));
+    // 道端の物（手前の地面。主人公と群れより手前に描く）
+    drawRoadside(now);
 
     // エフェクト
     for (let i = fx.length - 1; i >= 0; i--) {

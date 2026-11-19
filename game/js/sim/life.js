@@ -53,7 +53,7 @@ export const generationMultiplier = (state, balance) => balance.reincarnation.mu
 /**
  * 寿命で亡くなり、次の世代に生まれ変わる。
  * 最初からになるもの：Lv・経験値・ゴールド・品物と装備・仲間（契約も）・会社・中ボス・ボス（倒したボスにもまた会う。40HzP の依頼）・階層（月面にいても地球の1階層から）・年齢。
- * 引き継ぐもの：知識（熟練・累計正解数・間違えたままの問題・過去問復習・図鑑・学際分野と専攻）・称号・名前・ロケット計画の工程・飼育小屋のザコ。
+ * 引き継ぐもの：知識（熟練・累計正解数・間違えたままの問題・過去問復習・図鑑・学際分野と専攻・散歩帳）・称号・名前・ロケット計画の工程・飼育小屋のザコ・歩いた距離の歴代の合計。
  * 足場（構造工学。ボスに与えたダメージ）はボスと一緒に最初から。
  * 年齢を選ぶまで（meta.startAge＝null）時間は止まる。前世のまとめを返す
  */
@@ -62,8 +62,10 @@ export function reincarnate(state, ctx) {
   const prev = {
     generation: state.life.generation, name: state.hero.name, age: ageYears(state),
     level: state.hero.level, maxFloor: state.life.maxFloor || 1, moonFloor: state.life.moonMaxFloor || 0, gold: Math.floor(state.gold),
+    walked: state.life.walkedFloors || 0, // 歩き切った階層の数（散歩の要素の歩いた距離）
   };
   state.legacy.titles = [...new Set([...state.legacy.titles, ...heroTitles(state, ctx)])];
+  state.legacy.walkedFloors = (state.legacy.walkedFloors || 0) + prev.walked;
   state.legacy.lives.push(prev);
   const fresh = createState(b);
   state.meta = fresh.meta;

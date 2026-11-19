@@ -2,7 +2,7 @@
 // ctx = { balance, monsters, items, questions, rng }（questions は questions.json の questions 配列）
 
 import { GENRES } from './genres.js';
-import { genreState, raiseZukan, zukanEntry, breakMidbosses, healEnemy, proficiencyCap, markSmooth, hearRadio, advisorActive, citationsLeft, logProficiency, worldOf, summonRemembered, zakoZukanCount, isFriendly, raiseAffinity } from './sim.js';
+import { genreState, raiseZukan, zukanEntry, breakMidbosses, healEnemy, proficiencyCap, markSmooth, hearRadio, advisorActive, citationsLeft, logProficiency, worldOf, summonRemembered, zakoZukanCount, isFriendly, raiseAffinity, addToWalkBook, roadsideQuestions } from './sim.js';
 import { fieldActive, fieldById } from './fields.js';
 
 export { GENRES };
@@ -23,6 +23,7 @@ export function forgetMissingQuestions(state, ctx) {
   k.history = (k.history || []).filter((h) => ids.has(h.id));
   k.favorites = (k.favorites || []).filter((id) => ids.has(id));
   k.solved = (k.solved || []).filter((id) => ids.has(id));
+  k.walkBook = (k.walkBook || []).filter((x) => ids.has(x.id)); // 散歩帳（道端の物の問題）
   return before - k.review.length;
 }
 
@@ -709,5 +710,33 @@ export function answerRecall(state, session, choiceIndex, ctx) {
   state.firstRun.check.answers.push({ id: q.id, monsterId: m ? m.id : null, kind });
   res.check = { kind, monsterId: m ? m.id : null };
   if (kind !== 'correct') summonRemembered(state, ctx, res.events);
+  return res;
+}
+
+/* ================= 道端のもの（設計ページ「散歩の要素」） ================= */
+// 冒険の道端に出た物（問題リストの「道端」を書いた問題）の「？」をタップすると1問。冒険は止めない（ui/roadside.js）。
+// 数え方はふつうの勉強と同じ（熟練・累計正解数・過去問復習）。正解すると散歩帳に載る。間違えても罰は無く、載らないだけ
+
+/** 道端の物の問題を出す（1問だけのセッション。answerRoadside で答える）。道端の問題でなければ null */
+export function beginRoadside(state, ctx, id) {
+  const q = ctx.questions.find((x) => x.id === id && x.roadside);
+  if (!q) return null;
+  const session = { mode: 'roadside', genre: null, pool: [id], total: 1, index: 0, asked: [], current: null, results: [], daily: null };
+  presentQuestion(session, q, ctx);
+  return session;
+}
+
+/**
+ * 道端の物の問題に答える（choiceIndex が null なら時間切れ）。返り値は answer と同じで、正解なら walkBook に
+ * { added（新しく載った）, count（載っている数）, total（道端の物の数） }
+ */
+export function answerRoadside(state, session, choiceIndex, ctx) {
+  const q = session.current.question;
+  const res = answer(state, session, choiceIndex, ctx);
+  if (res.correct) {
+    const added = addToWalkBook(state, q.id);
+    const ids = new Set(roadsideQuestions(ctx).map((x) => x.id));
+    res.walkBook = { added, count: state.knowledge.walkBook.filter((x) => ids.has(x.id)).length, total: ids.size };
+  }
   return res;
 }

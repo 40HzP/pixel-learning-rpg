@@ -1,9 +1,10 @@
 // デバッグ画面（URL に ?debug=1 を付けたときだけ出る）
-import { HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel, lifespanOf, ailmentAge, ageYears, zakoPool, rocketSteps, tameZako, worldOf, raiseAffinity } from '../sim.js';
+import { HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel, lifespanOf, ailmentAge, ageYears, zakoPool, rocketSteps, tameZako, worldOf, raiseAffinity, roadsideQuestions, currentStage } from '../sim.js';
 import { SAVE_KEY, serialize, deserialize } from '../save.js';
 import { GENRES } from '../genres.js';
 import { refreshDaily, dayKey } from '../quiz.js';
 import { el } from './dom.js';
+import * as roadside from './roadside.js';
 
 let root = null;
 let speedButtons = [];
@@ -164,6 +165,34 @@ export function init(app) {
             app.notify(app.state.legacy.barn.length ? '小屋のザコ全員の懐き度を25上げた' : '小屋にまだ誰もいない');
           },
         }, '小屋のザコの懐き度を+25'))),
+    // 散歩の要素（sim/walk.js・ui/roadside.js）を試す
+    el('div', { class: 'section' }, el('h2', {}, '散歩の要素'),
+      el('div', {},
+        el('button', {
+          onclick: () => {
+            const st = currentStage(app.state, app.stages);
+            const list = roadsideQuestions(ctx, st && st.name);
+            const q = (list.length ? list : roadsideQuestions(ctx))[Math.floor(Math.random() * (list.length || roadsideQuestions(ctx).length))];
+            app.showTab('adventure');
+            if (!q || !roadside.show(app, q)) app.notify('道端の物を出せなかった（もう出ている）', 'bad');
+          },
+        }, '道端の物を出す'),
+        el('button', {
+          onclick: () => {
+            // この階層に前世の石碑があることにして立ち止まる（セーブの前世は変えない。群れと戦っていれば、倒したあと）
+            const s = app.state;
+            s.adventure.stop = { kind: 'stele', sec: ctx.balance.walk.steleStopSec, started: false, steles: [{ key: 'debug', world: s.adventure.world || 'earth', generation: Math.max(1, s.life.generation - 1), name: s.hero.name, age: 80, floor: s.adventure.floor }] };
+            app.showTab('adventure');
+          },
+        }, '前世の石碑の前で立ち止まる'),
+        el('button', { onclick: () => { app.state.legacy.walkedFloors = (app.state.legacy.walkedFloors || 0) + Math.ceil(10000 / ctx.balance.walk.kmPerFloor); app.notify('歩いた距離（歴代の合計）+1万km'); } }, '歩いた距離 +1万km'),
+        el('button', {
+          onclick: () => {
+            const need = Math.ceil(ctx.balance.walk.moonKm / ctx.balance.walk.kmPerFloor) - (app.state.life.walkedFloors || 0) - 1;
+            app.state.legacy.walkedFloors = Math.max(app.state.legacy.walkedFloors || 0, need);
+            app.notify('次の階層まで歩くと、歴代の合計が月まで届く');
+          },
+        }, '月まであと1階層にする'))),
     el('div', { class: 'section' }, el('h2', {}, '誕生日'),
       el('div', {}, el('button', { onclick: () => app.birthdayNow() }, '誕生日の判定を今する（全回復・熟練の判定）'))),
     el('div', { class: 'section' }, el('h2', {}, '最初の3分'),

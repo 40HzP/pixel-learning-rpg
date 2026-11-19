@@ -71,9 +71,9 @@ const cryptoRng = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
 
 async function boot() {
   const params = new URLSearchParams(location.search);
-  let balance, monsters, items, questions, recruits, town, stages, business, fields, submit, genreGroups, firstCheck;
+  let balance, monsters, items, questions, recruits, town, stages, business, fields, submit, genreGroups, firstCheck, roadside;
   try {
-    [balance, { monsters }, { items }, { questions }, { recruits }, town, { stages }, business, fields, submit, { groups: genreGroups }, { questions: firstCheck }] = await Promise.all([
+    [balance, { monsters }, { items }, { questions }, { recruits }, town, { stages }, business, fields, submit, { groups: genreGroups }, { questions: firstCheck }, roadside] = await Promise.all([
       fetchJSON('data/balance.json'), fetchJSON('data/monsters.json'),
       fetchJSON('data/items.json'), fetchJSON('data/questions.json'),
       fetchJSON('data/recruits.json'), fetchJSON('data/town.json'),
@@ -81,6 +81,7 @@ async function boot() {
       fetchJSON('data/fields.json'), fetchJSON('data/submit.json'),
       fetchJSON('data/genre-groups.json'),
       fetchJSON('data/first-check.json'), // 前世の記憶をたどる（最初の3分）の問題の候補
+      fetchJSON('data/roadside.json'),    // 散歩の要素：前世の足跡の石碑と、道端の物の絵の名前
     ]);
   } catch (e) {
     document.querySelector('#loading .dialog').textContent = 'ゲームのデータを読めませんでした。\n' + e.message;
@@ -90,8 +91,8 @@ async function boot() {
   // 絵（データとコードに名前を書いた絵だけ）。下の切り替えバーの板とアイコンも貼る（ui/assets.js）
   const {
     palette, monsterSprites, recruitSprites, heroSets, heroLooks, sceneSprites,
-    stageList, townBg, townSprites, moonBg, moonSprites, genreSprites, itemSprites, menuSprites, roomSprites,
-  } = await loadAssets(PIXEL, { monsters, recruits, items, stages, town, genreGroups });
+    stageList, townBg, townSprites, moonBg, moonSprites, genreSprites, itemSprites, menuSprites, roomSprites, walkSprites,
+  } = await loadAssets(PIXEL, { monsters, recruits, items, stages, town, genreGroups, roadside });
 
   // radio：月面の街の裏側の電波望遠鏡で開く図鑑の頁（town.json の moon.radio）。firstCheck：前世の記憶をたどる問題の候補（data/first-check.json）
   // barnRooms：飼育小屋の部屋の背景の一覧（town.json の barnRooms）
@@ -104,6 +105,7 @@ async function boot() {
     menuSprites,      // 勉強のメニューのボタンのアイコン
     itemSprites,      // 店の品物のアイコン（品物のid → スプライト）
     roomSprites,      // 飼育小屋の部屋の背景（背景のid → スプライト。生態展示は stages の背景を切り取る）
+    walkSprites,      // 散歩の要素：前世の足跡の石碑（stele）と道端の物（items：物の名前 → スプライト）
     heroSets,
     // 今の主人公の絵：性別（男の子は hero_*、女の子は heroine_*）と、付けている装備の見た目
     get heroSprites() { return heroLooks(this.state); },
@@ -138,12 +140,12 @@ async function boot() {
       const s = app.state;
       runOverlay(() => playPrologue(app, scenes.rebirthScene({
         generation: s.life.generation, name: s.hero.name, age: Math.floor(s.life.gameHours / HOURS_PER_YEAR),
-        level: s.hero.level, maxFloor: s.life.maxFloor || 1, moonFloor: s.life.moonMaxFloor || 0, gold: Math.floor(s.gold),
+        level: s.hero.level, maxFloor: s.life.maxFloor || 1, moonFloor: s.life.moonMaxFloor || 0, gold: Math.floor(s.gold), walked: s.life.walkedFloors || 0,
       })));
     },
     restartFirstCheck() {
       beginRecall(app.state, ctx); // この人生の新しい5問（覚えたザコも入れ替える。ザコの群れと戦っていれば、間違えたザコがすぐ現れる）
-      adventure.reset();
+      adventure.reset(app);
       showTab('adventure');
     },
     launchCompareNow() {
@@ -175,7 +177,7 @@ async function boot() {
   const { showIntro } = createIntro(app, { heroLooks, saveNow, refreshActive });
   const scenes = createScenes(app, { notify, runOverlay, saveNow, refreshActive, showIntro, resetLaunch: cards.resetLaunch, screens });
   const handleEvents = createEventHandler(app, {
-    notify, runOverlay,
+    notify, notifyCard, runOverlay,
     startMovie: scenes.startMovie, startAilmentMovie: scenes.startAilmentMovie, onReincarnated: scenes.onReincarnated,
     rumorDefeated: cards.rumorDefeated, notifyFirstZukan: cards.notifyFirstZukan, notifyMisbeliefs: cards.notifyMisbeliefs,
   });

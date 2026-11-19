@@ -1,0 +1,29 @@
+{
+  "name": "road_sunset",
+  "category": "prop",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      "................",
+      ".....f....f.....",
+      "................",
+      ".eee..0000..eee.",
+      "....00gggg00....",
+      "...0gg44ffgg0...",
+      "dd0gffffffffg0dd",
+      "..0geeeeeeeee0..",
+      ".0ttt0geee0ttt0.",
+      "0tsssttttttssst0",
+      "0tsssssrrsssssr0",
+      ".0trrrr00trrrr0.",
+      "..00000..00000..",
+      "................",
+      "................",
+      "................"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

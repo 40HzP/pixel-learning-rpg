@@ -242,6 +242,9 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 #hud .fc-result.bad { color: #c4313b; }
 #hud .fc-msg { margin: 4px 0; font-size: 13px; }
 #hud .fc-note { display: block; color: #6e6b80; font-size: 11px; }
+/* 道端の物の問題（ui/roadside.js）：答えたあとの解説 */
+#hud .fc-explain { margin: 4px 0; font-size: 12px; color: #3d3a4f; }
+#hud.big .fc-explain { font-size: 13px; }
 #hud.big .fc-head, #hud.big .fc-result, #hud.big .fc-choice { font-size: 14px; }
 #hud.big .fc-q, #hud.big .fc-msg { font-size: 15px; }
 #hud.big .fc-note { font-size: 12px; }
@@ -279,6 +282,11 @@ textarea { width: 100%; min-height: 120px; font-size: 12px; }
 .zukan-first .nt-title { color: var(--accent); }
 .zukan-first .nt-name { display: block; font-size: 15px; }
 .zukan-first .nt-tap { color: var(--accent); }
+/* 散歩の要素（ui/events.js）：前世の石碑の前で立ち止まった・前世の自分を追い越した・歩いて月まで行ける距離 */
+.notice.stele { border-color: var(--line); }
+.notice.stele .nt-title { color: var(--accent); }
+.notice.stele.good { border-color: var(--good); }
+.notice.stele.good .nt-title { color: var(--good); }
 /* 起動から3分の比較 */
 .notice.compare { border-color: var(--info); }
 .notice.compare .nt-title { color: var(--info); }
@@ -664,6 +672,8 @@ button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 .item .btns button { padding: 4px 8px; font-size: 14px; line-height: 1.3; }
 .item.field.on { border-color: var(--good); }
 .item.on { border-color: var(--good); }
+/* 散歩帳（図書館・月面の書庫）：絵と名前・見つけた世界・解説 */
+.item.walk-page canvas { flex-shrink: 0; align-self: flex-start; }
 .item.field.guided { opacity: .85; border-style: dashed; border-color: var(--good); }
 .tax-box { font-size: 13px; color: var(--muted); margin: 4px 0 8px; }
 .company.corp { border-color: var(--accent); }

@@ -1,7 +1,7 @@
 // 画面全体のミニムービーの出し方：中ボスを倒したとき・体の不調・寿命と生まれ変わりの場面・ロケットの打ち上げと帰還・試作機。
 // 2026-11-09 に main.js から分けた
 import {
-  createRateTracker, lifeLogHighlights, seeOffFriends, launchRocket, returnToEarth, flyPrototype, launchSuccessRate, launchRateVisible,
+  createRateTracker, lifeLogHighlights, seeOffFriends, launchRocket, returnToEarth, flyPrototype, launchSuccessRate, launchRateVisible, walkKm,
 } from '../sim.js';
 import { fmt, affNum } from './dom.js';
 import { playMovie } from './movie.js';
@@ -79,7 +79,8 @@ export function createScenes(app, { notify, runOverlay, saveNow, refreshActive, 
     return {
       log,
       head: `${p.name}の熟練の記録`,
-      sub: `Lv${p.level}・最高到達${p.maxFloor}階層${p.moonFloor ? `（月面${p.moonFloor}階層）` : ''}・${fmt(p.gold)}ゴールドを残した`,
+      // 歩いた距離（散歩の要素。前の版の前世のまとめには無い）
+      sub: `Lv${p.level}・最高到達${p.maxFloor}階層${p.moonFloor ? `（月面${p.moonFloor}階層）` : ''}${p.walked != null ? `・${fmt(walkKm(p.walked, balance))}km歩いた` : ''}・${fmt(p.gold)}ゴールドを残した`,
       gender: app.state.hero.gender,
       // 懐いた飼育小屋のザコが見送る（設計ページ「懐き度」の③。懐き度の高い順に数体）
       friends: seeOffFriends(app.state, ctx).map((f) => ({ ...f, sprite: (monsterSprites[f.id] || {}).idle || null })),

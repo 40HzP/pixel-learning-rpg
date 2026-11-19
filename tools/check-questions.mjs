@@ -5,7 +5,9 @@
 //   出題日の無い日（その日の今日の1問は、出題日の無い問題から選ぶ）・同じ出題日の問題が2問以上（その日はどちらか1問）・
 //   前世の記憶をたどる（最初の3分）の問題の候補（first-check.json）の問題が無い・☆でない・地球のザコ（⚠でない）とつながっていない・候補が10問より少ない
 // 作問（ユーザーの問題）から採用した問題は author: { code: 作問者コードか null, name: ペンネームか null } を持つ（どちらかはある。無い問題は author が無いか null）
-import { readFileSync } from 'node:fs';
+// 誤り（止める）：道端（roadside: { name, world }）の世界が10階層ごとの世界（stages.json）の名前でない・ザコとつながっている
+// 警告（止めない）：道端の物の絵の名前が game/data/roadside.json に無い・その絵のファイルが無い（ゲームは光の粒で出す）
+import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { GENRES } from '../game/js/genres.js';
 
@@ -23,6 +25,10 @@ const byGenre = {};
 const byDifficulty = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
 const nonEmpty = (s) => typeof s === 'string' && s.trim() !== '';
+// 道端の物：置ける世界（地球の10階層ごとの世界）と、物の絵の名前（roadside.json）・世界ごとの数
+const stageNames = new Set(read('game/data/stages.json').stages.filter((s) => !s.world).map((s) => s.name));
+const roadside = read('game/data/roadside.json');
+const roadsideCount = {};
 // 今日の1問：出題日（MM-DD）ごとの問題の数
 const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const byDate = {};
@@ -58,6 +64,19 @@ for (const [i, q] of questions.entries()) {
     else (byDate[q.date] = byDate[q.date] || []).push(label);
   }
   if (q.anniversary != null && (!nonEmpty(q.anniversary) || q.date == null)) errors.push(`${label}: 記念日（anniversary）は出題日のある問題に、文字で`);
+  // 道端の物（設計ページ「散歩の要素」）
+  if (q.roadside != null) {
+    const r = q.roadside;
+    if (!nonEmpty(r.name) || !nonEmpty(r.world)) errors.push(`${label}: 道端（roadside）には物の名前（name）と世界（world）が要ります`);
+    else {
+      if (!stageNames.has(r.world)) errors.push(`${label}: 道端の世界「${r.world}」は10階層ごとの世界（stages.json）にありません`);
+      if (q.monster) errors.push(`${label}: 道端の問題はザコとつながっていない問題に付ける（関連する魔物「${q.monster}」）`);
+      const sprite = roadside.items[r.name];
+      if (!sprite) warnings.push(`${label}: 道端の物「${r.name}」の絵の名前が game/data/roadside.json にありません（ゲームは光の粒で出す。絵を描いて足す）`);
+      else if (!existsSync(root + `pixel/sprites/${sprite}.json`)) warnings.push(`${label}: 道端の物「${r.name}」の絵 pixel/sprites/${sprite}.json がありません`);
+      roadsideCount[r.world] = (roadsideCount[r.world] || 0) + 1;
+    }
+  }
 
   byGenre[q.genre] = (byGenre[q.genre] || 0) + 1;
   if (byDifficulty[q.difficulty] != null) byDifficulty[q.difficulty]++;
@@ -84,6 +103,7 @@ for (const c of checkList) {
   else usable++;
 }
 console.log(`前世の記憶をたどる：候補 ${usable}問（使える問題）`);
+console.log(`道端の物：${Object.values(roadsideCount).reduce((a, b) => a + b, 0)}問（${[...stageNames].map((w) => `${w} ${roadsideCount[w] || 0}`).join('、')}）`);
 if (usable < 10) warnings.push(`前世の記憶をたどるの候補が${usable}問です。10〜15問になるよう、問題リストの☆の問題の裏取りを進めて first-check.json に足す`);
 for (const w of warnings) console.log('警告：' + w);
 for (const e of errors) console.log('誤り：' + e);

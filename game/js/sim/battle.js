@@ -10,6 +10,7 @@ import { stashScaffold, applyScaffold } from './floors.js';
 import { partyAllies, partyMax, partyFull, recruitById } from './allies.js';
 import { tameZako } from './barn.js';
 import { pickZakoGroup, zakoZukanCount } from './firstrun.js';
+import { arriveFloor, walkPause, walkFloor } from './walk.js';
 
 export function makeEnemy(monster, state, ctx, slot) {
   const s = floorStats(state, ctx);
@@ -82,6 +83,7 @@ export function spawnGroup(state, ctx, events, monsterIds = null) {
     }
   }
   if (!list.length) return [];
+  adv.stop = null; // 石碑の前で立ち止まっている間に中ボスに挑んだときなど、群れが出たら立ち止まりは終わり
   adv.enemies = list.map((m, i) => makeEnemy(m, state, ctx, i));
   // 手下はボスの手前に並ぶ（群れの先頭。描く場所は render.js の MINION_SLOTS）
   adv.enemies.slice(0, minions.length).forEach((e, i) => { e.minion = true; e.slot = MINION_SLOT + i; });
@@ -129,7 +131,7 @@ export const allyInterval = (ally, ctx) => {
   return r ? r.intervalSec : ctx.balance.ally.attackIntervalSec;
 };
 
-/** 敵がいない間：主人公と仲間の攻撃の拍は止めずに進め（相手がいない拍は見送る）、次の群れを待つ */
+/** 敵がいない間：主人公と仲間の攻撃の拍は止めずに進め（相手がいない拍は見送る）、次の群れを待つ（前世の石碑の前では少し立ち止まる） */
 export function idleStep(state, dt, ctx, events) {
   const adv = state.adventure;
   freeSunkAllies(state, events);
@@ -139,6 +141,7 @@ export function idleStep(state, dt, ctx, events) {
     ally.cd -= dt;
     while (ally.cd <= 0) ally.cd += allyInterval(ally, ctx);
   }
+  if (walkPause(state, dt, ctx, events)) return;
   adv.spawnTimer -= dt;
   if (adv.spawnTimer <= 0) spawnGroup(state, ctx, events);
 }
@@ -320,6 +323,9 @@ export function defeatEnemy(state, e, ctx, events) {
     if (onMoon(state)) state.life.moonMaxFloor = Math.max(state.life.moonMaxFloor || 0, adv.floor);
     else state.life.maxFloor = Math.max(state.life.maxFloor || 1, adv.floor);
     events.push({ type: 'floorUp', floor: adv.floor, world: adv.world || 'earth' });
+    // 散歩の要素：歩いた距離・前世の自分を追い越した（越えた階層の石碑）・次の階層の石碑の前で立ち止まる
+    walkFloor(state, ctx, events, adv.floor - 1);
+    arriveFloor(state, ctx);
     // 倒したあとに何か残るボス（ツキノウミセツの立て札）は、それが見えるように次の群れを少し待たせる
     if (e.kind === 'boss' && (ctx.monsters.find((m) => m.id === e.monsterId) || {}).remains) adv.spawnTimer = Math.max(adv.spawnTimer, b.moon.remainsSec);
   }
@@ -351,6 +357,7 @@ export function restartFloor(state, floor, ctx) {
   adv.enemies = [];
   for (const a of state.allies) delete a.sunk;
   adv.spawnTimer = spawnDelay(adv, ctx.balance);
+  arriveFloor(state, ctx); // その階層に前世の石碑があれば立ち止まる
 }
 
 /** HP・MPと仲間のHPを全回復する（誕生日・やられたとき・中ボスに挑むとき） */

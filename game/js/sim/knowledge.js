@@ -63,6 +63,8 @@ export const heroTitles = (state, ctx) => [...new Set([
   ...fieldTitles(state, ctx),
   // 月面を踏破した（月面の最後のボスを倒した）称号。知識なので生まれ変わっても残る
   ...(state.knowledge.moonCleared ? ctx.monsters.filter((m) => m.clear && m.clear.title).map((m) => m.clear.title) : []),
+  // 歩いた距離の歴代の合計が月まで届いた（散歩の要素。sim/walk.js）
+  ...(state.legacy.moonWalk && ctx.balance.walk ? [ctx.balance.walk.moonTitle] : []),
 ])];
 
 

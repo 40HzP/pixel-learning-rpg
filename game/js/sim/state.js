@@ -8,8 +8,9 @@ export function createState(balance) {
   return {
     meta: { startAge: null },                       // 開始年齢の選択（null＝まだ選んでいない）
     // 何世代目か・0歳1月1日0時からの経過時間・生まれたときに決まった寿命（歳）・この人生で一番深い階層（地球）・月面で一番深い階層（0＝まだ行っていない）・体の不調を感じ始めたか・病院で治療を受けた回数・
-    // 誕生日：前に誕生日の処理（全回復・熟練の判定）をした年齢
-    life: { generation: 1, gameHours: 0, lifespan: balance.life.lifespanYears, maxFloor: 1, moonMaxFloor: 0, ailing: false, treatments: 0, birthday: 0 },
+    // 誕生日：前に誕生日の処理（全回復・熟練の判定）をした年齢・
+    // 散歩の要素（sim/walk.js）：この人生で歩き切った階層の数（地球と月面。1階層＝walk.kmPerFloor km）・もう追い越した前世の石碑（'earth:2' のように世界と世代）
+    life: { generation: 1, gameHours: 0, lifespan: balance.life.lifespanYears, maxFloor: 1, moonMaxFloor: 0, ailing: false, treatments: 0, birthday: 0, walkedFloors: 0, stelesPassed: [] },
     hero: { name: DEFAULT_HERO_NAME, gender: 'male', level: 1, exp: 0, totalExp: 0, hp: balance.hero.base.hp, mp: balance.hero.base.mp },
     gold: 0,
     equipment: { weapon: null, armor: null, accessory: null }, // 武器・防具・装飾品（品物のid）
@@ -21,8 +22,9 @@ export function createState(balance) {
     // 法人税（法と経済学で法人化した会社）：今年の法人の利益（決算で税を計算する元）・払いきれなかった法人税・前に決算した年齢
     tax: { earned: 0, owed: 0, year: 0 },
     // enemies：今出ている群れ（先頭が狙う相手）。
-    // world：今いる世界（earth＝地球、moon＝月面）。floor は今いる世界の階層で、もう片方の世界の階層は earthFloor・moonFloor に取っておく
-    adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1, world: 'earth', earthFloor: null, moonFloor: 1 },
+    // world：今いる世界（earth＝地球、moon＝月面）。floor は今いる世界の階層で、もう片方の世界の階層は earthFloor・moonFloor に取っておく。
+    // stop：前世の石碑の前で立ち止まっている間（{ kind: 'stele', sec, started, steles }。sim/walk.js）
+    adventure: { floor: 1, kills: 0, enemies: [], spawnTimer: 0, heroCd: 0, nextUid: 1, world: 'earth', earthFloor: null, moonFloor: 1, stop: null },
     knowledge: {                                    // 転生で引き継ぐ前提のもの（第2段階）
       genres: {},                                   // ジャンル名 → { level, progress, correct, studied（前の誕生日から勉強した）, idle（勉強していない年数） }
       profLog: [],                                  // 熟練の記録（新しい順。PROF_LOG_MAX 件まで。logProficiency）
@@ -39,6 +41,7 @@ export function createState(balance) {
       moonCleared: false,                           // 月面を踏破した（月面の最後のボスを倒した。称号と図鑑の頁が残る）
       authorGenres: [],                             // 作問権のあるジャンル（2つのジャンルを Lv5 にするともらえる。一度もらうと熟練が下がっても残る）
       radio: { charge: 0, pages: 0 },               // 裏側の電波望遠鏡：たまった「宇宙からの電波」と、開いた図鑑の頁の数（月面で正解するとたまる）
+      walkBook: [],                                 // 散歩帳：道端の問題に正解して載った物 { id（問題id）, generation, gameHours } の載った順（sim/walk.js）
     },
     midbosses: {},                                  // 中ボスid → { status: waiting|appeared|broken|defeated, announced }
     bosses: {},                                     // ボスid → { status: waiting|appeared|defeated }（一度倒したボスは、その人生ではもう出ない。生まれ変わるとまた出る）
@@ -49,7 +52,9 @@ export function createState(balance) {
     firstRun: null,
     legacy: {                                     // 転生しても残るもの
       titles: [],                                   // 前世までにもらった称号
-      lives: [],                                    // 前世のまとめ：{ generation, name, age, level, maxFloor, gold }
+      lives: [],                                    // 前世のまとめ：{ generation, name, age, level, maxFloor, moonFloor, gold, walked（歩き切った階層の数。2026-11-20 から） }
+      walkedFloors: 0,                              // 前世までに歩き切った階層の数の合計（歩いた距離の歴代の合計。この人生の分は life.walkedFloors）
+      moonWalk: false,                              // 歴代の合計が月まで（walk.moonKm）に届いた（称号 walk.moonTitle）
       // ロケット計画：建造費を払ったか・工程ごとに進んだゲーム内の時間・
       // 試作機で効果が出たザコ（同じザコの効果は1回まで）・試作機で上がった打ち上げの成功率
       rocket: { buildCostPaid: false, steps: {}, flown: [], rateBonus: 0 },

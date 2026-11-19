@@ -7,6 +7,7 @@ import { dailyCardVisible, dailyInfo } from '../quiz.js';
 import { dailyTitle } from './daily.js';
 import { el, fmt } from './dom.js';
 import * as recall from './recall.js';
+import * as roadside from './roadside.js';
 
 let refs = null;
 
@@ -81,12 +82,14 @@ export function init(app) {
   );
   // 前世の記憶をたどる（初めて遊ぶ人の最初の人生と、生まれ変わるたび。ui/recall.js）
   recall.init(app, hud);
+  // 道端のもの（散歩の要素。ui/roadside.js）：同じ白い紙で1問
+  roadside.init(app, hud);
 }
 
-export function reset() { recall.reset(); }
+export function reset(app) { recall.reset(); roadside.reset(app); }
 
-/** 毎フレーム（ゲームの時間が進んでいる間）：前世の記憶をたどるの制限時間 */
-export function frame(app, realDt) { recall.frame(app, realDt); }
+/** 毎フレーム（ゲームの時間が進んでいる間）：前世の記憶をたどる・道端の物の問題の制限時間 */
+export function frame(app, realDt) { recall.frame(app, realDt); roadside.frame(app, realDt); }
 
 export function setScale(app, scale) {
   if (refs) refs.hud.classList.toggle('big', scale >= 4);
@@ -175,9 +178,9 @@ export function update(app) {
     r.boss.hidden = true;
   }
 
-  // 前世の記憶をたどる：出している間はステータスを短くし、今日の1問の札は後にする
+  // 前世の記憶をたどる・道端の物の問題：出している間はステータスを短くし、今日の1問の札は後にする
   recall.update(app);
-  const checking = recall.showing();
+  const checking = recall.showing() || roadside.showing();
   if (r.hud.classList.contains('checking') !== checking) {
     r.hud.classList.toggle('checking', checking);
     app.placeNotices(); // ステータスの高さが変わったので、その下に出す知らせも動かす

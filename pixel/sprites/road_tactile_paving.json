@@ -1,0 +1,29 @@
+{
+  "name": "road_tactile_paving",
+  "category": "prop",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      ".00000000000000.",
+      "0ffffffffffffff0",
+      "0fggfggfggfggff0",
+      "0fgefgefgefgeff0",
+      "0ffffffffffffff0",
+      "0fggfggfggfggff0",
+      "0fgefgefgefgeff0",
+      "0eeeeeeeeeeeeee0",
+      ".00000000000000.",
+      "................",
+      "................"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

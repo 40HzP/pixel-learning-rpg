@@ -1,9 +1,19 @@
 // 主人公（街の道に立つ主人公をタップ）：名前の変更とステータス。2026-11-09 に ui/facility.js から分けた
 import {
-  EQUIP_SLOTS, heroTitles, heroStats, renameHero, HERO_NAME_MAX, expMultiplier, generationMultiplier, ageYears, farthestReached,
+  EQUIP_SLOTS, heroTitles, heroStats, renameHero, HERO_NAME_MAX, expMultiplier, generationMultiplier, ageYears, farthestReached, walkedKm, likenDistance,
 } from '../../sim.js';
-import { el } from '../dom.js';
+import { el, fmt } from '../dom.js';
 import { live, say, update, note } from './common.js';
+
+/** 歩いた距離の欄：この人生で歩いた距離（大きく）と、歴代の合計（生まれ変わったあと）。どちらも身近なたとえを添える */
+function walkStat(s, ctx) {
+  const w = walkedKm(s, ctx);
+  const b = ctx.balance;
+  const lines = [`この人生：${likenDistance(w.life, b)}`];
+  if (s.legacy.lives.length) lines.push(`歴代の合計 ${fmt(w.total)}km：${likenDistance(w.total, b)}`);
+  lines.push(`1階層を歩き切ると${b.walk.kmPerFloor}km（やられてやり直した分も数える。階層の移動は数えない）。強さには効かない`);
+  return el('div', { class: 'stat wide' }, el('span', {}, '歩いた距離'), el('b', {}, `${fmt(w.life)}km`), ...lines.map((t) => el('small', {}, t)));
+}
 
 /** 主人公：名前とステータス */
 export function heroPanel(app) {
@@ -37,6 +47,8 @@ export function heroPanel(app) {
       el('div', { class: 'stat wide' }, el('span', {}, '最高到達地点'),
         el('b', {}, `${far.floor}階層${far.stage ? `（${far.stage.name}）` : ''}${far.moon ? `・月面${far.moon}階層` : ''}`),
         el('small', {}, farText)),
+      // 歩いた距離（設計ページ「散歩の要素」）：この人生と歴代の合計。身近なたとえを添える。強さには効かない
+      walkStat(s, app.ctx),
       el('div', { class: 'stat wide' }, el('span', {}, '装備'),
         el('b', {}, EQUIP_SLOTS.map((slot) => app.ctx.items.find((i) => i.id === s.equipment[slot])).filter(Boolean).map((i) => i.name).join('・') || 'なし'),
         el('small', {}, '街の店で買う。武器・防具・装飾品を1つずつ付けられる')),

@@ -1,0 +1,22 @@
+{
+  "note": "散歩の要素（設計ページ「散歩の要素」）の絵の名前。道端の物の名前と置く世界は、問題リストの「道端」「道端の世界」の欄（questions.json の roadside）が正本。ここには物の名前 → 絵の名前（pixel/sprites/<名前>.json。16×16）だけを書く。絵の名前が無い物は、ゲームが白い光の粒で出す。stele は前世の足跡の石碑の絵",
+  "stele": "walk_stele",
+  "items": {
+    "朝露の葉": "road_dew_leaf",
+    "雨上がりの虹": "road_rainbow",
+    "切り株": "road_stump",
+    "木陰の猫": "road_cat",
+    "碁盤の目の辻": "road_grid_street",
+    "道の起点の標": "road_milestone",
+    "棚の石灰石": "road_limestone",
+    "砂から覗く化石": "road_ammonite",
+    "溶岩のすき間のコケ": "road_lava_moss",
+    "御影石の石碑": "road_granite",
+    "霜の降りた草": "road_frost",
+    "手袋に落ちた雪": "road_snowflake",
+    "黄色い点字ブロック": "road_tactile_paving",
+    "路面の盛り上がり": "road_hump",
+    "またたく星": "road_star",
+    "夕焼け": "road_sunset"
+  }
+}
