@@ -91,7 +91,7 @@ test('社員は会社ごとに雇う。心理学の熟練Lvが上がると、よ
   assert.ok(partyFull(s, ctx));
   assert.equal(hireStaff(s, 1, 'clerk', ctx).ok, true);
   assert.equal(partyAllies(s).length, 5);
-  assert.ok(recruitList(s, ctx).every((r) => !STAFF.includes(r.id)), '仲間が集まる場所の一覧には社員は出ない');
+  assert.ok(recruitList(s, ctx).every((r) => !STAFF.includes(r.id)), '酒場の一覧には社員は出ない');
   assert.equal(dismissStaff(s, 1, 'clerk').ok, true);
   assert.equal(dismissStaff(s, 1, 'clerk').ok, false);
 });

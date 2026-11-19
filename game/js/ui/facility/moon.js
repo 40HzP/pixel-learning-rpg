@@ -1,4 +1,4 @@
-// 月面の街だけの施設の中身：通信基地（仲間が集まる場所と会社）・裏側の電波望遠鏡（学校・研究室と宇宙からの電波）・帰還ロケット。
+// 月面の街だけの施設の中身：通信基地（酒場と会社）・裏側の電波望遠鏡（学校・研究室と宇宙からの電波）・帰還ロケット。
 // ほかの月面の施設（補給所・月面の書庫・医務室・飼育ドーム）は地球の施設と同じ画面。2026-11-09 に ui/facility.js から分けた
 import { radioInfo } from '../../sim.js';
 import { el } from '../dom.js';
@@ -26,7 +26,7 @@ export function moonRocketPanel(app) {
   ];
 }
 
-/** 通信基地（月面の街）：地球の仲間が集まる場所と会社の仕事を、地球との通信でする（決めたことの返事は約2.6秒あとに届く） */
+/** 通信基地（月面の街）：地球の酒場と会社の仕事を、地球との通信でする（決めたことの返事は約2.6秒あとに届く） */
 export function commPanel(app) {
   const lock = lockText(app, 'company');
   // 会社の欄を先に作る（所持金の数字の部品 live.gold は1つなので、あとで作る仲間の欄の所持金に付ける）
@@ -35,7 +35,7 @@ export function commPanel(app) {
     : companyPanel(app).slice(1); // 所持金は上（仲間の欄）に出す
   return [
     note('決めたことは地球へ送信し、地球から返事が届く。決めた効果はすぐに出る'),
-    el('h3', { class: 'subhead' }, '仲間（地球の「仲間が集まる場所」）'),
+    el('h3', { class: 'subhead' }, '仲間（地球の「酒場」）'),
     ...guildPanel(app),
     el('h3', { class: 'subhead' }, '会社（地球の「会社」）'),
     ...company,

@@ -1,4 +1,4 @@
-// ゲームの計算：パーティーと、仲間が集まる場所（契約・契約料）
+// ゲームの計算：パーティーと、酒場（契約・契約料）
 
 import { HOURS_PER_MONTH } from './core.js';
 import { industryById, staffCost, companiesProfit } from './company.js';

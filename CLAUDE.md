@@ -55,7 +55,7 @@
 | 勉強（クイズ・テスト・過去問復習・破りすてる・大喜利・落書き・ツイート） | 機能・勉強画面の表示 | 勉強（クイズ・テスト・過去問復習） | quiz・review・share・genre-groups |
 | 中ボスと孫の「なんで？」 | 専門職の人間 | 中ボス | midboss |
 | 店（装備）と見た目 | 機能・月面の街 | 店（装備） | items・outfit |
-| 仲間の契約・パーティー | 味方キャラクター | 仲間が集まる場所（契約） | recruit・party |
+| 仲間の契約・パーティー | 味方キャラクター | 酒場（仲間の契約） | recruit・party |
 | 顧問 | 専門職の人間「仲間にした後の役目（顧問）」 | 顧問（仲間にした中ボスの使い道） | advisor |
 | 会社・法人化 | 機能（起業）・特定のジャンルマスターの組み合わせ（法と経済学） | 会社（起業） | business・corporation |
 | 寿命・転生・病院・性別 | 機能（年齢・寿命） | 寿命と転生（世代） | life・hospital |
@@ -119,12 +119,12 @@ game/
     render.js            … 冒険画面の描画（90×160）
     ui/                  … 画面ごとの表示（adventure / study / facility（街） / zukan / debug / dom / movie（ミニムービー） / nande（孫の「なんで？」） / tear（テスト用紙を破りすてる） / oogiri（テストに大喜利を書いて提出した） / doodle（テスト用紙の落書き） / share（テストの結果をツイートする） / launch（ロケットの打ち上げと帰還） / daily（今日の1問） / settings（設定） / floors（階層の移動） / proflog（熟練の記録） / prologue（前世の最期） / recall（前世の記憶をたどる） / roadside（道端の物の問題））
                             と、main.js の部品：assets（起動のときに読む絵）/ notices（知らせと、画面全体に重ねるものの順番待ち）/ cards（札：噂のザコ・正体・図鑑の1体目・起動から3分の比較）/ intro（最初の案内）/ scenes（ミニムービーの出し方：中ボス・体の不調・生まれ変わり・ロケット・試作機）/ events（起きたことを知らせにする）
-      facility/          … 街の施設ごとの中身（facility.js は街と、施設の中の枠・毎回の更新だけ）：common（共通：今の画面・知らせ・解放の条件）/ shop（店・補給所）/ guild（仲間が集まる場所）/ library（図書館・月面の書庫）/ company（会社）/ rocket（ロケット発射場と試作機）/ major（学校・研究室）/ hospital（病院・医務室）/ hero（主人公）/ barn（飼育小屋・飼育ドーム）/ moon（通信基地・裏側の電波望遠鏡・帰還ロケット）/ advisor（顧問の欄）
+      facility/          … 街の施設ごとの中身（facility.js は街と、施設の中の枠・毎回の更新だけ）：common（共通：今の画面・知らせ・解放の条件）/ shop（店・補給所）/ guild（酒場）/ library（図書館・月面の書庫）/ company（会社）/ rocket（ロケット発射場と試作機）/ major（学校・研究室）/ hospital（病院・医務室）/ hero（主人公）/ barn（飼育小屋・飼育ドーム）/ moon（通信基地・裏側の電波望遠鏡・帰還ロケット）/ advisor（顧問の欄）
   data/
     balance.json         … 数値（ここを書き換えるだけで調整できる）
     monsters.json        … 魔物・ボス・中ボス
     items.json           … 店の品物（武器・防具・装飾品）
-    recruits.json        … 仲間が集まる場所で契約できる仲間と、会社の社員
+    recruits.json        … 酒場で契約できる仲間と、会社の社員
     town.json            … 施設画面の街（背景、施設の外観の名前と置く位置、主人公の立つ位置）と、体の不調のミニムービーの文（病院の `ailmentMovie`）。`moon` は月面の街（施設・月の一言 `note`・電波望遠鏡で開く図鑑の頁 `radio`）。`barnRooms` は飼育小屋の部屋の背景（名前・一言・絵・歩ける床）
     stages.json          … 10階層ごとの世界（始まる階層・名前・ジャンル・背景）。`world: "moon"` は月面
     business.json        … 会社の業種（元手・利益・よく効く社員・関係するジャンル）と起業できる条件

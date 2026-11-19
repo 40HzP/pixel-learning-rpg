@@ -9,7 +9,7 @@
 //   balance  … data/balance.json
 //   monsters … data/monsters.json の monsters 配列
 //   items    … data/items.json の items 配列
-//   recruits … data/recruits.json の recruits 配列（仲間が集まる場所で契約できる仲間）
+//   recruits … data/recruits.json の recruits 配列（酒場で契約できる仲間）
 //   business … data/business.json（会社の業種）
 //   fields   … data/fields.json（学際分野。計算は fields.js）
 

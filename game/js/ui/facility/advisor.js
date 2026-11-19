@@ -4,7 +4,7 @@ import { inParty, ADVISOR_PLACES, advisorSlots, advisorsAt, setAdvisor, citation
 import { el, fmt } from '../dom.js';
 import { say, update, pct } from './common.js';
 
-/** 顧問にする・やめさせるボタン（仲間が集まる場所と、置く施設の顧問の欄で同じもの） */
+/** 顧問にする・やめさせるボタン（酒場と、置く施設の顧問の欄で同じもの） */
 export function advisorButton(app, a, d, placeFull) {
   const on = !!a.advisor;
   return el('button', {

@@ -31,7 +31,7 @@ export function say(app, text, kind = '') {
 
 export const note = (text) => el('div', { class: 'muted', style: { fontSize: '14px', marginBottom: '8px' } }, text);
 
-/** 仲間が集まる場所：ゲーム内の1か月ごとに契約料を払って仲間にする */
+/** 酒場：ゲーム内の1か月ごとに契約料を払って仲間にする */
 export const pct = (x) => `${Math.round(x * 100)}%`;
 export const genreLv = (s, g) => (s.knowledge.genres[g] || { level: 0 }).level;
 

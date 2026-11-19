@@ -1,4 +1,4 @@
-// 仲間が集まる場所（契約と、中ボスだった仲間のパーティー・顧問）。2026-11-09 に ui/facility.js から分けた
+// 酒場（契約と、中ボスだった仲間のパーティー・顧問）。2026-11-09 に ui/facility.js から分けた
 import {
   inParty, setInParty, partyAllies, partyMax, partyFull, formatDate, recruitList, hireRecruit, dismissRecruit, monthlyContractCost, HOURS_PER_MONTH,
   canFound, ADVISOR_PLACES, advisorDef, advisorSlots, advisorsAt,

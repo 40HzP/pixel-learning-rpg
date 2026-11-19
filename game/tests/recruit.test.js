@@ -9,7 +9,7 @@ import { balance, recruits, makeCtx, newGame, constRng, seededRng } from './help
 
 const cost = (id) => recruits.find((r) => r.id === id).monthlyCost;
 
-test('仲間が集まる場所は最初から使える：戦士・格闘家・魔法使い・僧侶と契約できる', () => {
+test('酒場は最初から使える：戦士・格闘家・魔法使い・僧侶と契約できる', () => {
   const s = newGame(0);
   const ctx = makeCtx();
   const list = recruitList(s, ctx).filter((r) => r.role !== 'staff');

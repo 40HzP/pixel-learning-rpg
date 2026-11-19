@@ -113,7 +113,7 @@ export function createEventHandler(app, { notify, notifyCard, runOverlay, startM
         // 顧問にもできる中ボスなら、置く場所と役目も知らせる
         const adv = (ctx.monsters.find((m) => m.id === e.id) || {}).advisor;
         const tip = adv && !adv.soon ? `\n${ADVISOR_PLACES[adv.place]}の顧問（${adv.role}）にもできる` : '';
-        notify((e.benched ? `${e.name}が仲間になった！\nパーティーがいっぱいなので控えにいる（仲間が集まる場所で入れ替えられる）` : `${e.name}が仲間になった！`) + tip, 'good');
+        notify((e.benched ? `${e.name}が仲間になった！\nパーティーがいっぱいなので控えにいる（酒場で入れ替えられる）` : `${e.name}が仲間になった！`) + tip, 'good');
       }
       else if (e.type === 'barnFriendly') notify(`${e.name}がすっかり懐いた！（${e.barn}）\n誕生日に贈り物を持ってきたり、${e.name}の問題で誤答を1つ消してくれたりする`, 'good');
       else if (e.type === 'barnReformed') notify(`${e.name}が自分の誤解に気づいた！（更生）\n${e.barn}で触ると、本当のことを話してくれる`, 'good');
