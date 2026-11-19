@@ -71,7 +71,7 @@ jobs:
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <meta http-equiv="refresh" content="0; url=game/">
-          <title>ドット絵勉強RPG（試作）</title>
+          <title>ハテシラズの散歩人〜勉強するほど強くなる転生RPG〜</title>
           <a href="game/">ゲームへ</a>
           HTML
       - uses: actions/configure-pages@v5
