@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
   tick, moveToFloor, spawnGroup, damageEnemy, reincarnate, startGame, heroTitles, steles, walkedKm, likenDistance,
   pickRoadside, roadsideQuestions, walkBookPages, inWalkBook,
+  tameZako, setWalker, walkerEntry, isHometown, walkerNotice, walkedWithKm, raiseAffinity, flyPrototype,
 } from '../js/sim.js';
 import { beginRoadside, answerRoadside, beginRecall } from '../js/quiz.js';
 import { balance, makeCtx, newGame, constRng, seqRng, questions, stages } from './helpers.js';
@@ -204,4 +205,130 @@ test('月面に行った前世の石碑は、月面のその階層に出る', ()
   moveToFloor(s, ctx, 2);
   assert.equal(s.adventure.stop && s.adventure.stop.kind, 'stele');
   assert.equal(s.adventure.stop.steles[0].world, 'moon');
+});
+
+/* ---------- ザコの散歩（設計ページ「ザコの散歩（2026-11-20）」） ---------- */
+
+const byName = (ctx, name) => ctx.monsters.find((m) => m.name === name);
+
+test('ザコの散歩：小屋のザコを1体だけ連れて行ける（ほかのザコを選ぶと交代）。小屋にいないザコは連れて行けない。生まれ変わっても連れたまま', () => {
+  const ctx = makeCtx();
+  const s = newGame(0);
+  const a = byName(ctx, 'ネンリンホウイ'), b = byName(ctx, 'ジュッパーノウ');
+  assert.equal(setWalker(s, ctx, a.id).ok, false, '小屋にいない');
+  tameZako(s, ctx, a.id, [], true);
+  tameZako(s, ctx, b.id, [], true);
+  assert.equal(s.legacy.barn.find((x) => x.id === a.id).since, 1, 'なついた世代を残す');
+  assert.equal(setWalker(s, ctx, a.id).name, 'ネンリンホウイ');
+  assert.equal(walkerEntry(s, ctx).id, a.id);
+  const r = setWalker(s, ctx, b.id);
+  assert.equal(r.back, 'ネンリンホウイ', '連れていたザコは小屋に帰る');
+  assert.equal(walkerEntry(s, ctx).id, b.id);
+  reincarnate(s, ctx);
+  assert.equal(walkerEntry(s, ctx).id, b.id, '小屋のザコと同じく、生まれ変わっても残る');
+  assert.equal(setWalker(s, ctx, null).back, 'ジュッパーノウ');
+  assert.equal(walkerEntry(s, ctx), null);
+});
+
+test('ザコの散歩：一緒に歩いた距離は、連れて階層を歩き切るごとに数える（階層の移動は数えない）。連れていないザコは増えない', () => {
+  const ctx = makeCtx();
+  const s = newGame(0);
+  const a = byName(ctx, 'ジュッパーノウ'), b = byName(ctx, 'ボキボキ');
+  tameZako(s, ctx, a.id, [], true);
+  tameZako(s, ctx, b.id, [], true);
+  setWalker(s, ctx, a.id);
+  s.life.maxFloor = 20;
+  clearFloor(s, ctx);
+  clearFloor(s, ctx);
+  moveToFloor(s, ctx, 10);
+  assert.equal(walkedWithKm(s, ctx, a.id), 2 * balance.walk.kmPerFloor);
+  assert.equal(walkedWithKm(s, ctx, b.id), 0);
+});
+
+test('ザコの散歩：連れて歩いている間は、懐き度が walkerAffinityRate 倍上がりやすい（動物行動学の倍率と掛け合わせる）。強さは変わらない', () => {
+  const ctx = makeCtx();
+  const s = newGame(0);
+  const a = byName(ctx, 'ジュッパーノウ'), b = byName(ctx, 'ボキボキ');
+  tameZako(s, ctx, a.id, [], true);
+  tameZako(s, ctx, b.id, [], true);
+  setWalker(s, ctx, a.id);
+  assert.equal(raiseAffinity(s, ctx, a.id, 4, []), 4 * balance.walk.walkerAffinityRate);
+  assert.equal(raiseAffinity(s, ctx, b.id, 4, []), 4);
+});
+
+test('ザコの散歩：ふるさと（出現エリアの世界。月面のザコは月面）を歩いているときだけ、はしゃぐ', () => {
+  const ctx = makeCtx();
+  const s = newGame(0);
+  const m = byName(ctx, 'ネンリンホウイ'); // 生き物の森
+  s.adventure.floor = 15;
+  assert.equal(isHometown(s, ctx, m), true);
+  s.adventure.floor = 5;
+  assert.equal(isHometown(s, ctx, m), false);
+  const two = byName(ctx, 'ニドオチズ'); // 火山と天空の神殿
+  s.adventure.floor = 55; assert.equal(isHometown(s, ctx, two), true);
+  s.adventure.floor = 95; assert.equal(isHometown(s, ctx, two), true);
+  const moon = ctx.monsters.find((x) => x.kind === 'monster' && x.world === 'moon');
+  assert.equal(isHometown(s, ctx, moon), false);
+  s.adventure.world = 'moon';
+  assert.equal(isHometown(s, ctx, moon), true);
+  assert.equal(isHometown(s, ctx, m), false);
+});
+
+test('ザコの散歩：なついた世代と同じか後の前世の石碑では座り込む（覚えている）。なつく前の前世・前のセーブ（since が無い）では座り込まない', () => {
+  const ctx = makeCtx();
+  const s = secondLife(12);
+  const m = byName(ctx, 'ジュッパーノウ');
+  tameZako(s, ctx, m.id, [], true); // 2世代目になついた
+  setWalker(s, ctx, m.id);
+  moveToFloor(s, ctx, 12);
+  let st = tick(s, 0.1, ctx).find((e) => e.type === 'stele');
+  assert.equal(st.sit, false, '1世代目の前世とは歩いていない');
+  s.legacy.barn[0].since = 1;
+  moveToFloor(s, ctx, 11); moveToFloor(s, ctx, 12);
+  st = tick(s, 0.1, ctx).find((e) => e.type === 'stele');
+  assert.equal(st.sit, true, '1世代目からいたザコは覚えている');
+  delete s.legacy.barn[0].since;
+  moveToFloor(s, ctx, 11); moveToFloor(s, ctx, 12);
+  assert.equal(tick(s, 0.1, ctx).find((e) => e.type === 'stele').sit, false, '前のセーブは座り込まないとして読む');
+});
+
+test('ザコの散歩：道端の物が自分の俗説に関わるザコは一言（誤解。更生したら本当のこと）。関わらない物ではにおいを嗅ぐだけ。問題は出さない', () => {
+  const ctx = makeCtx();
+  const s = newGame(0);
+  assert.equal(walkerNotice(s, ctx, '切り株'), null, '連れていなければ何もしない');
+  const m = byName(ctx, 'ネンリンホウイ');
+  tameZako(s, ctx, m.id, [], true);
+  setWalker(s, ctx, m.id);
+  const say = walkerNotice(s, ctx, '切り株');
+  assert.deepEqual([say.kind, say.line], ['say', m.myth]);
+  assert.equal(walkerNotice(s, ctx, '朝露の葉').kind, 'sniff');
+  s.legacy.barn[0].affinity = balance.barn.affinityMax;
+  assert.equal(walkerNotice(s, ctx, '切り株').line, m.truth, '更生したら本当のこと');
+});
+
+test('ザコの散歩のデータ：道端の物で一言いうザコ（roadside.json の zako）は、道端の物の名前とザコの名前がそろっている', () => {
+  const ctx = makeCtx();
+  const items = new Set(Object.keys(roadside.items));
+  for (const [thing, names] of Object.entries(roadside.zako)) {
+    assert.ok(items.has(thing), `${thing} は道端の物`);
+    for (const n of names) {
+      const m = byName(ctx, n);
+      assert.ok(m && m.kind === 'monster', `${n} はザコ`);
+      assert.ok(!m.debated, `${n} は議論中（⚠）のザコではない`);
+    }
+  }
+});
+
+test('ザコの散歩：連れていたザコが試作機で野に戻ったら、散歩もおしまい', () => {
+  const ctx = makeCtx(constRng(0.99)); // 試作機は失敗し、帰ってこない
+  const s = newGame(0);
+  const m = byName(ctx, 'ジュッパーノウ');
+  tameZako(s, ctx, m.id, [], true);
+  setWalker(s, ctx, m.id);
+  s.legacy.rocket.steps.airframe = 1e9; // 機体設計が終わった
+  s.gold = 1e15;
+  const r = flyPrototype(s, ctx, m.id, []);
+  assert.equal(r.left, true);
+  assert.equal(s.legacy.walker, null);
+  assert.equal(walkerEntry(s, ctx), null);
 });

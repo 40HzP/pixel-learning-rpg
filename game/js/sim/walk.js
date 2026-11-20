@@ -2,10 +2,12 @@
 // ① 前世の足跡：前世の最高階層に石碑。通りかかると立ち止まり、越えると「前世の自分を追い越した」。
 // ② 歩いた距離：階層を歩き切るごとに数える（強さには効かない。記録として眺める）。
 // ③ 道端のもの：問題リストの「道端」を書いた問題（questions.json の roadside）が、その世界の道端に出る。正解すると散歩帳に載る。
+// ④ ザコの散歩：飼育小屋のザコを1体、冒険に連れて歩く（振り返り・道端のものに先に気づく・前世の石碑で座り込む・ふるさとではしゃぐ・一緒に歩いた距離）。
 // どれも攻略を遅らせず、強さ・ゴールド・経験値に効かない（設計ページのとおり）
 
-import { onMoon, currentStage } from './world.js';
+import { onMoon, currentStage, worldOf } from './world.js';
 import { spawnDelay } from './battle.js';
+import { barnEntry, isReformed, BARN_NAMES } from './barn.js';
 
 /* ---------- ① 前世の足跡（石碑） ---------- */
 
@@ -42,7 +44,8 @@ export function walkPause(state, dt, ctx, events) {
   if (!st) return false;
   if (!st.started) {
     st.started = true;
-    events.push({ type: 'stele', world: adv.world || 'earth', floor: adv.floor, steles: st.steles });
+    // sit：連れているザコが、この石碑の前世の主人公とも歩いたことがある（なついた世代より後の前世）。石碑の前で座り込む（説明はしない）
+    events.push({ type: 'stele', world: adv.world || 'earth', floor: adv.floor, steles: st.steles, sit: walkerRemembers(state, ctx, st.steles) });
   }
   st.sec -= dt;
   if (st.sec > 0) return true;
@@ -86,6 +89,8 @@ export function likenDistance(km, balance) {
 export function walkFloor(state, ctx, events, passedFloor) {
   const b = ctx.balance;
   state.life.walkedFloors = (state.life.walkedFloors || 0) + 1;
+  const w = walkerEntry(state, ctx); // 連れて歩いているザコとも一緒に歩いた
+  if (w) w.entry.walked = (w.entry.walked || 0) + 1;
   if (!state.legacy.moonWalk && walkedKm(state, ctx).total >= b.walk.moonKm) {
     state.legacy.moonWalk = true;
     events.push({ type: 'walkedToMoon', km: walkedKm(state, ctx).total, title: b.walk.moonTitle });
@@ -148,3 +153,72 @@ export function walkBookPages(state, ctx) {
     .map((q) => ({ question: q, name: q.roadside.name, world: q.roadside.world, found: book.get(q.id) || null }))
     .sort((a, b) => rank(a.world) - rank(b.world));
 }
+
+/* ---------- ④ ザコの散歩（設計ページ「ザコの散歩（2026-11-20）」） ---------- */
+// 飼育小屋・飼育ドームのザコを1体（legacy.walker）、冒険に連れて歩く。隊列の最後尾を歩き、戦わず、敵にも狙われない（仲間の枠は使わない）。
+// 強さ・ゴールド・経験値には効かない。連れて行かなくても懐き度は下がらない（世話の義務にしないため）。
+// 振り返り・ふるさとではしゃぐ・道端のものに駆け寄る・石碑の前で座り込むのは絵（render.js）。ここは誰を連れているか・一緒に歩いた距離・
+// ふるさとか・石碑を覚えているか・道端の物での一言を決める
+
+/** 連れて歩いているザコ：{ id, monster, entry（飼育小屋の記録） }。連れていない・小屋にいない（試作機で野に戻った）なら null */
+export function walkerEntry(state, ctx) {
+  const id = state.legacy.walker;
+  const entry = id ? barnEntry(state, id) : null;
+  const monster = entry ? ctx.monsters.find((m) => m.id === id) : null;
+  return monster ? { id, monster, entry } : null;
+}
+
+/** 散歩に連れて行く（id）・小屋に帰す（null）。連れて行けるのは同時に1体なので、ほかのザコを連れていれば交代する。{ ok, name, back（帰したザコの名前） } */
+export function setWalker(state, ctx, id) {
+  const prev = walkerEntry(state, ctx);
+  if (id == null) {
+    state.legacy.walker = null;
+    return { ok: true, name: null, back: prev ? prev.monster.name : null };
+  }
+  const entry = barnEntry(state, id);
+  const m = entry ? ctx.monsters.find((x) => x.id === id) : null;
+  if (!m) return { ok: false, reason: '飼育小屋にいないザコは連れて行けない' };
+  state.legacy.walker = id;
+  return { ok: true, name: m.name, back: prev && prev.id !== id ? prev.monster.name : null, barn: BARN_NAMES[worldOf(m)] };
+}
+
+/** ザコのふるさと（設計ページ「ザコの出現エリア」）を歩いているか：地球のザコは出現エリアの世界、月面のザコは月面。2エリアに出るザコはどちらでも */
+export function isHometown(state, ctx, m) {
+  if (!m) return false;
+  if (worldOf(m) === 'moon') return onMoon(state);
+  if (onMoon(state)) return false;
+  const stage = currentStage(state, ctx.stages);
+  return !!stage && (m.areas || []).includes(stage.name);
+}
+
+/**
+ * 連れているザコが、石碑の前世の主人公とも歩いたことがあるか：なついた世代（entry.since）と同じか後の前世の石碑なら覚えている。
+ * 小屋のザコは生まれ変わっても残るので、前世の主人公と一緒に歩いていたことがある。前のセーブ（since が無い）は覚えていないとして読む
+ */
+export function walkerRemembers(state, ctx, list) {
+  const w = walkerEntry(state, ctx);
+  if (!w || w.entry.since == null) return false;
+  return (list || []).some((st) => st.generation >= w.entry.since);
+}
+
+/** ザコの一言：ふだんは自分の誤解（myth）、更生したら本当のこと（研究が割れているザコは、割れていること）。飼育小屋で触ったときと同じ */
+export function zakoLine(state, ctx, m) {
+  if (!isReformed(state, ctx, m.id)) return m.myth;
+  return m.debated ? '本当のところは、研究が割れているんだ' : m.truth;
+}
+
+/**
+ * 道端の物が出たとき、連れているザコがどうするか（先に駆け寄って立ち止まる）：
+ * その物がザコの俗説に関わる（roadside.json の zako に、物の名前 → ザコの名前を書いた）なら一言（say。誤解か、更生したら本当のこと）。
+ * 関わらない物では、においを嗅ぐだけ（sniff）。問題は出さない。連れていなければ null
+ */
+export function walkerNotice(state, ctx, roadsideName) {
+  const w = walkerEntry(state, ctx);
+  if (!w) return null;
+  const linked = ((ctx.roadside && ctx.roadside.zako) || {})[roadsideName] || [];
+  if (!linked.includes(w.monster.name)) return { kind: 'sniff', monster: w.monster };
+  return { kind: 'say', monster: w.monster, line: zakoLine(state, ctx, w.monster), reformed: isReformed(state, ctx, w.id) };
+}
+
+/** 一緒に歩いた距離（km）：そのザコを連れて歩き切った階層の数×walk.kmPerFloor（主人公の歩いた距離と同じ数え方。生まれ変わっても残る） */
+export const walkedWithKm = (state, ctx, id) => walkKm((barnEntry(state, id) || {}).walked || 0, ctx.balance);

@@ -166,7 +166,8 @@ export function tameZako(state, ctx, monsterId, events, force = false) {
   if (!m || m.kind !== 'monster') return false;
   if (state.legacy.barn.some((a) => a.id === monsterId)) return false;
   if (!force && !(ctx.rng() < joinChance(state, ctx))) return false;
-  state.legacy.barn.push({ id: monsterId, affinity: 0, room: 0 }); // 新しくなついたザコは広間に入る
+  // 新しくなついたザコは広間に入る。since はなついた世代（ザコの散歩で、その世代より後の前世の石碑の前で座り込む。sim/walk.js）
+  state.legacy.barn.push({ id: monsterId, affinity: 0, room: 0, since: state.life.generation });
   const world = worldOf(m);
   if (events) events.push({ type: 'barnJoin', monsterId, name: m.name, world, barn: BARN_NAMES[world] });
   return true;
@@ -197,12 +198,13 @@ export const isReformed = (state, ctx, id) => !!barnEntry(state, id) && affinity
 
 /**
  * 懐き度を上げる（最大まで）。懐いたとき（friendlyAffinity を越えた）と更生したとき（最大に届いた）は知らせ（barnFriendly・barnReformed）。上がった量を返す。
- * 動物行動学を専攻にしていると amount の affinityRate 倍（1.5倍なので、上がる量に0.5の端数が出る）
+ * 動物行動学を専攻にしていると amount の affinityRate 倍（1.5倍なので、上がる量に0.5の端数が出る）。
+ * 散歩に連れて歩いているザコは、さらに balance.walk.walkerAffinityRate 倍（設計ページ「ザコの散歩」。sim/walk.js）
  */
 export function raiseAffinity(state, ctx, id, amount, events) {
   const a = barnEntry(state, id);
   if (!a || !(amount > 0)) return 0;
-  amount *= affinityRate(state, ctx);
+  amount *= affinityRate(state, ctx) * (state.legacy.walker === id && ctx.balance.walk ? ctx.balance.walk.walkerAffinityRate : 1);
   const { affinityMax: max, friendlyAffinity: friendly } = ctx.balance.barn;
   const before = a.affinity || 0;
   if (before >= max) return 0;
@@ -339,6 +341,7 @@ export function flyPrototype(state, ctx, monsterId, events = []) {
     if (ctx.rng() < (a.affinity || 0) / 100) res.cameBack = true;
     else {
       state.legacy.barn = state.legacy.barn.filter((x) => x !== a);
+      if (state.legacy.walker === monsterId) state.legacy.walker = null; // 散歩に連れていたザコなら、散歩もおしまい
       res.left = true;
     }
   }

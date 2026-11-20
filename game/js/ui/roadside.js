@@ -3,7 +3,7 @@
 // 前世の記憶をたどると同じ白い紙で出す（ゲームは止めない。主人公は後ろで戦い続ける。攻略を遅らせないため）。
 // 正解すると散歩帳に載る（図書館・月面の書庫で見る）。間違えても罰は無く、載らないだけ。
 // タップしなければ walk.roadsideShowSec 秒で主人公は通り過ぎ、物は消える（取り逃しても損はなく、同じ物はまた道端に出る）
-import { pickRoadside } from '../sim.js';
+import { pickRoadside, walkerNotice } from '../sim.js';
 import { beginRoadside, answerRoadside } from '../quiz.js';
 import { el } from './dom.js';
 
@@ -35,6 +35,9 @@ export function show(app, question = null) {
   cur = { question: q, phase: 'shown', remaining: app.ctx.balance.walk.roadsideShowSec };
   app.walkView.roadside = { sprite: (app.walkSprites.items || {})[q.roadside.name] || null, name: q.roadside.name, t0: performance.now() / 1000, leaveAt: null, opened: false };
   app.notify(`道端に「${q.roadside.name}」（タップで1問）`);
+  // ザコの散歩：連れているザコが先に駆け寄る（絵は render.js）。その物が自分の俗説に関わるなら、着いたところで一言（誤解か、更生していれば本当のこと）
+  const r = walkerNotice(app.state, app.ctx, q.roadside.name);
+  if (r && r.kind === 'say') setTimeout(() => app.notify(`${r.monster.name}「${r.line}」`, r.reformed ? 'good' : ''), 600);
   return true;
 }
 

@@ -1,5 +1,5 @@
 // デバッグ画面（URL に ?debug=1 を付けたときだけ出る）
-import { HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel, lifespanOf, ailmentAge, ageYears, zakoPool, rocketSteps, tameZako, worldOf, raiseAffinity, roadsideQuestions, currentStage } from '../sim.js';
+import { HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel, lifespanOf, ailmentAge, ageYears, zakoPool, rocketSteps, tameZako, worldOf, raiseAffinity, roadsideQuestions, currentStage, setWalker } from '../sim.js';
 import { SAVE_KEY, serialize, deserialize } from '../save.js';
 import { GENRES } from '../genres.js';
 import { refreshDaily, dayKey } from '../quiz.js';
@@ -186,6 +186,18 @@ export function init(app) {
           },
         }, '前世の石碑の前で立ち止まる'),
         el('button', { onclick: () => { app.state.legacy.walkedFloors = (app.state.legacy.walkedFloors || 0) + Math.ceil(10000 / ctx.balance.walk.kmPerFloor); app.notify('歩いた距離（歴代の合計）+1万km'); } }, '歩いた距離 +1万km'),
+        el('button', {
+          onclick: () => {
+            // ザコの散歩を試す：小屋のザコを順に連れて行く（小屋が空なら、今の世界のザコを1体なつかせてから）
+            const s = app.state;
+            if (!s.legacy.barn.length) { const ev = []; tameZako(s, ctx, (zakoPool(s, ctx)[0] || {}).id, ev, true); app.handleEvents(ev); }
+            const list = s.legacy.barn;
+            const i = list.findIndex((a) => a.id === s.legacy.walker);
+            const r = list.length ? setWalker(s, ctx, list[(i + 1) % list.length].id) : { ok: false };
+            app.notify(r.ok ? `${r.name}を散歩に連れて行く` : '小屋にザコがいない', r.ok ? 'good' : 'bad');
+            app.showTab('adventure');
+          },
+        }, '散歩に連れて行くザコを替える'),
         el('button', {
           onclick: () => {
             const need = Math.ceil(ctx.balance.walk.moonKm / ctx.balance.walk.kmPerFloor) - (app.state.life.walkedFloors || 0) - 1;

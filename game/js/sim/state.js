@@ -55,11 +55,13 @@ export function createState(balance) {
       lives: [],                                    // 前世のまとめ：{ generation, name, age, level, maxFloor, moonFloor, gold, walked（歩き切った階層の数。2026-11-20 から） }
       walkedFloors: 0,                              // 前世までに歩き切った階層の数の合計（歩いた距離の歴代の合計。この人生の分は life.walkedFloors）
       moonWalk: false,                              // 歴代の合計が月まで（walk.moonKm）に届いた（称号 walk.moonTitle）
+      walker: null,                                 // ザコの散歩：冒険に連れて歩いている飼育小屋のザコの id（1体まで。生まれ変わっても連れたまま。sim/walk.js）
       // ロケット計画：建造費を払ったか・工程ごとに進んだゲーム内の時間・
       // 試作機で効果が出たザコ（同じザコの効果は1回まで）・試作機で上がった打ち上げの成功率
       rocket: { buildCostPaid: false, steps: {}, flown: [], rateBonus: 0 },
       // 飼育小屋（地球のザコ）と月面の飼育ドーム（月面のザコ）：なついたザコ { id, affinity（懐き度）, touchedOn?（小屋で最後に触った日 'YYYY-MM-DD'）,
-      // space?（宇宙帰り）, flights?（飛んで帰ってきた回数）, room（いる部屋の番号。0 は広間） } の入った順（部屋を移すと後ろへ）。
+      // space?（宇宙帰り）, flights?（飛んで帰ってきた回数）, room（いる部屋の番号。0 は広間）,
+      // since（なついた世代。2026-11-20 から。前のセーブは無い）, walked?（散歩で一緒に歩き切った階層の数） } の入った順（部屋を移すと後ろへ）。
       // 同じザコは1体まで。生まれ変わっても残る（40HzP の判断）
       barn: [],
       // 飼育小屋と飼育ドームの部屋（建築の熟練Lvで増え、減らない。生まれ変わっても残る）：{ name, bg（背景のid。null はいつもの背景） }

@@ -52,7 +52,8 @@
   "walk": {
     "kmPerFloor": 40, "moonKm": 384400, "moonTitle": "月まで歩いた人", "likenKm": { "tokyoOsaka": 400, "earth": 40000 },
     "steleLives": 3, "steleStopSec": 2,
-    "roadsideChance": 0.3, "roadsideShowSec": 15
+    "roadsideChance": 0.3, "roadsideShowSec": 15,
+    "walkerAffinityRate": 1.25, "walkerLookBackSec": { "low": 20, "high": 5 }, "walkerSniffSec": 4
   },
   "rateWindowSec": 60
 }

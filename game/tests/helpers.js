@@ -17,6 +17,7 @@ export const stages = read('stages.json').stages;
 export const radio = read('town.json').moon.radio; // 月面の街の裏側の電波望遠鏡で開く図鑑の頁
 export const barnRooms = read('town.json').barnRooms; // 飼育小屋の部屋の背景の一覧
 export const firstCheck = read('first-check.json').questions; // 前世の記憶をたどる（最初の3分）の問題の候補
+export const roadside = read('roadside.json'); // 散歩の要素の絵の名前と、道端の物で一言いうザコ（ザコの散歩）
 
 /** いつも同じ値を返す乱数 */
 export const constRng = (v) => () => v;
@@ -40,7 +41,7 @@ export function seededRng(seed) {
 }
 
 export function makeCtx(rng = constRng(0.5)) {
-  return { balance, monsters, items, recruits, questions, business, fields, stages, radio, barnRooms, firstCheck, rng };
+  return { balance, monsters, items, recruits, questions, business, fields, stages, radio, barnRooms, firstCheck, roadside, rng };
 }
 
 export function newGame(startAge = 0) {

@@ -96,7 +96,8 @@ async function boot() {
 
   // radio：月面の街の裏側の電波望遠鏡で開く図鑑の頁（town.json の moon.radio）。firstCheck：前世の記憶をたどる問題の候補（data/first-check.json）
   // barnRooms：飼育小屋の部屋の背景の一覧（town.json の barnRooms）
-  const ctx = { balance, monsters, items, questions, recruits, business, fields, stages, radio: town.moon.radio, barnRooms: town.barnRooms, firstCheck, rng: Math.random };
+  // roadside：散歩の要素の絵の名前と、道端の物で一言いうザコ（data/roadside.json の zako。ザコの散歩）
+  const ctx = { balance, monsters, items, questions, recruits, business, fields, stages, radio: town.moon.radio, barnRooms: town.barnRooms, firstCheck, roadside, rng: Math.random };
   const app = {
     ctx, palette, monsterSprites, recruitSprites,
     submit,           // 作問フォーム（data/submit.json）

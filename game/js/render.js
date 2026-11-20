@@ -1,6 +1,6 @@
 // 冒険画面の描画（90×160 のキャンバス）。攻撃エフェクト・ダメージ数字・HPバーはここで描く。
-import { drawSprite, drawPlaceholder, frameAt, cssColor } from './sprites.js';
-import { heroStats, isInvulnerable, currentStage, partyAllies, gimmickIn, heroLooksOld, MINION_SLOT, PART_SLOT } from './sim.js';
+import { drawSprite, drawPlaceholder, frameAt, cssColor, drawHalo } from './sprites.js';
+import { heroStats, isInvulnerable, currentStage, partyAllies, gimmickIn, heroLooksOld, MINION_SLOT, PART_SLOT, walkerEntry, isHometown, isReformed } from './sim.js';
 
 export const SCENE_W = 90;
 export const SCENE_H = 160;
@@ -40,6 +40,13 @@ const ROADSIDE = { x: 30, feet: 158 };
 const PASS_SEC = 0.7; // 通り過ぎて画面の左へ消えるまでの秒数
 // 「？」の吹き出し（7×9。0＝輪郭、4＝白）と、主人公の頭の上の「！」（1×5）
 const BUBBLE = ['.00000.', '0444440', '0400040', '0444040', '0440440', '0444440', '0440440', '.00000.', '..00...'];
+// ザコの散歩（sim/walk.js の walkerEntry）：連れているザコは隊列の最後尾（仲間の次の場所。仲間が5人なら WALKER_TAIL）を歩く。
+// 道端の物が出ると先に駆け寄って物の右で立ち止まり（WALKER_SNIFF）、覚えている前世の石碑では石碑の右で座り込む（WALKER_SIT）
+const WALKER_TAIL = { x: 14, feet: 157 };
+const WALKER_SNIFF = { x: 46, feet: 158 };
+const WALKER_SIT = { x: 62, feet: 141 };
+const WALKER_SPEED = 110;  // 駆けるときの速さ（ドット／秒）
+const LOOK_SEC = 1.2;      // 振り返っている秒数
 
 // 3×5 のドット数字（ダメージ表示用）
 const DIGITS = {
@@ -77,7 +84,9 @@ export function createRenderer(canvas, app) {
   const pal = app.palette;
   const col = (k, fallback) => cssColor(pal, k, fallback);
   const fx = [];
-  const anim = { heroAt: -9, spellAt: -9, spawnAt: -9, steleAt: -9, steleOutAt: null };
+  const anim = { heroAt: -9, spellAt: -9, spawnAt: -9, steleAt: -9, steleOutAt: null, walkerSit: false };
+  // 連れているザコの動き（絵だけ。ゲームの計算には関わらない）：今の場所・向き・次に振り返る時刻
+  const wk = { id: null, x: 0, feet: 0, flip: false, last: 0, nextLook: 0, lookAt: -9 };
   const allyAt = new Map();        // 仲間id → 攻撃・回復した時刻
   const enemyAttackAt = new Map(); // uid → 時刻
   const enemyHitAt = new Map();    // uid → 時刻
@@ -163,8 +172,10 @@ export function createRenderer(canvas, app) {
       } else if (e.type === 'stele') {
         anim.steleAt = now;
         anim.steleOutAt = null;
+        anim.walkerSit = !!e.sit; // 連れているザコが、この前世の主人公とも歩いたことがある
       } else if (e.type === 'steleDone') {
         anim.steleOutAt = now;
+        anim.walkerSit = false;
       } else if (e.type === 'misbelief' && e.swapped) {
         // 前世の記憶をたどるで間違えた問題のザコが、群れの中にその場で現れた
         const p = enemyBox(e.monsterId, e.slot);
@@ -232,6 +243,60 @@ export function createRenderer(canvas, app) {
     if (now - v.t0 < 1.2) drawPattern(['0g0', '0g0', '0g0', '000', '0g0', '000'], X.hero + 11, FEET_Y - 28);
   }
 
+  /**
+   * ザコの散歩：連れているザコの行き先を決めて駆けさせる。隊列の最後尾（仲間の次）・道端の物の横（出てから walk.walkerSniffSec 秒）・
+   * 覚えている石碑の横（立ち止まっている間）。描く順を決めるため、描く場所（actor）を返す。連れていなければ null
+   */
+  function moveWalker(state, now, allies) {
+    const w = walkerEntry(state, app.ctx);
+    if (!w) { wk.id = null; return null; }
+    const b = app.ctx.balance;
+    const tail = allies < ALLY_SLOTS.length ? ALLY_SLOTS[allies] : WALKER_TAIL;
+    const stop = state.adventure.stop;
+    const v = app.walkView && app.walkView.roadside;
+    let to = tail, mode = 'follow';
+    if (anim.walkerSit && stop && stop.kind === 'stele' && stop.started) { to = WALKER_SIT; mode = 'sit'; }
+    else if (v && v.leaveAt == null && now - v.t0 < b.walk.walkerSniffSec) { to = WALKER_SNIFF; mode = 'sniff'; }
+    // 振り返る間隔：懐き度が高いほど短い（walk.walkerLookBackSec の low＝懐き度0、high＝最大）
+    const aff = Math.min(1, (w.entry.affinity || 0) / b.barn.affinityMax);
+    const gap = b.walk.walkerLookBackSec.low + (b.walk.walkerLookBackSec.high - b.walk.walkerLookBackSec.low) * aff;
+    if (wk.id !== w.id) Object.assign(wk, { id: w.id, x: -16, feet: tail.feet, last: now, nextLook: now + gap * Math.random(), lookAt: -9 }); // 左から駆けてくる
+    const dt = Math.min(0.1, Math.max(0, now - wk.last));
+    wk.last = now;
+    const dx = to.x - wk.x, df = to.feet - wk.feet, d = Math.hypot(dx, df);
+    const moving = d > 0.5;
+    if (moving) {
+      const step = Math.min(d, WALKER_SPEED * dt);
+      wk.x += (dx / d) * step; wk.feet += (df / d) * step;
+      if (Math.abs(dx) > 0.5) wk.flip = dx > 0; // 魔物の絵は左向き。右へ駆けるときは裏返す
+    } else if (mode === 'follow') {
+      // ふだんは左を向いて道草を食い、ときどき主人公のほう（右）を振り返る
+      if (now >= wk.nextLook) { wk.lookAt = now; wk.nextLook = now + LOOK_SEC + gap * (0.6 + 0.8 * Math.random()); }
+      wk.flip = now - wk.lookAt < LOOK_SEC;
+    } else {
+      wk.flip = false; // 道端の物と石碑はザコの左にある
+    }
+    return { walker: w, x: wk.x, feet: wk.feet, mode: moving ? 'run' : mode };
+  }
+
+  /** 連れているザコを描く：ふるさとでは跳ねて喜び、振り返るときは小さく跳ね、においを嗅ぐときは頭を上下、座り込むときは少し沈む */
+  function drawWalker(state, a, now) {
+    const sp = (app.monsterSprites[a.walker.id] || {}).idle || null;
+    const h = sp ? sp.h : 16;
+    let dy = 0;
+    if (a.mode !== 'sit' && isHometown(state, app.ctx, a.walker.monster)) { const t = now % 1.6; if (t < 0.12 || (t > 0.24 && t < 0.36)) dy -= 2; }
+    if (a.mode === 'follow' && now - wk.lookAt < 0.15) dy -= 2;
+    if (a.mode === 'sniff' && Math.floor(now * 4) % 2) dy += 1;
+    const sit = a.mode === 'sit';
+    if (sit) dy += 3;
+    const x = Math.round(a.x), top = Math.round(a.feet) - h + dy;
+    if (sit) { g.save(); g.beginPath(); g.rect(x - 2, 0, (sp ? sp.w : 16) + 4, Math.round(a.feet)); g.clip(); }
+    if (sp) drawSprite(g, sp, frameAt(sp, now), x, top, { flip: wk.flip });
+    else drawPlaceholder(g, x, top, 16, 16, pal);
+    if (sit) g.restore();
+    if (sp && isReformed(state, app.ctx, a.walker.id)) drawHalo(g, sp, x, top, pal, { flip: wk.flip }); // 更生した印（光の輪）
+  }
+
   function bar(x, y, w, ratio, color) {
     g.fillStyle = col('0'); g.fillRect(x - 1, y - 1, w + 2, 4);
     g.fillStyle = col('1'); g.fillRect(x, y, w, 2);
@@ -252,8 +317,12 @@ export function createRenderer(canvas, app) {
     // 契約した仲間は最初から右向き
     const actors = partyAllies(state).slice(0, ALLY_SLOTS.length).map((ally, i) => ({ ally, ...ALLY_SLOTS[i] }));
     actors.push({ hero: true, x: X.hero, feet: FEET_Y });
+    // ザコの散歩：連れているザコは隊列の最後尾（戦わず、敵にも狙われない）
+    const walkerActor = moveWalker(state, now, actors.length - 1);
+    if (walkerActor) actors.push(walkerActor);
     actors.sort((a, b) => a.feet - b.feet);
     for (const a of actors) {
+      if (a.walker) { drawWalker(state, a, now); continue; }
       if (a.hero) {
         // 主人公（ひらめきの間は少し光る）。体の不調を感じ始めてからは年を取った姿（杖で突く）
         const hero = app.heroSprites;

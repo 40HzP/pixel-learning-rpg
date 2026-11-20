@@ -4,10 +4,11 @@
 import {
   rocketSteps, barnAnimals, barnCapacity, BARN_NAMES, joinChance, affinityRate, touchZako, isReformed,
   barnRoomList, barnRoomInfo, moveToRoom, renameBarnRoom, setRoomBackground, barnBackgrounds, ROOM_NAME_MAX,
+  setWalker, walkerEntry, walkedWithKm,
 } from '../../sim.js';
 import { fieldActive } from '../../fields.js';
 import { drawSprite, drawPlaceholder, frameAt, spriteCanvas, cssColor, drawHalo } from '../../sprites.js';
-import { el, affNum } from '../dom.js';
+import { el, affNum, fmt } from '../dom.js';
 import { root, view, live, say, update, note, pct } from './common.js';
 
 const BARN_W = 90;
@@ -56,9 +57,11 @@ function barnCard(app, a, touch, worst = false) {
   return [
     el('div', { class: 'barn-card-head' },
       spriteCanvas((app.monsterSprites[m.id] || {}).idle, 3, app.palette, { halo: reformed || worst }),
-      el('div', {}, el('b', {}, m.name), a.space ? el('span', { class: 'space-badge' }, '宇宙帰り') : null,
+      el('div', {}, el('b', {}, m.name), app.state.legacy.walker === m.id || worst ? el('span', { class: 'space-badge walking' }, '散歩中') : null,
+        a.space ? el('span', { class: 'space-badge' }, '宇宙帰り') : null,
         reformed || worst ? el('span', { class: 'space-badge reformed' }, '更生') : null, flights ? el('small', {}, flights) : null)),
     el('div', { class: 'affinity' }, el('span', {}, '懐き度'), el('div', { class: 'affbar' }, bar), el('b', {}, `${aff}/${b.affinityMax}`)),
+    walkRow(app, m, worst),
     el('div', { class: 'barn-touch ' + (touch && touch.gained > 0 ? 'good' : 'muted') }, touchText),
     el('small', { class: 'muted' }, perks),
     // そのザコの一言：誤解を話す。更生すると本当のことを話す（設計ページ「懐き度」の⑤）
@@ -67,6 +70,25 @@ function barnCard(app, a, touch, worst = false) {
     el('span', { class: 'label' }, truthLabel), el('div', { class: 'good' }, m.debated ? '研究が割れている' : m.truth),
     a.space && m.space && m.space.history ? el('div', { class: 'muted barn-history' }, m.space.history) : null,
   ].filter(Boolean);
+}
+
+/**
+ * ザコの散歩（設計ページ「ザコの散歩」）の行：一緒に歩いた距離と「散歩に連れて行く」（連れているザコなら「小屋に帰す」）。
+ * 連れて行けるのは同時に1体なので、ほかのザコを連れていれば交代する。worst は札の高さを測る形（いちばん長い文）
+ */
+function walkRow(app, m, worst) {
+  const walking = app.state.legacy.walker === m.id;
+  const km = worst ? 9_999_999 : walkedWithKm(app.state, app.ctx, m.id);
+  const go = () => {
+    const r = setWalker(app.state, app.ctx, walking ? null : m.id);
+    if (!r.ok) { say(app, r.reason, 'bad'); return; }
+    app.save();
+    say(app, walking ? `${m.name}を小屋に帰した` : `${m.name}を散歩に連れて行く${r.back ? `（${r.back}は小屋に帰った）` : ''}。冒険画面で隊列のいちばん後ろを歩く`, 'good');
+    update(app, true);
+  };
+  return el('div', { class: 'barn-walk' },
+    el('span', {}, `一緒に歩いた距離 ${fmt(km)}km`),
+    el('button', { class: walking && !worst ? '' : 'primary', onclick: go }, walking && !worst ? '小屋に帰す' : '散歩に連れて行く'));
 }
 
 /**
@@ -107,6 +129,7 @@ export function barnKey(app) {
   const ctx = app.ctx;
   const b = ctx.balance.barn;
   return [
+    s.legacy.walker, // ザコの散歩：連れているザコ（変わったら、部屋の中の絵と札を作り直す）
     s.legacy.barn.map((a) => [a.id, !!a.space, a.flights || 0, (a.affinity || 0) >= b.affinityMax, a.room || 0]),
     s.legacy.barnRooms, (s.knowledge.genres[b.roomGenre] || { level: 0 }).level,
     fieldActive(s, ctx, 'ethology'), rocketSteps(s, ctx).some((st) => st.id === 'airframe' && st.done),
@@ -226,6 +249,7 @@ export function barnPanel(app) {
     return el('button', { 'data-id': a.id, onclick: () => select(a.id) },
       spriteCanvas((app.monsterSprites[a.id] || {}).idle, 2, app.palette, { halo: isReformed(s, ctx, a.id) }),
       el('span', {}, a.monster.name, small),
+      s.legacy.walker === a.id ? el('span', { class: 'space-badge walking' }, '散歩中') : null,
       a.space ? el('span', { class: 'space-badge' }, '宇宙') : null);
   };
   // 一覧：部屋ごと（部屋が1つなら見出しなし）。見ている部屋を先に
@@ -254,9 +278,13 @@ export function barnPanel(app) {
   const frameDone = rocketSteps(s, ctx).some((st) => st.id === 'airframe' && st.done);
   const roomsText = `部屋 ${info.built}／${info.max}`
     + (info.nextLevel != null ? `（${info.genre}の熟練がLv${info.nextLevel}になると部屋が増える。今 Lv${info.level}）` : '');
+  const walker = walkerEntry(s, ctx);
   return [
     el('div', { class: 'profit' }, `${animals.length}体 ／ ${barnCapacity(ctx, world)}体`,
       el('small', { class: 'muted' }, world === 'moon' ? '（月面のザコ）' : '（地球のザコ）')),
+    // ザコの散歩：連れているザコは小屋の中にいない（冒険画面で隊列のいちばん後ろを歩いている）
+    walker ? note(`${walker.monster.name}を散歩に連れて行っている（冒険画面で隊列のいちばん後ろを歩いている。一緒に歩いた距離 ${fmt(walkedWithKm(s, ctx, walker.id))}km）。札の「小屋に帰す」で戻る`)
+      : animals.length ? note('ザコを選んで「散歩に連れて行く」と、冒険に1体連れて歩ける（戦わない。強さは変わらない）') : null,
     el('small', { class: 'muted barn-rooms-count' }, roomsText),
     many ? el('div', { class: 'barn-rooms' }, rooms.map((r) => el('button', {
       class: r === cur ? 'on' : '', 'aria-pressed': r === cur ? 'true' : 'false',
@@ -310,7 +338,8 @@ function roomScene(app, world, cur) {
   const rnd = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const next = new Map();
-  for (const a of cur.animals.slice(-BARN_SHOW)) {
+  // 散歩に連れて行っているザコは、小屋の中を歩かない（ザコの散歩）
+  for (const a of cur.animals.filter((x) => x.id !== app.state.legacy.walker).slice(-BARN_SHOW)) {
     let w = sc.walkers.get(a.id);
     if (!w) {
       const x = rnd(area.x0, area.x1), y = rnd(area.y0, area.y1);

@@ -144,7 +144,7 @@
   - `nande` 孫の「なんで？」の間隔（`firstSec`・`intervalSec`）と、正解したときの孫へのダメージ（最大HPに対する割合 `correctDamageRatio`）、答えられなかったときに孫が回復する割合（`wrongHealRatio`）
   - `advisor` 顧問（下の「顧問」）：`slots` 場所ごとに置ける人数、`citationsPerYear` 要出典の回数（誕生日に戻る）、`periodicTestProgress` 定期テストで多く進む問題数、`hrStaffBonus` 人事で社員の効果が増える割合、`rocketSubsidy` 補助金で建造費が安くなる割合、`taxCut` 税務顧問で法人税が安くなる割合
   - `authoring` 作問権（下の「作問」）：`rightsLevel` 作問権に要る熟練Lv、`rightsGenres` その熟練Lvのジャンルの数
-  - `walk` 散歩の要素（下の「散歩の要素」）：`kmPerFloor` 1階層を歩き切ったときの距離（km）、`moonKm` 地球から月までの距離（歴代の合計がここに届くと称号）、`moonTitle` その称号、`likenKm` 距離のたとえ（`tokyoOsaka` 東京〜大阪の直線・`earth` 地球1周）、`steleLives` 石碑を置く前世の人数（直近から）、`steleStopSec` 石碑の前で立ち止まる秒数、`roadsideChance` 次の階層に進んだときに道端に物が出る確率、`roadsideShowSec` 道端の物が出ている秒数（タップしなければ通り過ぎる）
+  - `walk` 散歩の要素（下の「散歩の要素」）：`kmPerFloor` 1階層を歩き切ったときの距離（km）、`moonKm` 地球から月までの距離（歴代の合計がここに届くと称号）、`moonTitle` その称号、`likenKm` 距離のたとえ（`tokyoOsaka` 東京〜大阪の直線・`earth` 地球1周）、`steleLives` 石碑を置く前世の人数（直近から）、`steleStopSec` 石碑の前で立ち止まる秒数、`roadsideChance` 次の階層に進んだときに道端に物が出る確率、`roadsideShowSec` 道端の物が出ている秒数（タップしなければ通り過ぎる）、`walkerAffinityRate` 散歩に連れているザコの懐き度の上がりやすさ（倍）、`walkerLookBackSec` 連れているザコが主人公を振り返る間隔の秒数（`low` 懐き度0のとき・`high` 懐き度が最大のとき。その間は懐き度で比例）、`walkerSniffSec` 道端の物が出たとき、連れているザコがその横で立ち止まる秒数
   - `corporation` 法人化（下の「会社」）：`profitBonus` 法人化した会社の利益が増える割合、`taxRate` 法人税の割合（今年の法人の利益に掛ける）
   - `boss` ボスの強さ：その階層のザコの数値に `hpMultiplier`・`atkMultiplier`・`defMultiplier`・`expMultiplier`・`goldMultiplier` を掛ける
   - `rocket.launchSuccessRate` 打ち上げの成功率、`moon.floorOffset`・`rampFloor`・`rampTo` 月面の敵の強さ（月面F階層＝地球の floorOffset＋F 階層の強さ×月面の倍率。下の「月面」）。`moon` のそのほか（`smoothDamage`・`splashAtkMultiplier`・`sinkIntervalSec`・`splitAt`・`absorbSec`・`remainsSec`）は月面のボスの仕掛け（下の「月面」の表）。`moon.transportPerKg` 補給所の輸送費（重さ1kgあたり）、`moon.radioCharge` 電波望遠鏡の頁が開くまでの正解の数、`moon.relaySec` 通信基地の返事が届くまでの秒数（下の「月面の街」）
@@ -491,6 +491,7 @@
 - 地球の飼育小屋と月面の飼育ドームの説明・月の一言は Claude Code が書いた（40HzP が直してよい）
 - デバッグ画面の「飼育小屋と試作機」：今いる世界のザコを5体なつかせる（宇宙を飛んだ生き物のザコを先に）・機体設計を終える（試作機20回分のゴールドも持たせる）・小屋のザコの懐き度を+25（4回で更生）
 - `barn.test.js`・`affinity.test.js` が確かめる
+- 2026-11-20：小屋のザコを1体、冒険に連れて歩けるようにした（札の「散歩に連れて行く」）。下の「散歩の要素」の「ザコの散歩」
 
 ## 学際分野（ジャンルの組み合わせ）
 
@@ -656,7 +657,7 @@
 - まだ作っていないもの：ファンサーバーの「出題者」欄とスタッフロール
 - セーブ：`legacy.author`（`{ code, seen }`）。前のセーブは既定値で読め、起動したときにコードが決まる
 
-## 散歩の要素（前世の足跡・歩いた距離・道端のものと散歩帳）
+## 散歩の要素（前世の足跡・歩いた距離・道端のものと散歩帳・ザコの散歩）
 
 - 2026-11-20：設計ページ「散歩の要素」の3つ（前世の足跡・歩いた距離・道端のものと散歩帳）を作った（40HzP の依頼）。計算は `sim/walk.js`、道端の物の問題は `quiz.js` の `beginRoadside`・`answerRoadside` と `ui/roadside.js`、絵は `render.js`、散歩帳は図書館（`ui/facility/library.js`）。テストは `walk.test.js`
 - 前世の足跡（石碑）：
@@ -678,6 +679,21 @@
   - 物の絵は `game/data/roadside.json` の `items`（物の名前 → 絵の名前）。物の名前と世界は問題リストが正本（「問題を同期して」で入る。`docs/sync-questions.md` の「道端」）
 - 絵：石碑 `walk_stele`（足あとを刻んだ丸い頭の石と台石、根もとに苔）と道端の物16枚（`road_*`、16×16）を描いた。category は新しく `prop`（`pixel/style-guide.md` の14章）
 - セーブ：足した項目（`adventure.stop`・`life.walkedFloors`・`life.stelesPassed`・`knowledge.walkBook`・`legacy.walkedFloors`・`legacy.moonWalk`）は `fillDefaults` が埋めるので版は上げていない
+- ザコの散歩（設計ページ「ザコの散歩（2026-11-20）」）：
+  - 2026-11-20：作った（40HzP の依頼）。計算は `sim/walk.js` の④（`walkerEntry`・`setWalker`・`isHometown`・`walkerRemembers`・`zakoLine`・`walkerNotice`・`walkedWithKm`）、絵は `render.js` の `moveWalker`・`drawWalker`、小屋の札は `ui/facility/barn.js` の `walkRow`。テストは `walk.test.js`
+  - 連れ出し：小屋のザコの札（触ったときに出る札）の懐き度の下に「一緒に歩いた距離 ◯km」と「散歩に連れて行く」（連れていれば「小屋に帰す」）。連れて行けるのは同時に1体で、ほかのザコを選ぶと交代する（`legacy.walker`）。地球の小屋のザコも月面の飼育ドームのザコも選べ、地球と月面のどちらを歩いていても連れて歩く（Claude Code の判断）。連れているザコは札の名前の横と一覧のボタンに「散歩中」の印が付き、小屋の部屋からいなくなる
+  - 生まれ変わっても連れたまま（小屋のザコが残るのと同じ。Claude Code の判断）。試作機に乗せたザコが野に戻ったら、連れているのもやめる
+  - 隊列の最後尾：仲間の次の場所（仲間がいなければ主人公のすぐ後ろ。仲間が5人なら `WALKER_TAIL`）を歩く。戦わず、敵にも狙われず、仲間の5人の枠も使わない（設計ページの案のとおり）。連れ出した瞬間は左から駆けてくる
+  - 振り返り：魔物の絵はもともと左向きなので、ふだんは左（来た道）を向いて道草を食い、ときどき右（主人公のほう）に向き直って小さく跳ねる（Claude Code の判断。設計ページの「今の絵の左右反転で作れる」のとおり新しい絵は無い）。間隔は懐き度で `walk.walkerLookBackSec` の `low`〜`high` の間（懐き度が高いほど短い）。振り返っている時間は約1.2秒
+  - ふるさとではしゃぐ：その世界がザコの出現エリア（`monsters.json` の `areas`）なら、ときどき2回跳ねる。月面のザコは月面で。座り込んでいる間は跳ねない
+  - 道端のものに先に気づく：道端の物が出ると、ザコが物の右に駆け寄って `walk.walkerSniffSec` 秒立ち止まり（においを嗅ぐように頭を上下）、そのあと走って隊列に追いつく。主人公は止まらない。物がそのザコの俗説に関わるときは、着いたところで知らせに一言「（ザコの名前）「（誤解）」」。更生したザコは本当のこと（研究が割れているザコは「本当のところは、研究が割れているんだ」。小屋で触ったときと同じ）。問題は出さない
+  - 道端の物とザコの対応は `roadside.json` の `zako`（物の名前 → ザコの名前）。俗説が物とはっきり結びつく5つだけ付けた（Claude Code の判断。40HzP が直してよい）：切り株 × ネンリンホウイ（年輪で方角が分かる）、砂から覗く化石 × キョウリュウホリ・ナンオクネン、手袋に落ちた雪 × ユキノコトバ・アタタメモウフ、またたく星 × イチバンポラリス、夕焼け × キイロタイヨウ。`walk.test.js` が、書いた物とザコの名前があるか確かめる
+  - 前世の足跡で座り込む：小屋の記録に、なついた世代（`since`）を残すようにした。石碑の前で立ち止まっている間、その石碑の前世が `since` と同じか後なら、ザコが石碑の右で少し沈んで座り込む（説明は出さない）。`since` の無い前のセーブのザコは座り込まない（設計ページの案のとおり）
+  - 一緒に歩いた距離：連れて階層を歩き切るたびに、小屋の記録の `walked` を1足す（主人公の歩いた距離と同じ数え方。階層の移動・ロケットでは数えない）。距離は `walked`×`walk.kmPerFloor`。札で懐き度と並べて見せる。生まれ変わっても残る
+  - 懐き度：連れている間は、懐き度の上がり方（誕生日・正解・なでる・試作機）が `walk.walkerAffinityRate` 倍（1.25。Claude Code の仮の値。設計ページ「数値は試遊で決める」）。動物行動学の専攻の倍率とも掛け合わせる。連れて行かなくても下がらない
+  - 強さ・ゴールド・経験値には効かない
+  - デバッグ画面の「散歩の要素」に「散歩に連れて行くザコを替える」（小屋が空なら1体なつかせる）
+  - セーブ：`legacy.walker` と、小屋の記録の `since`・`walked` は `fillDefaults` と読み方で埋まるので版は上げていない
 
 ## セーブの版
 
