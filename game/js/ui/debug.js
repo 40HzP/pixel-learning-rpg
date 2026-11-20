@@ -1,5 +1,6 @@
 // デバッグ画面（URL に ?debug=1 を付けたときだけ出る）
-import { HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel, lifespanOf, ailmentAge, ageYears, zakoPool, rocketSteps, tameZako, worldOf, raiseAffinity, roadsideQuestions, currentStage, setWalker } from '../sim.js';
+import { HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel, lifespanOf, ailmentAge, ageYears, zakoPool, rocketSteps, tameZako, worldOf, raiseAffinity, roadsideQuestions, currentStage, setWalker, checkVision } from '../sim.js';
+import { VISION_LABELS } from '../colorsim.js';
 import { SAVE_KEY, serialize, deserialize } from '../save.js';
 import { GENRES } from '../genres.js';
 import { refreshDaily, dayKey } from '../quiz.js';
@@ -8,6 +9,7 @@ import * as roadside from './roadside.js';
 
 let root = null;
 let speedButtons = [];
+let visionButtons = [];
 
 export function init(app) {
   root = document.getElementById('screen-debug');
@@ -213,6 +215,29 @@ export function init(app) {
         el('button', { onclick: () => app.playRebirthScene() }, '生まれ変わりの場面を流す（今の人生の熟練の記録で）'),
         el('button', { onclick: () => app.restartFirstCheck() }, '前世の記憶をたどり直す'),
         el('button', { onclick: () => app.launchCompareNow() }, '起動から3分の比較を今出す'))),
+    // 色の見え方が違う人生：画面にかけるフィルタを試す（セーブには残らない。「この人生のまま」で、その人生の色の見え方に戻る）。
+    // 白黒で、敵・味方・背景・ボタンの区別がつくか（設計ページ「成立させる基準」）を確かめる
+    el('div', { class: 'section' }, el('h2', {}, '色の見え方（画面のフィルタを試す）'),
+      el('div', {}, visionButtons = [['gray', '白黒'], ['protan', '1型'], ['deutan', '2型'], ['tritan', '3型'], ['none', 'フィルタなし'], [null, 'この人生のまま']]
+        .map(([v, label]) => el('button', { 'data-preview': v || '', onclick: () => { app.visionPreview = v; update(app); } }, label))),
+      // この人生の色の見え方を決め直す（生まれ変わったときの抽選の代わり）と、学校の色覚検査の場面（7歳の小学校教師）を今出す
+      el('div', {}, [[null, 'ふつう'], ['protan', '1型'], ['deutan', '2型'], ['tritan', '3型']].map(([v, label]) => el('button', {
+        onclick: () => {
+          Object.assign(app.state.life, { vision: v, visionKnown: false });
+          app.visionPreview = null;
+          update(app);
+          app.notify(`この人生の色の見え方を「${v ? VISION_LABELS[v] : 'ふつう'}」にした（学校の色覚検査はまだ）`);
+        },
+      }, `この人生を${label}に`)),
+      el('button', {
+        onclick: () => {
+          const ev = [];
+          app.state.life.visionKnown = false;
+          if (!checkVision(app.state, ctx, ev, 'teacher_elementary')) { app.notify('この人生はふつうの見え方（先に「この人生を◯型に」）', 'bad'); return; }
+          app.showTab('adventure');
+          app.handleEvents(ev);
+        },
+      }, '学校の色覚検査の場面を出す'))),
     el('div', { class: 'section' }, el('h2', {}, 'セーブ'),
       el('div', {},
         el('button', { onclick: () => { text.value = serialize(app.state, Date.now()); } }, '文字列で書き出す'),
@@ -240,4 +265,5 @@ export function init(app) {
 
 export function update(app) {
   for (const b of speedButtons) b.classList.toggle('on', b.textContent === `×${app.speed}`);
+  for (const b of visionButtons) b.classList.toggle('on', b.dataset.preview === (app.visionPreview || ''));
 }

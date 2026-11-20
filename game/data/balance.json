@@ -55,5 +55,10 @@
     "roadsideChance": 0.3, "roadsideShowSec": 15,
     "walkerAffinityRate": 1.25, "walkerLookBackSec": { "low": 20, "high": 5 }, "walkerSniffSec": 4
   },
+  "vision": {
+    "fromGeneration": 2,
+    "male": { "protan": 0.015, "deutan": 0.035, "tritan": 0.00005 },
+    "female": { "protan": 0.0006, "deutan": 0.0014, "tritan": 0.00005 }
+  },
   "rateWindowSec": 60
 }

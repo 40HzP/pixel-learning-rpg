@@ -1,5 +1,7 @@
 // 最初の案内（年齢と名前と性別を選ぶ）。初めて始めるときと、生まれ変わったときに出す。2026-11-09 に main.js から分けた
-import { canStartAt, startGame, lifespanFor, generationMultiplier, HOURS_PER_YEAR } from '../sim.js';
+import { canStartAt, startGame, lifespanFor, generationMultiplier, HOURS_PER_YEAR, rollVision, rollsVision, visionChances, visionChancesVisible } from '../sim.js';
+import { VISION_TYPES, VISION_LABELS } from '../colorsim.js';
+import { el } from './dom.js';
 import { beginRecall } from '../quiz.js';
 import { spriteCanvas } from '../sprites.js';
 
@@ -9,6 +11,18 @@ export function createIntro(app, { heroLooks, saveNow, refreshActive }) {
   const balance = ctx.balance;
   const palette = app.palette;
   const intro = document.getElementById('intro');
+  // 色の見え方が違う人生の確率（確率論を専攻にしているときだけ。性別で変わる。設計ページの案）
+  const visionNote = el('p', { class: 'intro-vision', hidden: true });
+  intro.querySelector('.intro-gender').append(visionNote);
+  const pct = (p) => `${Number((p * 100).toPrecision(2))}%`;
+  function showVisionChances() {
+    const s = app.state;
+    visionNote.hidden = !(rollsVision(s, ctx) && visionChancesVisible(s, ctx));
+    if (visionNote.hidden) return;
+    const ch = visionChances(ctx, gender);
+    visionNote.textContent = `確率論：色の見え方が違う人生になる確率（${gender === 'female' ? '女の子' : '男の子'}）　`
+      + VISION_TYPES.map((t) => `${VISION_LABELS[t]} ${pct(ch[t] || 0)}`).join('・');
+  }
   /** 最初の案内（年齢と名前を選ぶ）。生まれ変わったあとも出す（世代と、受け継いだものを書く） */
   function showIntro() {
     const s = app.state;
@@ -36,6 +50,7 @@ export function createIntro(app, { heroLooks, saveNow, refreshActive }) {
       b.classList.toggle('on', on);
       b.setAttribute('aria-checked', String(on));
     }
+    showVisionChances();
   }
   for (const b of genderButtons) {
     // 生まれたばかりは何も装備していないので、素手でいつもの服の姿
@@ -51,6 +66,8 @@ export function createIntro(app, { heroLooks, saveNow, refreshActive }) {
     b.addEventListener('click', () => {
       if (!canStartAt(app.state, Number(b.dataset.age))) return;
       startGame(app.state, Number(b.dataset.age), document.getElementById('hero-name').value, lifespanFor(balance, Math.random), gender);
+      // 色の見え方が違う人生：選んだ性別の確率で、この人生の色の見え方が決まる（生まれ変わってから。知らせない。sim/vision.js）
+      rollVision(app.state, ctx);
       // 前世の記憶をたどる5問を決める：初めて遊ぶ人の最初の人生と、生まれ変わるたび（前のセーブの1世代目は出さない）。
       // 出すのは冒険画面の横（ui/recall.js。冒険が始まると出る）
       if (app.state.life.generation > 1 || !app.state.firstRun) beginRecall(app.state, ctx);

@@ -33,7 +33,7 @@
   - ゲームは `pixel/sprites/*.json` と `pixel/palette.json` を **読むだけ**。`_original/` と `export/` は読まない
   - スプライトをゲーム用にコピー・変換して置かない（手直しした瞬間にゲームへ反映されるようにする）
   - ゲームが読むスプライトは、データ（`monsters.json`・`town.json` などの絵の名前の欄）とコードに名前を書いたものだけ（ブラウザはフォルダの中身を一覧できないため）。一覧は `docs/decisions.md`「ゲームが読むスプライト」。絵を足したら、名前をどこかに書かないとゲームに出ない
-- 計算（`sim.js` と `sim/`・`quiz.js`・`fields.js`・`save.js`・`genres.js`・`outfit.js`）はブラウザの機能（DOM・localStorage）に触らない。乱数は `ctx.rng` で渡す（テストで固定するため）
+- 計算（`sim.js` と `sim/`・`quiz.js`・`fields.js`・`save.js`・`genres.js`・`outfit.js`・`colorsim.js`）はブラウザの機能（DOM・localStorage）に触らない。乱数は `ctx.rng` で渡す（テストで固定するため）
 - `sim/` のファイルどうしは互いに名前を import し合う。読み込んだときに動く処理を置かない（ファイルの一番外側に書く定数は、数・文字・配列などの値だけにして、ほかのファイルの名前を使わない。使うと読み込みの順番で動かなくなる）。外から使う名前を足したら `sim.js` の並びにも足す
 - 対象はスマホのブラウザ（縦画面）とデスクトップ版 Chrome。将来ストアアプリ化するので、ブラウザ固有の機能に頼りすぎない
 - セーブの形を変えたら `save.js` の `SAVE_VERSION` を上げて移行を足す（40HzP の進み具合を消さないため）。足りない項目を既定値で埋めるだけなら `fillDefaults` でよく、版は上げなくてよい。これまでの版は `docs/decisions.md`「セーブの版」
@@ -78,6 +78,7 @@
 | セーブ | （無し） | セーブの版 | save |
 | ゲームの名前（タブの名前・ツイートのハッシュタグ） | （設計ページの題名） | ゲームの名前 | share |
 | 散歩の要素（前世の足跡・歩いた距離・道端のものと散歩帳・ザコの散歩） | 散歩の要素（2026-11-20）・ザコの散歩（2026-11-20） | 散歩の要素 | walk |
+| 色の見え方が違う人生（抽選・画面のフィルタ・学校の色覚検査・白黒でも遊べる基準） | 色の見え方が違う人生（2026-11-20） | 色の見え方が違う人生 | vision |
 
 ## フォルダ
 
@@ -110,14 +111,16 @@ game/
       shop.js            … 店
       firstrun.js        … 最初の3分（噂のザコ・寿命と経験値の帯・起動から3分の比較）
       walk.js            … 散歩の要素（前世の足跡の石碑・歩いた距離・道端のものと散歩帳・ザコの散歩）
+      vision.js          … 色の見え方が違う人生（生まれ変わるときの抽選・学校の色覚検査で分かる）
     quiz.js              … 出題・判定・熟練・干渉
     fields.js            … 学際分野（解放・専攻・休眠）
     save.js              … セーブの文字列化・読み込み・版の移行
     genres.js            … 問題ジャンル（設計ページの38ジャンル）
     outfit.js            … 装備に合わせた主人公の見た目（主人公の絵の色を塗り替える計算）
+    colorsim.js          … 色の見え方のフィルタの行列（Brettel 1997・Viénot 1999。画面にかけるのは ui/vision.js）
     sprites.js           … スプライトJSONの読み込みと描画
     render.js            … 冒険画面の描画（90×160）
-    ui/                  … 画面ごとの表示（adventure / study / facility（街） / zukan / debug / dom / movie（ミニムービー） / nande（孫の「なんで？」） / tear（テスト用紙を破りすてる） / oogiri（テストに大喜利を書いて提出した） / doodle（テスト用紙の落書き） / share（テストの結果をツイートする） / launch（ロケットの打ち上げと帰還） / daily（今日の1問） / settings（設定） / floors（階層の移動） / proflog（熟練の記録） / prologue（前世の最期） / recall（前世の記憶をたどる） / roadside（道端の物の問題））
+    ui/                  … 画面ごとの表示（adventure / study / facility（街） / zukan / debug / dom / movie（ミニムービー） / nande（孫の「なんで？」） / tear（テスト用紙を破りすてる） / oogiri（テストに大喜利を書いて提出した） / doodle（テスト用紙の落書き） / share（テストの結果をツイートする） / launch（ロケットの打ち上げと帰還） / daily（今日の1問） / settings（設定） / floors（階層の移動） / proflog（熟練の記録） / prologue（前世の最期） / recall（前世の記憶をたどる） / roadside（道端の物の問題） / vision（色の見え方が違う人生の画面のフィルタ））
                             と、main.js の部品：assets（起動のときに読む絵）/ notices（知らせと、画面全体に重ねるものの順番待ち）/ cards（札：噂のザコ・正体・図鑑の1体目・起動から3分の比較）/ intro（最初の案内）/ scenes（ミニムービーの出し方：中ボス・体の不調・生まれ変わり・ロケット・試作機）/ events（起きたことを知らせにする）
       facility/          … 街の施設ごとの中身（facility.js は街と、施設の中の枠・毎回の更新だけ）：common（共通：今の画面・知らせ・解放の条件）/ shop（店・補給所）/ guild（酒場）/ library（図書館・月面の書庫）/ company（会社）/ rocket（ロケット発射場と試作機）/ major（学校・研究室）/ hospital（病院・医務室）/ hero（主人公）/ barn（飼育小屋・飼育ドーム）/ moon（通信基地・裏側の電波望遠鏡・帰還ロケット）/ advisor（顧問の欄）
   data/

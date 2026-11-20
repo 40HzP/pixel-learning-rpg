@@ -63,6 +63,7 @@ export function reincarnate(state, ctx) {
     generation: state.life.generation, name: state.hero.name, age: ageYears(state),
     level: state.hero.level, maxFloor: state.life.maxFloor || 1, moonFloor: state.life.moonMaxFloor || 0, gold: Math.floor(state.gold),
     walked: state.life.walkedFloors || 0, // 歩き切った階層の数（散歩の要素の歩いた距離）
+    vision: state.life.vision || null,    // 色の見え方（色の見え方が違う人生。ふつうは null）
   };
   state.legacy.titles = [...new Set([...state.legacy.titles, ...heroTitles(state, ctx)])];
   state.legacy.walkedFloors = (state.legacy.walkedFloors || 0) + prev.walked;

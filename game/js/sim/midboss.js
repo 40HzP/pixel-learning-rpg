@@ -5,6 +5,7 @@ import { midbossState, bossState } from './knowledge.js';
 import { worldOf } from './world.js';
 import { spawnGroup, spawnDelay, damageEnemy, healEnemy, healAll } from './battle.js';
 import { stashScaffold } from './floors.js';
+import { checkVision } from './vision.js';
 
 /** 年齢を満たした未撃破の中ボス（いなければ null） */
 export function pendingMidboss(state, ctx) {
@@ -70,6 +71,8 @@ export function announceMidbosses(state, ctx, events) {
   if (st.status !== 'waiting' || st.announced) return;
   st.announced = true;
   events.push({ type: 'midbossReady', monsterId: m.id, name: m.name });
+  // 色の見え方が違う人生：小学校教師（visionCheck）が出てくる場面で、学校の色覚検査を受けて分かる（設計ページの案）
+  if (m.visionCheck) checkVision(state, ctx, events, m.id);
 }
 
 

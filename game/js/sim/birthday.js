@@ -13,6 +13,7 @@ export const PROF_LOG_MAX = 200;
  * 熟練の記録（knowledge.profLog）に1件足す。世代と年齢を付ける。
  * entry：{ genre, from, to, reason: 'study'（勉強で正解）| 'year'（この1年に勉強した）| 'cap'（上限に届いている）| 'idle'（years 年勉強していない） }
  * または { field: 学際分野の名前, reason: 'dormant'（休眠）| 'awake'（復活） }
+ * または { vision: 色の見え方（'protan' など）, reason: 'check'（学校の色覚検査で分かった。sim/vision.js） }
  */
 export function logProficiency(state, entry) {
   const log = state.knowledge.profLog || (state.knowledge.profLog = []);
@@ -25,7 +26,8 @@ export function logProficiency(state, entry) {
  * 古い順に、その人生の始まり・終わりを含めて均等に max 件まで（記録が無ければ空）
  */
 export function lifeLogHighlights(state, generation, max = 4) {
-  const life = (state.knowledge.profLog || []).filter((c) => c.gen === generation).reverse(); // 古い順
+  // 古い順。色の見え方の行は、生まれ変わりの場面が別に1行出すので選ばない
+  const life = (state.knowledge.profLog || []).filter((c) => c.gen === generation && !c.vision).reverse();
   if (life.length <= max) return life;
   const picks = [];
   for (let i = 0; i < max; i++) picks.push(life[Math.round((i * (life.length - 1)) / (max - 1))]);

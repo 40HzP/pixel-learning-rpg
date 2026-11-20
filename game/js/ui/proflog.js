@@ -2,9 +2,11 @@
 // 見る場所：勉強画面の熟練の欄の「熟練の記録」、街の図書館・月面の書庫。誕生日に変わったときの知らせ（main.js）も同じ書き方
 import { el } from './dom.js';
 import { PROF_LOG_MAX } from '../sim.js';
+import { VISION_LABELS } from '../colorsim.js';
 
 /** 1件の変わり方の文（ジャンル名は含めない） */
 export function profChangeText(c) {
+  if (c.vision) return `${VISION_LABELS[c.vision] || c.vision}（学校の色覚検査で分かった）`; // 色の見え方が違う人生（sim/vision.js）
   if (c.field) return c.reason === 'dormant' ? '休眠した（熟練が足りなくなった）' : '休眠から復活した';
   if (c.reason === 'cap') return `Lv${c.from}のまま（上限に届いている）`;
   const why = { study: '勉強で正解', year: 'この1年に勉強した', idle: `${c.years}年勉強していない` }[c.reason] || '';
@@ -15,9 +17,9 @@ export function profChangeText(c) {
 export function profLogList(app, genre = null) {
   const log = (app.state.knowledge.profLog || []).filter((c) => !genre || c.genre === genre);
   if (!log.length) return el('div', { class: 'muted prof-log-empty' }, 'まだ記録がない（勉強で熟練が上がったときと、誕生日の判定で変わったときに残る）');
-  return el('ol', { class: 'prof-log' }, log.map((c) => el('li', { class: c.field ? 'field' : c.to > c.from ? 'up' : c.to < c.from ? 'down' : 'same' },
+  return el('ol', { class: 'prof-log' }, log.map((c) => el('li', { class: c.vision ? 'vision' : c.field ? 'field' : c.to > c.from ? 'up' : c.to < c.from ? 'down' : 'same' },
     el('span', { class: 'when' }, `${c.gen}世代目 ${c.age}歳`),
-    el('span', { class: 'what' }, c.field ? `学際分野「${c.field}」` : c.genre),
+    el('span', { class: 'what' }, c.vision ? '色の見え方' : c.field ? `学際分野「${c.field}」` : c.genre),
     el('span', { class: 'how' }, profChangeText(c)))));
 }
 

@@ -9,9 +9,9 @@ import * as roadside from './roadside.js';
 
 /**
  * events を受け取って知らせる関数（handleEvents）を作る（main.js の起動で1回だけ）。
- * 知らせ（notify・notifyCard・runOverlay）・札（rumorDefeated・notifyFirstZukan・notifyMisbeliefs）・ミニムービー（startMovie・startAilmentMovie・onReincarnated）は main.js から渡す
+ * 知らせ（notify・notifyCard・runOverlay）・札（rumorDefeated・notifyFirstZukan・notifyMisbeliefs）・ミニムービー（startMovie・startAilmentMovie・onReincarnated・visionMovie）は main.js から渡す
  */
-export function createEventHandler(app, { notify, notifyCard, runOverlay, startMovie, startAilmentMovie, onReincarnated, rumorDefeated, notifyFirstZukan, notifyMisbeliefs }) {
+export function createEventHandler(app, { notify, notifyCard, runOverlay, startMovie, startAilmentMovie, onReincarnated, visionMovie, rumorDefeated, notifyFirstZukan, notifyMisbeliefs }) {
   const ctx = app.ctx;
   const monsters = ctx.monsters;
   const balance = ctx.balance;
@@ -64,6 +64,7 @@ export function createEventHandler(app, { notify, notifyCard, runOverlay, startM
       else if (e.type === 'nande') runOverlay(() => askNande(app));
       else if (e.type === 'reincarnated') onReincarnated(e);
       else if (e.type === 'ailment') startAilmentMovie(e.age);
+      else if (e.type === 'visionCheck') visionMovie(e); // 色の見え方が違う人生：学校の色覚検査で分かった
       // 前世の記憶をたどるを出している間は、レベルアップと「図鑑に載った」は知らせない（最初は次々に来て、問題と戦いの様子を隠すため）
       else if (e.type === 'levelUp') { if (!recallShowing()) notify(`${app.state.hero.name}のレベルが上がった！　Lv ${e.level}`, 'good'); }
       else if (e.type === 'floorUp') {

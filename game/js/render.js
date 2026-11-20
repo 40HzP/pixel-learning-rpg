@@ -297,10 +297,18 @@ export function createRenderer(canvas, app) {
     if (sp && isReformed(state, app.ctx, a.walker.id)) drawHalo(g, sp, x, top, pal, { flip: wk.flip }); // 更生した印（光の輪）
   }
 
-  function bar(x, y, w, ratio, color) {
+  /**
+   * 体力バー。色が見分けにくくても読めるように（設計ページ「色の見え方が違う人生」の成立させる基準）、
+   * 4分の1ごとに目盛り（下の段に輪郭の色の点）を入れ、攻撃が効かない間（locked）は残りの部分を縞にする
+   */
+  function bar(x, y, w, ratio, color, locked = false) {
     g.fillStyle = col('0'); g.fillRect(x - 1, y - 1, w + 2, 4);
     g.fillStyle = col('1'); g.fillRect(x, y, w, 2);
-    g.fillStyle = color; g.fillRect(x, y, Math.max(0, Math.round(w * ratio)), 2);
+    const fill = Math.max(0, Math.round(w * ratio));
+    g.fillStyle = color; g.fillRect(x, y, fill, 2);
+    if (locked) { g.fillStyle = col('1'); for (let i = x + 1; i < x + fill; i += 2) g.fillRect(i, y, 1, 2); }
+    g.fillStyle = col('0');
+    for (let q = 1; q < 4; q++) g.fillRect(x + Math.round((w * q) / 4), y + 1, 1, 1);
   }
 
   function draw(state, now) {
@@ -394,7 +402,8 @@ export function createRenderer(canvas, app) {
     // HPバーと、狙っている敵の印（▼）
     for (const e of enemies) {
       const p = boxes.get(e);
-      bar(p.x + 2, p.top - 4, p.w - 4, e.hp / e.maxHp, isInvulnerable(state, e) ? col('3') : col('d'));
+      const locked = isInvulnerable(state, e);
+      bar(p.x + 2, p.top - 4, p.w - 4, e.hp / e.maxHp, locked ? col('3') : col('d'), locked);
     }
     if (enemies.length > 1 && enter >= 1) {
       const p = boxes.get(enemies[0]);

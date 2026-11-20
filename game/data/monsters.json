@@ -2292,6 +2292,7 @@
       "name": "小学校教師",
       "kind": "midboss",
       "appearAge": 7,
+      "visionCheck": true,
       "unlockCorrect": 5,
       "intro": "7歳で挑戦できる最初の壁。勉強で累計5問正解するまで、攻撃が効かない（出てくる前の正解も数える）。",
       "stats": { "hp": 4790, "atk": 167, "def": 28, "exp": 60, "gold": 60 },

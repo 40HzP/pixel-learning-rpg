@@ -1,8 +1,9 @@
 // 画面全体のミニムービーの出し方：中ボスを倒したとき・体の不調・寿命と生まれ変わりの場面・ロケットの打ち上げと帰還・試作機。
 // 2026-11-09 に main.js から分けた
 import {
-  createRateTracker, lifeLogHighlights, seeOffFriends, launchRocket, returnToEarth, flyPrototype, launchSuccessRate, launchRateVisible, walkKm,
+  createRateTracker, lifeLogHighlights, seeOffFriends, launchRocket, returnToEarth, flyPrototype, launchSuccessRate, launchRateVisible, walkKm, honorific,
 } from '../sim.js';
+import { VISION_LABELS } from '../colorsim.js';
 import { fmt, affNum } from './dom.js';
 import { playMovie } from './movie.js';
 import { playLaunch } from './launch.js';
@@ -75,6 +76,8 @@ export function createScenes(app, { notify, runOverlay, saveNow, refreshActive, 
       when: `${c.age}歳`, what: c.field ? `学際分野「${c.field}」` : c.genre, how: profChangeText(c),
       kind: c.field ? 'field' : c.to > c.from ? 'up' : c.to < c.from ? 'down' : 'same',
     }));
+    // 色の見え方が違う人生だったら1行（設計ページ「知らせ方」。ふつうの見え方の人生には出さない）
+    if (p.vision) log.push({ when: '生まれつき', what: '色の見え方', how: VISION_LABELS[p.vision], kind: 'vision' });
     log.push({ when: `${p.age}歳`, what: '', how: 'ここで記録が途切れている', kind: 'end' });
     return {
       log,
@@ -85,6 +88,24 @@ export function createScenes(app, { notify, runOverlay, saveNow, refreshActive, 
       // 懐いた飼育小屋のザコが見送る（設計ページ「懐き度」の③。懐き度の高い順に数体）
       friends: seeOffFriends(app.state, ctx).map((f) => ({ ...f, sprite: (monsterSprites[f.id] || {}).idle || null })),
     };
+  }
+
+  /**
+   * 色の見え方が違う人生：7歳の小学校教師の場面で学校の色覚検査を受けて、その人生の色の見え方が分かる（設計ページ「知らせ方」の案）。
+   * 当たり・ハズレの演出はしない。画面の色は近似であることと、日本の学校の色覚検査の経緯を添える（裏取りは docs/decisions.md「色の見え方が違う人生」）
+   */
+  function visionMovie(e) {
+    const label = VISION_LABELS[e.vision] || e.vision;
+    const name = app.state.hero.name;
+    const lines = [
+      `先生「${name}${honorific(app.state)}、色の見え方の検査があるけれど、受けてみる？　受けたい人だけが受ける検査だよ」`,
+      `検査を受けた。${name}の色の見え方は「${label}」だと分かった。`,
+      `生まれたときから、${name}にはこの色で世界が見えていた。色の見え方は、人によってちがう（色覚の多様性）。`,
+      `この人生の画面は、${label}の人の見え方に近づけた色で出ている。近似なので、実際の見え方は人によってちがう。強さ・ゴールド・経験値には関わらない。`,
+      '日本の学校の色覚検査は、2003年度から健康診断の必ず受ける項目ではなくなった。2014年の文部科学省の通知で、希望する人が学校で受けられるよう体制を整えることになった。',
+    ];
+    afterAnswering(() => runOverlay(() => playMovie(app, { lines, otherId: e.monsterId })
+      .then(() => notify(`色の見え方：${label}（熟練の記録に残った）`))));
   }
 
   /**
@@ -156,5 +177,5 @@ export function createScenes(app, { notify, runOverlay, saveNow, refreshActive, 
     return r;
   }
 
-  return { afterAnswering, releaseHeldMovies, startMovie, startAilmentMovie, onReincarnated, rebirthScene, launch, returnHome, prototypeFlight };
+  return { afterAnswering, releaseHeldMovies, startMovie, startAilmentMovie, onReincarnated, rebirthScene, visionMovie, launch, returnHome, prototypeFlight };
 }

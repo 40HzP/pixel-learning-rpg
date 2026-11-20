@@ -9,8 +9,9 @@ export function createState(balance) {
     meta: { startAge: null },                       // 開始年齢の選択（null＝まだ選んでいない）
     // 何世代目か・0歳1月1日0時からの経過時間・生まれたときに決まった寿命（歳）・この人生で一番深い階層（地球）・月面で一番深い階層（0＝まだ行っていない）・体の不調を感じ始めたか・病院で治療を受けた回数・
     // 誕生日：前に誕生日の処理（全回復・熟練の判定）をした年齢・
-    // 散歩の要素（sim/walk.js）：この人生で歩き切った階層の数（地球と月面。1階層＝walk.kmPerFloor km）・もう追い越した前世の石碑（'earth:2' のように世界と世代）
-    life: { generation: 1, gameHours: 0, lifespan: balance.life.lifespanYears, maxFloor: 1, moonMaxFloor: 0, ailing: false, treatments: 0, birthday: 0, walkedFloors: 0, stelesPassed: [] },
+    // 散歩の要素（sim/walk.js）：この人生で歩き切った階層の数（地球と月面。1階層＝walk.kmPerFloor km）・もう追い越した前世の石碑（'earth:2' のように世界と世代）・
+    // 色の見え方が違う人生（sim/vision.js）：その人生の色の見え方（'protan'＝1型・'deutan'＝2型・'tritan'＝3型。null はふつう）・学校の色覚検査で分かったか
+    life: { generation: 1, gameHours: 0, lifespan: balance.life.lifespanYears, maxFloor: 1, moonMaxFloor: 0, ailing: false, treatments: 0, birthday: 0, walkedFloors: 0, stelesPassed: [], vision: null, visionKnown: false },
     hero: { name: DEFAULT_HERO_NAME, gender: 'male', level: 1, exp: 0, totalExp: 0, hp: balance.hero.base.hp, mp: balance.hero.base.mp },
     gold: 0,
     equipment: { weapon: null, armor: null, accessory: null }, // 武器・防具・装飾品（品物のid）
@@ -52,7 +53,7 @@ export function createState(balance) {
     firstRun: null,
     legacy: {                                     // 転生しても残るもの
       titles: [],                                   // 前世までにもらった称号
-      lives: [],                                    // 前世のまとめ：{ generation, name, age, level, maxFloor, moonFloor, gold, walked（歩き切った階層の数。2026-11-20 から） }
+      lives: [],                                    // 前世のまとめ：{ generation, name, age, level, maxFloor, moonFloor, gold, walked（歩き切った階層の数。2026-11-20 から）, vision（色の見え方。2026-11-20 から） }
       walkedFloors: 0,                              // 前世までに歩き切った階層の数の合計（歩いた距離の歴代の合計。この人生の分は life.walkedFloors）
       moonWalk: false,                              // 歴代の合計が月まで（walk.moonKm）に届いた（称号 walk.moonTitle）
       walker: null,                                 // ザコの散歩：冒険に連れて歩いている飼育小屋のザコの id（1体まで。生まれ変わっても連れたまま。sim/walk.js）

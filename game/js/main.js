@@ -26,6 +26,7 @@ import { playTear } from './ui/tear.js';
 import { playOogiri } from './ui/oogiri.js';
 import { openFloors } from './ui/floors.js';
 import { playPrologue } from './ui/prologue.js';
+import { syncVision } from './ui/vision.js';
 
 const PIXEL = '../pixel/';
 const AUTOSAVE_MS = 10_000;
@@ -141,7 +142,7 @@ async function boot() {
       const s = app.state;
       runOverlay(() => playPrologue(app, scenes.rebirthScene({
         generation: s.life.generation, name: s.hero.name, age: Math.floor(s.life.gameHours / HOURS_PER_YEAR),
-        level: s.hero.level, maxFloor: s.life.maxFloor || 1, moonFloor: s.life.moonMaxFloor || 0, gold: Math.floor(s.gold), walked: s.life.walkedFloors || 0,
+        level: s.hero.level, maxFloor: s.life.maxFloor || 1, moonFloor: s.life.moonMaxFloor || 0, gold: Math.floor(s.gold), walked: s.life.walkedFloors || 0, vision: s.life.vision || null,
       })));
     },
     restartFirstCheck() {
@@ -179,7 +180,7 @@ async function boot() {
   const scenes = createScenes(app, { notify, runOverlay, saveNow, refreshActive, showIntro, resetLaunch: cards.resetLaunch, screens });
   const handleEvents = createEventHandler(app, {
     notify, notifyCard, runOverlay,
-    startMovie: scenes.startMovie, startAilmentMovie: scenes.startAilmentMovie, onReincarnated: scenes.onReincarnated,
+    startMovie: scenes.startMovie, startAilmentMovie: scenes.startAilmentMovie, onReincarnated: scenes.onReincarnated, visionMovie: scenes.visionMovie,
     rumorDefeated: cards.rumorDefeated, notifyFirstZukan: cards.notifyFirstZukan, notifyMisbeliefs: cards.notifyMisbeliefs,
   });
   Object.assign(app, { notify, handleEvents, save: saveNow });
@@ -317,6 +318,7 @@ async function boot() {
     if (app.tab === 'study') study.drawMini(app);
     // 問題を解いている間に取っておいたミニムービー：答え終わったら（勉強画面を離れても）出す
     scenes.releaseHeldMovies();
+    syncVision(app); // 色の見え方が違う人生：画面全体の色のフィルタ（変わったときだけ書き換える）
     if (nowMs - lastUi > UI_MS) { lastUi = nowMs; refreshActive(false); }
     if (nowMs - lastSave > AUTOSAVE_MS) { lastSave = nowMs; saveNow(); }
     requestAnimationFrame(frame);
