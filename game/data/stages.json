@@ -10,6 +10,17 @@
     { "from": 71, "name": "夜の都会", "genre": "経済学", "background": "bg_floor71" },
     { "from": 81, "name": "海の底", "genre": "流体力学", "background": "bg_floor81" },
     { "from": 91, "name": "天空の神殿", "genre": "数学", "background": "bg_floor91" },
+    { "from": 101, "name": "斜塔の町", "genre": "物理", "background": "bg_floor101" },
+    { "from": 111, "name": "霧の都", "genre": "微生物", "background": "bg_floor111" },
+    { "from": 121, "name": "溶鉱炉の町", "genre": "化学", "background": "bg_floor121" },
+    { "from": 131, "name": "キリンのサバンナ", "genre": "生物", "background": "bg_floor131" },
+    { "from": 141, "name": "胸像の回廊", "genre": "心理学", "background": "bg_floor141" },
+    { "from": 151, "name": "光の実験室", "genre": "物理", "background": "bg_floor151" },
+    { "from": 161, "name": "歯車の工場", "genre": "熱力学", "background": "bg_floor161" },
+    { "from": 171, "name": "顕微鏡の世界", "genre": "生物", "background": "bg_floor171" },
+    { "from": 181, "name": "星の音楽堂", "genre": "音楽学", "background": "bg_floor181" },
+    { "from": 191, "name": "天文台の丘", "genre": "宇宙物理学", "background": "bg_floor191" },
+    { "from": 201, "name": "電波望遠鏡の高原", "genre": "宇宙物理学", "background": "bg_floor201" },
     { "world": "moon", "from": 1, "name": "月面", "genre": "宇宙物理学", "background": "bg_moon" }
   ]
 }

@@ -10,7 +10,7 @@ export const reachedFloor = (state) => Math.max(1, (onMoon(state) ? state.life.m
 
 /**
  * 階層の移動の行き先：今いる世界の、この人生で到達した階層を、エリア（10階層ごと）に分けて返す。
- * 地球のエリアは10階層ごとの世界（stages.json。101階層から先は天空の神殿が10階層ずつ続く）、月面は月面の10階層ずつ。
+ * 地球のエリアは10階層ごとの世界（stages.json。最後の世界（201階層〜）より先は、最後の世界が10階層ずつ続く）、月面は月面の10階層ずつ。
  * エリアごとに、出るザコのうち図鑑でまだ出会っていない数（unmet）と、そのエリアのボスを付ける
  */
 export function floorAreas(state, ctx) {

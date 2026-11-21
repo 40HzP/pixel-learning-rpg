@@ -21,7 +21,11 @@ test('10階層ごとの世界：1階層から始まり、背景のスプライ�
     assert.equal(sp.category, 'background', st.background);
     assert.deepEqual([sp.w, sp.h], [90, 160], st.background);
   }
-  assert.ok(earth.at(-1).from >= 91, '100階層まで背景がある');
+  assert.ok(earth.at(-1).from >= 201, '210階層（最後のボス）まで背景がある');
+  // ボスはそれぞれの世界の最後の階層にいる（101階層から先の世界は、そのボスのイメージで作った）
+  const bosses = read('../data/monsters.json').monsters.filter((m) => m.kind === 'boss' && (m.world || 'earth') === 'earth');
+  for (const m of bosses) assert.equal(stageFor(m.floor, stages).from, m.floor - 9, `${m.name}（${m.floor}階層）は ${stageFor(m.floor, stages).name} の最後の階層`);
+  for (const st of earth.slice(1)) assert.ok(bosses.some((m) => m.floor === st.from - 1), `${st.name} の手前の階層にボスがいる`);
 });
 
 test('階層の背景：10階層ごとに変わり、最後の世界より先は最後の世界のまま', () => {
@@ -31,7 +35,10 @@ test('階層の背景：10階層ごとに変わり、最後の世界より先は
   assert.equal(bg(11), 'bg_floor11');
   assert.equal(bg(55), 'bg_floor51');
   assert.equal(bg(100), 'bg_floor91');
-  assert.equal(bg(150), 'bg_floor91');
+  assert.equal(bg(101), 'bg_floor101', '101階層から先にも世界がある');
+  assert.equal(bg(155), 'bg_floor151');
+  assert.equal(bg(210), 'bg_floor201');
+  assert.equal(bg(500), 'bg_floor201', '最後の世界より先は最後の世界のまま');
 });
 
 test('世界が変わるときは0.5秒の暗転：前半で暗くなり、真っ暗の瞬間に背景を入れ替え、後半で明るくなる', () => {

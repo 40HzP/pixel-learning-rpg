@@ -129,12 +129,12 @@ test('部屋の名前は8文字まで。空にすると既定の名前に戻る'
   assert.equal(renameBarnRoom(s, 'earth', 3, 'まだない'), null);
 });
 
-test('部屋の背景：いつもの2つ・生態展示10・新しく描いた5つ。どの世界でも全部選べる', () => {
+test('部屋の背景：いつもの2つ・生態展示（地球の世界の数。101階層から先の世界も）・新しく描いた5つ。どの世界でも全部選べる', () => {
   const ctx = makeCtx();
   const list = barnBackgrounds(ctx);
   const earthStages = stages.filter((st) => !st.world);
-  assert.equal(earthStages.length, 10);
-  assert.equal(list.length, 2 + 10 + 5);
+  assert.equal(earthStages.length, 21);
+  assert.equal(list.length, 2 + earthStages.length + 5);
   assert.deepEqual(list.filter((x) => x.area).map((x) => x.area), earthStages.map((st) => st.name));
   assert.deepEqual(list.filter((x) => !x.area).map((x) => x.name), ['いつもの小屋', 'いつものドーム', '分類展示', '行動展示', '宇宙の待機室', '更生の教室', '言葉の書斎']);
   for (const x of list) {
