@@ -1,0 +1,47 @@
+{
+  "name": "sayuuhanten_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      "....d......d....",
+      "...dddddddddd...",
+      "....d0ffff0d....",
+      "....0f4ooof0....",
+      "...0f4ooooof0...",
+      "..0ffooooooff0..",
+      "..0foooooooof0..",
+      "..0foo0oo0oof0..",
+      "..0foooooooof0..",
+      "..0ffoo00ooff0..",
+      "...0foooooof0...",
+      "....0foooof0....",
+      ".....0faaf0.....",
+      "......0aa0......",
+      "......0aa0......",
+      "......0aa0......"
+    ],
+    [
+      "................",
+      "....d......d....",
+      "...dddddddddd...",
+      "....d0ffff0d....",
+      "....0f4ooof0....",
+      "...0f4ooooof0...",
+      "..0ffooooooff0..",
+      "..0foooooooof0..",
+      "..0foo0oo0oof0..",
+      "..0foooooooof0..",
+      "..0ffoo00ooff0..",
+      "...0foooooof0...",
+      "....0foooof0....",
+      "......0aa0......",
+      "......0aa0......",
+      "......0aa0......"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

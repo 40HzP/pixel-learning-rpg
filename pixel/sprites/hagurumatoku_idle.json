@@ -1,0 +1,47 @@
+{
+  "name": "hagurumatoku_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      "...........0dddd",
+      ".....00.00.0d44d",
+      "....0ff0ff00dddd",
+      "....000f0000dddd",
+      "...0fffffff00000",
+      ".00ffffgffff00..",
+      "0ffffgggggffff0.",
+      ".00ff0gg0gff00..",
+      ".0ffgggggggff0..",
+      ".00ffgggggff00..",
+      "0ffff0000gffff0.",
+      ".00ffffgffff00..",
+      "...0fffffff0....",
+      "....000f000.....",
+      "....0ff0ff0.....",
+      ".....00.00......"
+    ],
+    [
+      "................",
+      "...........0dddd",
+      ".....00.00.0d44d",
+      "....0ff0ff00dddd",
+      "....000f0000dddd",
+      "...0fffffff00000",
+      ".00ffffgffff00..",
+      "0ffffgggggffff0.",
+      ".00ff0gg0gff00..",
+      ".0ffgggggggff0..",
+      ".00ffgggggff00..",
+      "0ffff0000gffff0.",
+      ".00ffffgffff00..",
+      "...0fffffff0....",
+      "....000f000.....",
+      ".....00.00......"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

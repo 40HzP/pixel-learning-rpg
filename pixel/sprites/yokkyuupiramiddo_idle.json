@@ -1,0 +1,47 @@
+{
+  "name": "yokkyuupiramiddo_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      ".......g........",
+      "......g.g.......",
+      ".......00.......",
+      "......0mm0......",
+      ".....0mmmm0.....",
+      ".....0mmmm0.....",
+      "....0iiiiii0....",
+      "....0iiiiii0....",
+      "...0iiiiiiii0...",
+      "...0ff0ff0ff0...",
+      "..0ffffffffff0..",
+      "..0eee000eeee0..",
+      ".0eeeeeeeeeeee0.",
+      "0eeeeeeeeeeeeee0",
+      "0dddddddddddddd0",
+      "dddddddddddddddd"
+    ],
+    [
+      "................",
+      ".......g........",
+      "......g.g.......",
+      ".......00.......",
+      "......0mm0......",
+      ".....0mmmm0.....",
+      ".....0mmmm0.....",
+      "....0iiiiii0....",
+      "....0iiiiii0....",
+      "...0iiiiiiii0...",
+      "...0ff0ff0ff0...",
+      "..0ffffffffff0..",
+      "..0eee000eeee0..",
+      ".0eeeeeeeeeeee0.",
+      "0eeeeeeeeeeeeee0",
+      "dddddddddddddddd"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

@@ -24,9 +24,12 @@ test('データ：地球のザコは1〜2つの出現エリア（stages.json の
 const firstWorlds = earthStages.filter((s) => s.from <= 91).map((s) => s.name);
 const laterWorlds = earthStages.filter((s) => s.from > 91).map((s) => s.name);
 
+// 101階層から先の世界にだけ出るザコ（設計ページ「ザコ：101階層から先の世界（2026-11-22）」。各世界に2体）
+const laterOnly = earthZako.filter((m) => m.areas.length === 1 && laterWorlds.includes(m.areas[0]));
+
 test('データ：100階層までは設計ページの一覧のとおり（勉強法のザコは草原、2エリアに出るのはカゼコウセイ・ニドオチズ・ツギハクロの3体）', () => {
   const upTo100 = (m) => m.areas.filter((a) => firstWorlds.includes(a));
-  for (const m of earthZako) assert.equal(firstWorlds.includes(m.areas[0]), true, `${m.name} の1つめの出現エリアは100階層までの世界`);
+  for (const m of earthZako.filter((x) => !laterOnly.includes(x))) assert.equal(firstWorlds.includes(m.areas[0]), true, `${m.name} の1つめの出現エリアは100階層までの世界`);
   for (const m of earthZako.filter((x) => x.genres.includes('勉強法'))) assert.deepEqual(upTo100(m), ['はじまりの草原'], m.name);
   assert.deepEqual(earthZako.filter((m) => upTo100(m).length === 2).map((m) => m.name).sort(), ['カゼコウセイ', 'ツギハクロ', 'ニドオチズ'].sort());
   assert.deepEqual(byName('カゼコウセイ').areas, ['はじまりの草原', '錬金術の工房']);
@@ -55,12 +58,16 @@ test('冒険：ザコは今いる世界のエリアのものだけが群れで�
   }
 });
 
-test('データ：101階層から先の世界には、100階層までの世界に出るザコが2つめの出現エリアとして出る（どの世界にも5体以上）', () => {
+test('データ：101階層から先の世界には、100階層までの世界に出るザコが2つめの出現エリアとして出る（どの世界にも5体以上）。その世界にだけ出るザコも2体ずつ', () => {
   for (const w of laterWorlds) {
-    const list = earthZako.filter((m) => m.areas.includes(w));
+    const list = earthZako.filter((m) => m.areas.includes(w) && !laterOnly.includes(m));
     assert.ok(list.length >= 5, `${w} のザコ ${list.length}体`);
     for (const m of list) assert.equal(m.areas[1], w, `${m.name}：101階層から先の世界は2つめ`);
+    assert.equal(laterOnly.filter((m) => m.areas[0] === w).length, 2, `${w} にだけ出るザコは2体`);
   }
+  // 101階層から先の世界にだけ出るザコは、100階層までの世界には出ない（設計ページのとおり）
+  assert.equal(laterOnly.length, laterWorlds.length * 2);
+  assert.deepEqual(byName('サユウハンテン').areas, ['光の実験室']);
   for (const m of earthZako) assert.ok(m.areas.filter((a) => laterWorlds.includes(a)).length <= 1, `${m.name} は101階層から先の世界には1つまで`);
   assert.deepEqual(byName('ワザトピサ').areas, ['夜の都会', '斜塔の町'], 'ピサの斜塔のザコは斜塔の町にも');
   assert.deepEqual(byName('モエテキエル').areas, ['錬金術の工房', '溶鉱炉の町'], '燃えると軽くなるのザコはフロギストンの世界にも');

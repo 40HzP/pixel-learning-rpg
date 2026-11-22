@@ -17,13 +17,40 @@
     "黄色い点字ブロック": "road_tactile_paving",
     "路面の盛り上がり": "road_hump",
     "またたく星": "road_star",
-    "夕焼け": "road_sunset"
+    "夕焼け": "road_sunset",
+    "大聖堂の吊りランプ": "road_hanging_lamp",
+    "広場の噴水": "road_fountain",
+    "街灯ににじむ霧": "road_foggy_lamp",
+    "時報の鐘": "road_bell",
+    "コークスの山": "road_coke",
+    "錆びた鉄くず": "road_rusty_scrap",
+    "シロアリの塚": "road_termite_mound",
+    "乾季の枯れ草": "road_dry_grass",
+    "刻まれた石板": "road_stone_tablet",
+    "考える人の像": "road_thinker",
+    "シャボン玉": "road_bubbles",
+    "水を入れたビーカー": "road_beaker",
+    "ゼンマイ": "road_mainspring",
+    "油差し": "road_oil_can",
+    "玉ねぎの薄皮": "road_onion",
+    "コルクの薄片": "road_cork",
+    "音叉": "road_tuning_fork",
+    "パイプオルガンの管": "road_organ_pipes",
+    "宵の明星": "road_venus",
+    "天文台のドーム": "road_dome",
+    "天の川": "road_milky_way",
+    "パラボラアンテナ": "road_dish"
   },
   "zako": {
     "切り株": ["ネンリンホウイ"],
     "砂から覗く化石": ["キョウリュウホリ", "ナンオクネン"],
     "手袋に落ちた雪": ["ユキノコトバ", "アタタメモウフ"],
     "またたく星": ["イチバンポラリス"],
-    "夕焼け": ["キイロタイヨウ"]
+    "夕焼け": ["キイロタイヨウ"],
+    "広場の噴水": ["ヨコウチオソイ"],
+    "街灯ににじむ霧": ["シゼンノキリ"],
+    "時報の鐘": ["ビッグベントウ"],
+    "ゼンマイ": ["ハグルマトク"],
+    "音叉": ["ムカシカラヨンヨンマル"]
   }
 }

@@ -202,7 +202,7 @@ test('全問正解なら、覚えたザコは無く、いつもの草原のザ�
 
 test('図鑑の1体目：初めてザコを倒した瞬間に一度だけ「1／ザコの全数」を知らせる', () => {
   const total = monsters.filter((m) => m.kind === 'monster').length;
-  assert.equal(total, 171, '設計ページの例（1／171）と同じ数');
+  assert.ok(total >= 171, '設計ページの例は 1／171（2026-11-08 のザコの数）。分母はデータから数えるので、ザコを足すと増える');
   const { s, ctx } = firstRunGame(null, constRng(0.5));
   s.hero.level = 50;
   s.adventure.enemies = [];

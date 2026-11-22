@@ -1,0 +1,29 @@
+{
+  "name": "road_cork",
+  "category": "prop",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      "................",
+      "................",
+      "................",
+      "................",
+      "...000..........",
+      ".00bbb00........",
+      "0bbbbbbb0.0000..",
+      "0aabbbaa00b9b90.",
+      "0aaaaaaa0bbbbbb0",
+      "0a9aaaaa09b9b9b0",
+      "0aaaaaaabbbbbbbb",
+      "0aaaa9aa09b9b9b0",
+      "0aaaaaaa0bbbbbb0",
+      "0aa9aaaa00b9b90.",
+      "0aaaaaaa0.0000..",
+      ".0000000........"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

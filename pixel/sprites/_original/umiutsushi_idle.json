@@ -1,0 +1,47 @@
+{
+  "name": "umiutsushi_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      "................",
+      "................",
+      ".....000000.....",
+      "....0oooooo0....",
+      "...0444oo4oo0..4",
+      "..0o444oooooo044",
+      ".0oooooooooooo04",
+      ".0ooo0oo0ooooo04",
+      ".0mmmmmmmmmmmm04",
+      ".0mmmm00mmmmmm04",
+      ".0mmmmmmmmmmmm04",
+      "..0nmmnmmnmmn044",
+      "...0nmmnmmnm0n.4",
+      "....0mmmmmm0....",
+      ".....000000.....",
+      "................"
+    ],
+    [
+      "................",
+      "................",
+      "................",
+      ".....000000.....",
+      "....0oooooo0....",
+      "...0444oo4oo0..4",
+      "..0o444oooooo044",
+      ".0oooooooooooo04",
+      ".0ooo0oo0ooooo04",
+      ".0mmmmmmmmmmmm04",
+      ".0mmmm00mmmmmm04",
+      ".0mmmmmmmmmmmm04",
+      "..0nmmnmmnmmn044",
+      "...0nmmnmmnm0n.4",
+      "....0mmmmmm0....",
+      "................"
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

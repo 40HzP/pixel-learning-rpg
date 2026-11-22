@@ -1,0 +1,29 @@
+{
+  "name": "road_dry_grass",
+  "category": "prop",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      "........b.......",
+      "........f.......",
+      ".....b..f..f....",
+      ".....b..f..f....",
+      "...f.b..f.bf....",
+      "...f.b.ff.bf..b.",
+      "...f.b.ff.bf..b.",
+      "b..fab.ff.bf..b.",
+      ".b.fab.ff.bf.bf.",
+      ".b..fabffbf..bf.",
+      ".b..fabffbf..bf.",
+      "..b.fabffbf.bf..",
+      "..b.fabffbf0bf..",
+      "..b0fabffbfabf0.",
+      ".0aaaaaaaaaaaaa0",
+      "..0aaaaaaaaaaa0."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

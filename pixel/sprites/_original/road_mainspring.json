@@ -1,0 +1,29 @@
+{
+  "name": "road_mainspring",
+  "category": "prop",
+  "w": 16,
+  "h": 16,
+  "fps": 1,
+  "frames": [
+    [
+      "................",
+      "............3333",
+      ".......0....3333",
+      "....000f000..33.",
+      "...0fffffff0.33.",
+      "..0fffffffff033.",
+      ".0fffgeeeefff33.",
+      ".0fffeffffef22..",
+      ".0fffefffffef0..",
+      "0ffffeffeffeff0.",
+      ".0fffeeeeffff0..",
+      ".0efffeffffef0..",
+      ".0ffffffffeff0..",
+      "..0efffffeff0...",
+      "...0feefeff0....",
+      "....000f000....."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

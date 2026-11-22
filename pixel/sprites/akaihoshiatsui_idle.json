@@ -1,0 +1,47 @@
+{
+  "name": "akaihoshiatsui_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      "......e..e......",
+      ".....e..e.......",
+      ".............00.",
+      "......000...0440",
+      "....00ddd0o.0440",
+      "...oddedddd00d40",
+      "..0deeeeeddd0d40",
+      "..0deeeeeddd0d40",
+      ".0dee0ee0edddd40",
+      ".0ddeeeeeddddd40",
+      ".0ddeeeeeddddd40",
+      "..0dd0000ddd0d40",
+      "..0ddddddddd0dd0",
+      "...0ddddddd0dddd",
+      "....00ddd00.0dd0",
+      "......000....00."
+    ],
+    [
+      "................",
+      "......e..e......",
+      ".....e..e.......",
+      ".............00.",
+      "......000...0440",
+      "....00ddd0o.0440",
+      "...oddedddd00d40",
+      "..0deeeeeddd0d40",
+      "..0deeeeeddd0d40",
+      ".0dee0ee0edddd40",
+      ".0ddeeeeeddddd40",
+      ".0ddeeeeeddddd40",
+      "..0dd0000ddd0d40",
+      "..0ddddddddd0dd0",
+      "...0ddddddd0dddd",
+      "......000....00."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

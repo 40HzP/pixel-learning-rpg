@@ -1,0 +1,47 @@
+{
+  "name": "umaretsukinanchou_idle",
+  "category": "monster",
+  "w": 16,
+  "h": 16,
+  "fps": 3,
+  "frames": [
+    [
+      ".......000......",
+      ".g..000ttt000...",
+      ".g.0tt44444tt0..",
+      "g.0tt4444444tt0.",
+      "..0ttt44444ttt0.",
+      "..0ptttttttttl0.",
+      "..0ppp0tt0pppl0.",
+      "..0ppppppppppl0.",
+      "..0ppppnsppppl0.",
+      "..0404040404040.",
+      "..0444444444440.",
+      "..0ppppppppppl0.",
+      "..0ppppppppppl0.",
+      "..0ppppppppppl0.",
+      "..0ppppppppppl0.",
+      "...0p0000000p0.."
+    ],
+    [
+      "................",
+      ".......000......",
+      ".g..000ttt000...",
+      ".g.0tt44444tt0..",
+      "g.0tt4444444tt0.",
+      "..0ttt44444ttt0.",
+      "..0ptttttttttl0.",
+      "..0ppp0tt0pppl0.",
+      "..0ppppppppppl0.",
+      "..0ppppnsppppl0.",
+      "..0404040404040.",
+      "..0444444444440.",
+      "..0ppppppppppl0.",
+      "..0ppppppppppl0.",
+      "..0ppppppppppl0.",
+      "...0p0000000p0.."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

@@ -1,0 +1,47 @@
+{
+  "name": "road_milky_way",
+  "category": "prop",
+  "w": 16,
+  "h": 16,
+  "fps": 2,
+  "frames": [
+    [
+      "................",
+      "........0.......",
+      ".....000l000....",
+      "...00ll4llll00..",
+      "..0lllllllllql0.",
+      "..0llllllllqor0.",
+      ".0llolllllqlrll0",
+      ".0lllllllqlqlll0",
+      ".0llllllqlqllll0",
+      ".0lllllrlqlllll0",
+      ".0llqlrlqllllll0",
+      ".0lqlrlllll4lll0",
+      "..0lr4llllllll0.",
+      "..0qllllllllll0.",
+      "...00lllllll00..",
+      ".....000l000...."
+    ],
+    [
+      "................",
+      "........0.......",
+      ".....000l000....",
+      "...00llollll00..",
+      "..0llllllllllq0.",
+      "..0lllllllll4l0.",
+      ".0ll4llllllrlql0",
+      ".0llllllllrllll0",
+      ".0lllllqlrlllll0",
+      ".0llllqllllllll0",
+      ".0lllqlqlllllll0",
+      ".0llllqllllolll0",
+      "..0rlollllllll0.",
+      "..0lllllllllll0.",
+      "...00lllllll00..",
+      ".....000l000...."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}
