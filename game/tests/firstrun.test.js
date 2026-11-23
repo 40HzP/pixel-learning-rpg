@@ -62,12 +62,12 @@ test('前世の記憶をたどる5問：ジャンルを散らして選び、毎�
   assert.ok(sets.size >= 10, '選び方が毎回ちがう');
   // 候補が少ないとき（ジャンルが足りない）は、同じジャンルからも取って5問にする
   const few = makeCtx(seededRng(1));
-  few.firstCheck = firstCheck.filter((c) => ['生物', '勉強法'].includes(c.genre));
+  few.firstCheck = firstCheck.filter((c) => ['物理', '地学'].includes(c.genre));
   assert.equal(pickRecall(newGame(0), few).length, RECALL_SIZE);
 });
 
 test('前世の記憶をたどる問題の答えはふつうの勉強と同じに数え、どう答えたか（正解・誤解・誤答2と3・時間切れ）を覚える', () => {
-  const ids = ['ジュッパーノウ', 'イチヤヅケ', 'ニドオチズ', 'カゼコウセイ', 'ラクダミズブクロ'].map(idOf);
+  const ids = ['ヨミカエシ', 'クモコンチュウ', 'ニドオチズ', 'ジシングモ', 'キョウリュウトカゲ'].map(idOf);
   const { s, ctx } = firstRunGame(ids);
   assert.deepEqual(recallProgress(s), { index: 0, total: 5, done: false });
   const first = nextRecall(s, ctx);
@@ -76,7 +76,7 @@ test('前世の記憶をたどる問題の答えはふつうの勉強と同じ�
   assert.ok(first.current.choices.some((c) => c.kind === 'myth'), '誤答1（誤解）は必ず選択肢にある');
   assert.equal(first.current.timeLimit, balance.quiz.timeLimitSec[0], '☆の制限時間');
   const r1 = answerRecall(s, first, first.current.choices.findIndex((c) => c.kind === 'myth'), ctx);
-  assert.deepEqual([r1.correct, r1.check], [false, { kind: 'myth', monsterId: byName('ジュッパーノウ').id }]);
+  assert.deepEqual([r1.correct, r1.check], [false, { kind: 'myth', monsterId: byName('ヨミカエシ').id }]);
   reply(s, ctx, 'wrong');
   reply(s, ctx, 'timeout');
   const r4 = reply(s, ctx, 'answer');
@@ -90,13 +90,13 @@ test('前世の記憶をたどる問題の答えはふつうの勉強と同じ�
   assert.ok(s.knowledge.review.includes(ids[0]), '間違えた問題は間違えたままの問題に');
   // 覚えたザコ：正解しなかった3問のザコ（答えた順）。誤解を選んだものだけ believed
   assert.deepEqual(rememberedZako(s, ctx).map((r) => [r.monster.name, r.believed]),
-    [['ジュッパーノウ', true], ['イチヤヅケ', false], ['ニドオチズ', false]]);
+    [['ヨミカエシ', true], ['クモコンチュウ', false], ['ニドオチズ', false]]);
 });
 
 test('間違えた問題のザコ（前世で魔物に吹き込まれた噂）は、最初の人生の1〜10階層で群れの先頭に1回ずつ優先して出る', () => {
-  const ids = ['ジュッパーノウ', 'ニドオチズ', 'キンジツナツ', 'カゼコウセイ', 'ラクダミズブクロ'].map(idOf);
+  const ids = ['ヨミカエシ', 'ニドオチズ', 'キンジツナツ', 'ジシングモ', 'キョウリュウトカゲ'].map(idOf);
   const { s, ctx } = firstRunGame(ids);
-  reply(s, ctx, 'myth');    // ジュッパーノウ（草原）
+  reply(s, ctx, 'myth');    // ヨミカエシ（草原）
   reply(s, ctx, 'wrong');   // ニドオチズ（火山・天空の神殿）
   reply(s, ctx, 'myth');    // キンジツナツ（氷の大地）
   reply(s, ctx, 'answer');
@@ -104,11 +104,11 @@ test('間違えた問題のザコ（前世で魔物に吹き込まれた噂）�
   s.adventure.enemies = [];
   const ev = [];
   spawnGroup(s, ctx, ev);
-  assert.deepEqual(s.adventure.enemies.slice(0, 3).map((e) => e.name), ['ジュッパーノウ', 'ニドオチズ', 'キンジツナツ'], '先頭に並ぶ（ほかのエリアのザコも1階層に出る）');
+  assert.deepEqual(s.adventure.enemies.slice(0, 3).map((e) => e.name), ['ヨミカエシ', 'ニドオチズ', 'キンジツナツ'], '先頭に並ぶ（ほかのエリアのザコも1階層に出る）');
   assert.equal(s.adventure.enemies.length, balance.floor.monstersPerFloor, '残りは草原のザコなどで埋める');
   const mis = ev.filter((e) => e.type === 'misbelief');
   assert.deepEqual(mis.map((e) => [e.name, e.believed, e.myth]), [
-    ['ジュッパーノウ', true, byName('ジュッパーノウ').myth], ['ニドオチズ', false, byName('ニドオチズ').myth], ['キンジツナツ', true, byName('キンジツナツ').myth]]);
+    ['ヨミカエシ', true, byName('ヨミカエシ').myth], ['ニドオチズ', false, byName('ニドオチズ').myth], ['キンジツナツ', true, byName('キンジツナツ').myth]]);
   assert.ok(mis.every((e) => s.adventure.enemies.some((x) => x.uid === e.uid)));
   // 強さは階層で決まる（1階層の強さ）
   const plain = s.adventure.enemies[3];
@@ -119,7 +119,7 @@ test('間違えた問題のザコ（前世で魔物に吹き込まれた噂）�
     const ev2 = [];
     spawnGroup(s, ctx, ev2);
     assert.ok(!ev2.some((e) => e.type === 'misbelief'));
-    const allowed = new Set([...grassland.map((m) => m.name), 'ジュッパーノウ', 'ニドオチズ', 'キンジツナツ']);
+    const allowed = new Set([...grassland.map((m) => m.name), 'ヨミカエシ', 'ニドオチズ', 'キンジツナツ']);
     for (const e of s.adventure.enemies) assert.ok(allowed.has(e.name), `1階層の群れに ${e.name}`);
   }
   // 11階層からは覚えたザコを優先しない（その世界のザコだけ）
@@ -132,7 +132,7 @@ test('間違えた問題のザコ（前世で魔物に吹き込まれた噂）�
 });
 
 test('間違えた問題のザコは、答えてすぐ今の群れの後ろのザコと入れ替わって現れる（もう群れにいれば印だけ。入れ替える相手がいなければ次の群れ）', () => {
-  const { s, ctx } = firstRunGame(['キンジツナツ', 'ジュッパーノウ', 'デカグリーンランド', 'ニドオチズ', 'ラクダミズブクロ'].map(idOf), constRng(0.5));
+  const { s, ctx } = firstRunGame(['キンジツナツ', 'ヨミカエシ', 'エルアール', 'ニドオチズ', 'キョウリュウトカゲ'].map(idOf), constRng(0.5));
   s.adventure.enemies = [];
   spawnGroup(s, ctx, []);
   const before = s.adventure.enemies.map((e) => ({ ...e }));
@@ -167,7 +167,7 @@ test('間違えた問題のザコは、答えてすぐ今の群れの後ろの�
 });
 
 test('まだ出していない覚えたザコは、10階層までのどこで答えても次の群れで出る。生まれ変わると優先しない', () => {
-  const { s, ctx } = firstRunGame(['キンジツナツ', 'ナミダツブ', 'ツギハクロ', 'カゼコウセイ', 'ラクダミズブクロ'].map(idOf));
+  const { s, ctx } = firstRunGame(['キンジツナツ', 'ハジメカラナイ', 'ウミウツシ', 'ジシングモ', 'キョウリュウトカゲ'].map(idOf));
   s.adventure.floor = 7;
   reply(s, ctx, 'myth');
   s.adventure.enemies = [];
@@ -360,10 +360,15 @@ test('難易度は遊ぶ人の実力に合わせる：問題ごとに、その�
     }
     return sum / n;
   };
-  // ザコとつながっている問題には難しい問題が少ない（☆4・☆5は合わせて20問足らず）ので、無い難易度は近い難易度から出る
+  // ザコとつながっている問題は☆☆が多く、☆4・☆5は少ない（☆が無いジャンルもある）ので、無い難易度は近い難易度から出る。
+  // 問題リストの難易度が付け直されても成り立つように、候補全体の平均と比べる
+  const { s, ctx } = reborn();
+  const cands = recallCandidates(s, ctx);
+  const mean = cands.reduce((n, q) => n + q.difficulty, 0) / cands.length;
   const low = avg(0), high = avg(5);
-  assert.ok(low < 1.9, `熟練Lv0なら☆中心（平均☆${low.toFixed(2)}）`);
-  assert.ok(high > low + 0.8, `熟練Lv5なら難しい問題が増える（平均☆${high.toFixed(2)}）`);
+  assert.ok(low < mean - 0.2, `熟練Lv0なら易しい問題が中心（平均☆${low.toFixed(2)}・候補全体は☆${mean.toFixed(2)}）`);
+  assert.ok(high > mean + 0.2, `熟練Lv5なら難しい問題が中心（平均☆${high.toFixed(2)}・候補全体は☆${mean.toFixed(2)}）`);
+  assert.ok(high > low + 0.5, '熟練Lvで難しさが変わる');
 });
 
 test('まだ正解したことのない問題を優先し、そのジャンルに無ければ正解済みの問題から出す', () => {
