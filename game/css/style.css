@@ -746,6 +746,12 @@ button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 .space-badge::before { content: '★'; margin-right: 2px; }
 .space-badge.reformed::before { content: '◎'; }
 .space-badge.walking::before, .space-badge.home::before { content: none; }
+/* 難易度の目安（勉強画面のメニューの下）：左に☆、右に目安。問題の☆の横の短い目安は小さめ */
+.diff-guide { margin-top: 14px; font-size: 13px; line-height: 1.5; }
+.diff-guide dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 10px; margin: 4px 0 6px; }
+.diff-guide dt { color: var(--accent); white-space: nowrap; }
+.diff-guide dd { margin: 0; }
+.qmeta .diff-short { font-size: 12px; }
 .analysis { margin-top: 14px; font-size: 13px; line-height: 1.6; }
 .analysis ol { margin: 4px 0; padding-left: 20px; }
 .subhead { font-size: 15px; font-weight: normal; color: var(--accent); margin: 14px 0 4px; }

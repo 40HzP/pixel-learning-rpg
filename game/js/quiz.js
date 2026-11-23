@@ -80,6 +80,19 @@ export function buildChoices(q, rng) {
 
 export const timeLimitFor = (difficulty, balance) => balance.quiz.timeLimitSec[Math.max(1, Math.min(5, difficulty)) - 1];
 
+/**
+ * 難易度（☆の数）ごとのむずかしさの目安（40HzP の依頼。2026-11-23）。設計ページ「問題レベル分けラベル」を、遊ぶ人に向けて言い換えたもの。
+ * text は勉強画面のメニューの一覧に、short は1問ずつ出すときの☆の横に出す。並びは☆1から
+ */
+export const DIFFICULTY_GUIDE = [
+  { short: '知識なしで解ける', text: '簡単。知識が無くても解ける' },
+  { short: '知識なしで解ける・やや複雑', text: '知識が無くても解けるが、やや複雑。関係する分野の知識があると簡単になる' },
+  { short: '入門の知識が要る', text: '入門レベルの知識が要る' },
+  { short: '資格試験の対策が要る', text: '資格試験の対策をしっかりしていないと解けない' },
+  { short: '対策だけでは解けない応用', text: '資格試験の対策をしているだけでは解けない応用問題' },
+];
+export const difficultyGuide = (difficulty) => DIFFICULTY_GUIDE[Math.max(1, Math.min(DIFFICULTY_GUIDE.length, difficulty)) - 1];
+
 /* ================= 1回分の勉強（セッション） ================= */
 
 /**

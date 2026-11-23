@@ -1,5 +1,5 @@
 // 勉強画面（設計ページ「勉強画面の表示」）
-import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH, flyerSpan, recordTorn, remedialOpen, adoptedQuestions, testShareText, SHARE_HASHTAG, toggleFavorite, isFavorite, reviewLists, dailyPending, dailyInfo, testCountLabel } from '../quiz.js';
+import { createSession, nextQuestion, answer, presentTest, gradeTest, interferingMonster, blockedInterference, fooledAnalysis, MODES, OOGIRI_MAX_LENGTH, flyerSpan, recordTorn, remedialOpen, adoptedQuestions, testShareText, SHARE_HASHTAG, toggleFavorite, isFavorite, reviewLists, dailyPending, dailyInfo, testCountLabel, DIFFICULTY_GUIDE, difficultyGuide } from '../quiz.js';
 import { genreState, midbossState, midbossLeft, expMultiplier, proficiencyCap, ageYears, newspaperActive, authorRightsInfo } from '../sim.js';
 import { fieldById, fieldActive } from '../fields.js';
 import { GENRES } from '../genres.js';
@@ -148,7 +148,16 @@ function renderMenu(app) {
       { onclick: () => { view.phase = 'compose'; renderBody(app); scrollTop(); } })),
     // 心理統計学（学際分野）を専攻にしていなければ出さない
     ...[analysisBox(app)].filter(Boolean),
+    difficultyGuideBox(),
   );
+}
+
+/** 難易度の目安（40HzP の依頼。quiz.js の DIFFICULTY_GUIDE）：☆1〜☆5のむずかしさと、熟練Lvで出る難易度が変わること */
+function difficultyGuideBox() {
+  return el('section', { class: 'diff-guide' },
+    el('h3', { class: 'subhead' }, '難易度の目安'),
+    el('dl', {}, DIFFICULTY_GUIDE.flatMap((g, i) => [el('dt', {}, stars(i + 1)), el('dd', {}, g.text)])),
+    el('div', { class: 'muted' }, 'そのジャンルの熟練Lvが上がるほど、難しい問題が多く出る'));
 }
 
 /** 心理統計学（学際分野）：どの俗説に騙されやすいか */
@@ -484,7 +493,8 @@ function renderQuestion(app) {
   const ratio = Math.max(0, view.remaining / cur.timeLimit);
   refs.body.replaceChildren(
     interferenceBanner(app, q),
-    el('div', { class: 'qmeta' }, `${stars(q.difficulty)}　${progress}`, cur.trimmedBy ? el('span', { class: 'good' }, `　${cur.trimmedBy}で誤答が1つ消えた`) : null, helpNote(cur), citedNote(cur)),
+    // ☆の横にむずかしさの目安（短いほう）
+    el('div', { class: 'qmeta' }, stars(q.difficulty), el('span', { class: 'diff-short' }, `（${difficultyGuide(q.difficulty).short}）`), `　${progress}`, cur.trimmedBy ? el('span', { class: 'good' }, `　${cur.trimmedBy}で誤答が1つ消えた`) : null, helpNote(cur), citedNote(cur)),
     questionText(app, q),
     el('div', { class: 'timebar', id: 'timebar' }, el('i', { style: { width: ratio * 100 + '%' } })),
     view.revealed

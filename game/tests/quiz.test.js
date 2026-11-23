@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSession, nextQuestion, presentQuestion, answer, buildChoices, pickDifficulty, pickQuestion, averageLevel, timeLimitFor, forgetMissingQuestions, presentTest, gradeTest, OOGIRI_MAX_LENGTH, testCountLabel } from '../js/quiz.js';
+import { createSession, nextQuestion, presentQuestion, answer, buildChoices, pickDifficulty, pickQuestion, averageLevel, timeLimitFor, forgetMissingQuestions, presentTest, gradeTest, OOGIRI_MAX_LENGTH, testCountLabel, DIFFICULTY_GUIDE, difficultyGuide } from '../js/quiz.js';
 import { genreState, spawnEnemy } from '../js/sim.js';
 import { GENRES } from '../js/genres.js';
 import { balance, makeCtx, newGame, questions, constRng, seededRng, questionFor } from './helpers.js';
@@ -314,4 +314,15 @@ test('テストのジャンルのボタンの問題数：「全○問の中か�
   const ctx = makeCtx(seededRng(5));
   const sess = createSession(s, 'test', ctx, genre);
   assert.equal(presentTest(s, sess, ctx).length, n);
+});
+
+test('難易度の目安：☆1〜☆5のそれぞれにあり（制限時間・熟練Lvごとの難易度の配分と同じ数）、どの問題の難易度にも目安が出る', () => {
+  assert.equal(DIFFICULTY_GUIDE.length, balance.quiz.timeLimitSec.length);
+  for (const row of balance.quiz.difficultyMixByLevel) assert.equal(row.length, DIFFICULTY_GUIDE.length);
+  for (const g of DIFFICULTY_GUIDE) assert.ok(g.text && g.short && g.short.length <= 14, `目安の文（${g.short}）`);
+  assert.equal(new Set(DIFFICULTY_GUIDE.map((g) => g.short)).size, DIFFICULTY_GUIDE.length, '短い目安も難易度ごとに違う');
+  for (const q of questions) assert.ok(Number.isInteger(q.difficulty) && q.difficulty >= 1 && q.difficulty <= DIFFICULTY_GUIDE.length, `${q.question} の難易度`);
+  assert.equal(difficultyGuide(3), DIFFICULTY_GUIDE[2]);
+  assert.equal(difficultyGuide(0), DIFFICULTY_GUIDE[0], '範囲の外は端に寄せる');
+  assert.equal(difficultyGuide(9), DIFFICULTY_GUIDE[4]);
 });
