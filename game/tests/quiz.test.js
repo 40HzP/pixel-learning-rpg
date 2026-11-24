@@ -319,7 +319,11 @@ test('テストのジャンルのボタンの問題数：「全○問の中か�
 test('難易度の目安：☆1〜☆5のそれぞれにあり（制限時間・熟練Lvごとの難易度の配分と同じ数）、どの問題の難易度にも目安が出る', () => {
   assert.equal(DIFFICULTY_GUIDE.length, balance.quiz.timeLimitSec.length);
   for (const row of balance.quiz.difficultyMixByLevel) assert.equal(row.length, DIFFICULTY_GUIDE.length);
-  for (const g of DIFFICULTY_GUIDE) assert.ok(g.text && g.short && g.short.length <= 14, `目安の文（${g.short}）`);
+  for (const g of DIFFICULTY_GUIDE) {
+    assert.ok(g.text && g.short && g.short.length <= 14, `目安の文（${g.short}）`);
+    // 解けるかどうか・簡単かどうかは言い切らない（解けなかった人が仲間はずれになるため。40HzP の依頼）。「常識」も使わない
+    for (const t of [g.text, g.short]) assert.doesNotMatch(t, /解け|簡単|易しい|やさしい|常識|誰でも|だれでも/, `言い切らない（${t}）`);
+  }
   assert.equal(new Set(DIFFICULTY_GUIDE.map((g) => g.short)).size, DIFFICULTY_GUIDE.length, '短い目安も難易度ごとに違う');
   for (const q of questions) assert.ok(Number.isInteger(q.difficulty) && q.difficulty >= 1 && q.difficulty <= DIFFICULTY_GUIDE.length, `${q.question} の難易度`);
   assert.equal(difficultyGuide(3), DIFFICULTY_GUIDE[2]);

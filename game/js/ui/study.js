@@ -152,12 +152,12 @@ function renderMenu(app) {
   );
 }
 
-/** 難易度の目安（40HzP の依頼。quiz.js の DIFFICULTY_GUIDE）：☆1〜☆5のむずかしさと、熟練Lvで出る難易度が変わること */
+/** 難易度の目安（40HzP の依頼。quiz.js の DIFFICULTY_GUIDE）：☆1〜☆5の問題がどんな知識を使うかと、熟練Lvで出る難易度が変わること */
 function difficultyGuideBox() {
   return el('section', { class: 'diff-guide' },
     el('h3', { class: 'subhead' }, '難易度の目安'),
     el('dl', {}, DIFFICULTY_GUIDE.flatMap((g, i) => [el('dt', {}, stars(i + 1)), el('dd', {}, g.text)])),
-    el('div', { class: 'muted' }, 'そのジャンルの熟練Lvが上がるほど、難しい問題が多く出る'));
+    el('div', { class: 'muted' }, 'そのジャンルの熟練Lvが上がるほど、☆の多い問題が多く出る'));
 }
 
 /** 心理統計学（学際分野）：どの俗説に騙されやすいか */
