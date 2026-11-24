@@ -173,4 +173,5 @@ python3 -m http.server 8000
 - 公開物：`game/` 全部、`pixel/palette.json`、`pixel/sprites/*.json`（`_original/`・`export/`・`editor.html` は入れない）、一番上の `index.html`（`game/` へ移動するだけ）
 - 公開の設定（Settings → Pages → Source を「GitHub Actions」）は 40HzP が行う。勝手に変えない
 - 既定のブランチの最新のコミットでなければ公開しない（古い実行をやり直しても、新しい版を古い版で上書きしない）
+- ファイルを集めてアップロードするジョブ（`build`）と、公開するジョブ（`deploy`）を分けている。同じジョブでアップロードの直後に公開すると、GitHub 側でファイルがまだ見つからずに失敗することがある（2026-11-24 に4回続けて失敗した）。やり直す（re-run）と同じ実行にファイルが2つできて失敗するので、やり直すなら「Run workflow」で新しく実行する
 - 公開するとき `index.html` の `app-version` とスクリプト・スタイルの URL（`?v=`）にコミットの番号を入れ、`game/version.json` を書く。ゲームは数分ごとに `version.json` を見て、新しい版があれば「読み込み直す」を出す。施設画面の一番下に今の版が出る

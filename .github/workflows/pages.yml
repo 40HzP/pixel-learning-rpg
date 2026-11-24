@@ -25,20 +25,18 @@ jobs:
       - name: 問題の検査
         run: node tools/check-questions.mjs
 
-  deploy:
+  # 公開するファイルを集めてアップロードするジョブと、公開するジョブを分ける。
+  # 同じジョブでアップロードの直後に公開すると、アップロードしたファイルが GitHub 側でまだ見つからず失敗することがある
+  # （2026-11-24 に4回続けて失敗した。actions/deploy-pages の issue #451）。GitHub の雛形（Jekyll）と同じ分け方
+  build:
     needs: test
     if: github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pages: write
-      id-token: write
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      ok: ${{ steps.latest.outputs.ok }}
     steps:
       - uses: actions/checkout@v4
       - name: 最新のコミットか確かめる（古い実行のやり直しでは公開しない）
@@ -80,6 +78,21 @@ jobs:
         if: steps.latest.outputs.ok == 'true'
         with:
           path: _site
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.ok == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+      actions: read
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
-        if: steps.latest.outputs.ok == 'true'
         uses: actions/deploy-pages@v4
