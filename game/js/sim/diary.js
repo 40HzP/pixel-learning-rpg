@@ -9,7 +9,7 @@
 //
 // ctx.seasons = data/seasons.json。時刻は Date（端末の時計）で受け取るが、日付と時間はいつも日本時間で数える
 
-import { onMoon, currentStage, stageFor } from './world.js';
+import { onMoon, currentStage, stageFor, zakoPool } from './world.js';
 import { roadsideQuestions, walkKm, walkerEntry } from './walk.js';
 
 /* ---------- ① 日付（日本時間の朝4時で切り替え） ---------- */
@@ -160,6 +160,39 @@ export function markTodayRoadside(state, day, world) {
   if (!page.todayRoad.includes(world)) page.todayRoad.push(world);
 }
 
+/* ---------- 七十二候で変わる景色・すれ違うザコ ---------- */
+
+/**
+ * その日の景色（設計ページ「七十二候で変わる景色」）：{ tint: [パレットのキー, 濃さ], season（四季の花と虫の絵の名前）, ko }。
+ * 色合いは節気ごとの色を、候（初候・次候・末候）ごとに濃さを変えて重ねる（72の候で変わる）。花と虫は四季ごと
+ */
+export function sceneryOf(ctx, day) {
+  const sc = ctx.seasons.scenery;
+  const ko = koOf(ctx, day);
+  const [key, alpha] = ko.sekki.tint;
+  return { tint: [key, alpha * sc.koAlpha[ko.index % 3]], season: sc.seasons[Math.floor(ko.index / 18)], ko };
+}
+
+/** 今いる場所に季節の景色（色合い・花・虫）と天気を描くか：月面と、屋内・海の中の世界（seasons.json の noWeather）は描かない */
+export function outdoors(state, ctx) {
+  if (onMoon(state)) return false;
+  const stage = currentStage(state, ctx.stages);
+  return !(stage && ctx.seasons.noWeather.includes(stage.name));
+}
+
+/**
+ * すれ違うザコ（設計ページ「今日の道端」）：今いる世界のザコから、日付で決まる1体（全員同じ）。道の向こうを歩いていく。戦わない。
+ * { monster, known（図鑑で会ったことがある。まだなら影絵で描き、名前を出さない） }。図鑑の「遭遇」には数えない（Claude Code の判断）
+ */
+export function passerbyOf(state, ctx, day) {
+  const pool = [...zakoPool(state, ctx)].sort((a, b) => (a.id < b.id ? -1 : 1));
+  if (!pool.length) return null;
+  const stage = currentStage(state, ctx.stages);
+  const monster = pool[Math.floor(dayRandom(day, `passer:${(state.adventure.world || 'earth')}:${stage ? stage.name : ''}`) * pool.length)];
+  const z = state.knowledge.zukan[monster.id];
+  return { monster, known: !!z && z.stage >= 1 };
+}
+
 /* ---------- ④ 日記（散歩帳の日付の頁） ---------- */
 
 /** 日記の頁（無ければ作る。create が false なら作らずに null） */
@@ -229,6 +262,11 @@ export function diaryRecord(state, ctx, day, events) {
     else if (e.type === 'bossDefeated') add({ k: 'boss', name: e.name });
     else if (e.type === 'moonCleared') add({ k: 'moonClear' });
     else if (e.type === 'barnJoin') add({ k: 'barnJoin', name: e.name });
+    else if (e.type === 'passerby') {
+      // すれ違うザコ：1日に1つの世界で1回だけ書く
+      page = page || diaryPage(state, day);
+      if (!page.notes.some((n) => n.k === 'passerby' && n.name === e.name)) add({ k: 'passerby', name: e.name, known: !!e.known });
+    }
     else if (e.type === 'defeat' && e.kind === 'midboss') {
       const m = ctx.monsters.find((x) => x.id === e.monsterId);
       if (m) add({ k: 'midboss', name: m.name });
@@ -277,6 +315,7 @@ function gameLines(state, ctx, page) {
     boss: (n) => `${n.name}を倒した`,
     midboss: (n) => `${n.name}に勝った`,
     barnJoin: (n) => `${n.name}がなついた`,
+    passerby: (n) => (n.known ? `道の向こうを、${n.name}が歩いていった` : '道の向こうを、知らないザコが歩いていった'),
     stele: (n) => `${n.steles[0].generation}世代目の${n.steles[0].name}の石碑の前で、少し立ち止まった${n.sat ? `。${n.sat}がすわりこんだ` : ''}`,
     world: (n) => `${n.name}に入った`,
   };
@@ -353,6 +392,50 @@ export function diaryView(state, ctx, day, withLastYear = true) {
   const lastDay = `${y - 1}-${day.slice(5)}`;
   const lastYear = withLastYear ? diaryView(state, ctx, lastDay, false) : null;
   return { day, title: dayTitle(day), ko, weather, lines, text: page.text, lastYear };
+}
+
+/* ---------- 日記の書き出しと読み込み（機種変更に備えて） ---------- */
+
+const BACKUP_KIND = 'hateshirazu-diary';
+
+/** 読む用のテキスト（古い日から順に。自動の行と今日のこと） */
+export function diaryText(state, ctx) {
+  const days = diaryDays(state).reverse();
+  const out = ['ハテシラズの散歩人　散歩帳（日記）', ''];
+  for (const day of days) {
+    const v = diaryView(state, ctx, day, false);
+    out.push(`■ ${day.slice(0, 4)}年${v.title}　${v.ko.name}（${v.ko.reading}）`);
+    for (const l of v.lines) out.push(`・${l.text}`);
+    if (v.text) out.push(`今日のこと：${v.text}`);
+    out.push('');
+  }
+  return out.join('\n');
+}
+
+/** 引き継ぎ用（別の端末で読み込む）。日記の頁だけを文字列にする */
+export const diaryBackup = (state) => JSON.stringify({ kind: BACKUP_KIND, version: 1, pages: state.legacy.diary.pages });
+
+/**
+ * 引き継ぎ用の文字列を読み込む。この端末に無い日の頁は足し、両方にある日は「今日のこと」が空なら向こうの分を入れる
+ * （こちらで書いたことは消さない）。{ ok, added（足した日の数）, filled（今日のことを入れた日の数）, reason }
+ */
+export function diaryRestore(state, text) {
+  let data;
+  try { data = JSON.parse(text); } catch { return { ok: false, reason: '日記のファイルではない（読めなかった）' }; }
+  if (!data || data.kind !== BACKUP_KIND || typeof data.pages !== 'object') return { ok: false, reason: '日記のファイルではない' };
+  const pages = state.legacy.diary.pages;
+  let added = 0, filled = 0;
+  for (const [day, p] of Object.entries(data.pages)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !p || typeof p !== 'object') continue;
+    const clean = {
+      visits: Array.isArray(p.visits) ? p.visits.slice(-VISITS_MAX) : [], sec: Number(p.sec) || 0, gap: p.gap == null ? null : Number(p.gap) || null,
+      notes: Array.isArray(p.notes) ? p.notes.slice(0, NOTES_MAX) : [], todayRoad: Array.isArray(p.todayRoad) ? p.todayRoad : [],
+      floors: Number(p.floors) || 0, text: Array.from(String(p.text || '')).slice(0, TEXT_MAX).join(''),
+    };
+    if (!pages[day]) { pages[day] = clean; added++; }
+    else if (!pages[day].text && clean.text) { pages[day].text = clean.text; filled++; }
+  }
+  return { ok: true, added, filled };
 }
 
 /** その日に初めて開いたときの知らせ：「今日は虹蔵不見（にじかくれてみえず）。散歩道はくもり」 */

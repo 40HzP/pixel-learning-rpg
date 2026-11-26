@@ -1,0 +1,21 @@
+{
+  "name": "deco_flower_spring",
+  "category": "deco",
+  "w": 8,
+  "h": 8,
+  "fps": 1,
+  "frames": [
+    [
+      "..0000..",
+      ".0gggf0.",
+      ".0gfff0.",
+      "..0000..",
+      "...0i0..",
+      ".00ji0..",
+      "0jj0i00.",
+      ".00.0j0."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

@@ -23,7 +23,7 @@
 
 ## ゲームが読むスプライト
 
-- ゲームが読むスプライトは `monsters.json`（`idle`・`attack`、学校の先生は用紙を破りすてたときの `scold`（怒り顔）と `puzzled`（困惑顔）、大喜利を提出したときの `oogiri`（顔ごと）、月面のボスの `marked`・`parts` と `remains` の `sprite` も）・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`（月面の街の `moon` も）と掲示板の `board.sprite`、`stages.json` の `background`、`hero_idle` / `hero_attack` / `hero_old_idle` / `hero_old_attack`（年を取った主人公。体の不調を感じ始めてからの冒険画面とミニムービー）、`hero_bow`（先生にあやまる主人公）、`hero_blush`（大喜利を書いて赤面する主人公）と、女の子の主人公の同じ6つ（`heroine_idle` など。`hero_` を `heroine_` にした名前。下の「性別」）、`scene_classroom` / `scene_lectern`（用紙を破りすてたときの教室と教卓）、`scene_launchpad` / `rocket_flight`（ロケットのミニムービーの打ち上げ場と飛ぶロケット）、`town.json` の `barnRooms` の `sprite`（飼育小屋と月面の飼育ドームの部屋の背景：`scene_barn` / `scene_moon_barn` / `scene_room_*`。生態展示は `stages.json` の背景を切り取る）、下の切り替えバーのアイコン（`index.html` のボタンの `data-icon`：`icon_adventure`・`icon_study`・`icon_town`・`icon_zukan`・`icon_settings`）と、その背景のコルク `ui_tabs_cork`、テストのジャンルのボタンのアイコン（`genre-groups.json` の `icon`。`genre_*`）、勉強のメニューのボタンのアイコン（`study.js` の `MENU_LOOK`。`menu_*`）、店の品物のアイコン（`items.json` の `icon`。`item_*`）、散歩の要素の石碑と道端の物（`roadside.json` の `stele` と `items`。`walk_stele`・`road_*`）だけ（ブラウザはフォルダの中身を一覧できないため）
+- ゲームが読むスプライトは `monsters.json`（`idle`・`attack`、学校の先生は用紙を破りすてたときの `scold`（怒り顔）と `puzzled`（困惑顔）、大喜利を提出したときの `oogiri`（顔ごと）、月面のボスの `marked`・`parts` と `remains` の `sprite` も）・`recruits.json` の `sprites` に書いた名前、`town.json` の `background` と施設の `sprite`（月面の街の `moon` も）と掲示板の `board.sprite`、`stages.json` の `background`、`hero_idle` / `hero_attack` / `hero_old_idle` / `hero_old_attack`（年を取った主人公。体の不調を感じ始めてからの冒険画面とミニムービー）、`hero_bow`（先生にあやまる主人公）、`hero_blush`（大喜利を書いて赤面する主人公）と、女の子の主人公の同じ6つ（`heroine_idle` など。`hero_` を `heroine_` にした名前。下の「性別」）、`scene_classroom` / `scene_lectern`（用紙を破りすてたときの教室と教卓）、`scene_launchpad` / `rocket_flight`（ロケットのミニムービーの打ち上げ場と飛ぶロケット）、`town.json` の `barnRooms` の `sprite`（飼育小屋と月面の飼育ドームの部屋の背景：`scene_barn` / `scene_moon_barn` / `scene_room_*`。生態展示は `stages.json` の背景を切り取る）、下の切り替えバーのアイコン（`index.html` のボタンの `data-icon`：`icon_adventure`・`icon_study`・`icon_town`・`icon_zukan`・`icon_settings`）と、その背景のコルク `ui_tabs_cork`、テストのジャンルのボタンのアイコン（`genre-groups.json` の `icon`。`genre_*`）、勉強のメニューのボタンのアイコン（`study.js` の `MENU_LOOK`。`menu_*`）、店の品物のアイコン（`items.json` の `icon`。`item_*`）、散歩の要素の石碑と道端の物（`roadside.json` の `stele` と `items`。`walk_stele`・`road_*`）、七十二候で変わる景色の四季の花と虫（`seasons.json` の `scenery.seasons`。`deco_*`）だけ（ブラウザはフォルダの中身を一覧できないため）
 
 ## 進み方と強さ（数値の調整）
 
@@ -754,7 +754,11 @@
   - 去年の今日：1年前の同じ日に頁があれば、今日の頁の下に出す
   - 図書館の一番上に置いた（散歩帳（日記）→ 散歩帳（見つけたもの）→ 熟練の記録。毎日開くものを先に。Claude Code の判断）。前の日の頁はたたんで7日ずつ。日記に関わることが変わったときだけ作り直す（書いている途中・開いている途中で閉じないように。`libraryKey`）
 - デバッグ画面の「今日の1問・日記の日付」：選んだ日付に来たことにする・去年の今日の頁を作る・今日の道端のものを出す・日付を1日進める
-- まだ作っていないもの：すれ違うザコ、七十二候で景色の色・花・虫を変えること（設計ページ「七十二候で変わる景色」）、日記の書き出し（機種変更のため）、スクショで共有するときに自分の行を隠す切り替え
+- 2026-11-26（同じ日の2回目）：残っていた4つを作った（40HzP の依頼）
+  - すれ違うザコ：今いる世界のザコ（`zakoPool`）から日付で決まる1体（`passerbyOf`。全員同じ）。50秒ごとに14秒かけて、地平線のすぐ下を右から左へ歩いていく（`render.js` の `PASSER`）。戦わない。図鑑の「遭遇」には数えず、まだ会ったことのないザコは影絵で描く（図鑑のシルエットと同じ考え。Claude Code の判断）。日記に「道の向こうを、◯◯が歩いていった」（会っていなければ「知らないザコ」）を1日に1回。屋外の地球だけ（月面と `noWeather` の世界には出さない）
+  - 七十二候で変わる景色（`sceneryOf`・`render.js` の `drawSeason`）：色合いは節気ごとの色（`seasons.json` の `sekki` の `tint`。パレットのキーと濃さ）を、初候・次候・末候で濃さを変えて重ねる（`scenery.koAlpha`。72の候で変わる）。花と虫は四季ごと（`scenery.seasons`。設計ページの案「二十四節気か四季ごと」のうち四季にした。Claude Code の判断）：春＝たんぽぽ・モンシロチョウ、夏＝あさがお・シオカラトンボ、秋＝コスモス・アキアカネ、冬＝つばき（虫なし）。花は地平線の近くの3か所、虫は30秒ごとに16秒かけて横切る。絵7枚（`deco_*`、8×8、category `deco`。`pixel/style-guide.md` の15章）を Claude Code が描いた。四季の区切りは暦（立春・立夏・立秋・立冬）
+  - 日記の書き出し・読み込み（図書館の日記の下「日記の書き出し・読み込み」）：読む用のテキスト（`diaryText`）と、引き継ぎ用のファイル（`diaryBackup`。日記の頁だけ）。引き継ぎ用を読み込むと、無い日の頁は足し、両方にある日は「今日のこと」が空のときだけ入れる（こちらで書いたことは消さない。`diaryRestore`）。ブラウザのダウンロードとファイル選択だけで、通信はしない。セーブ全体の引き継ぎではない（日記だけ）
+  - 見せる用（自分の行を隠す）：日記の上のチェックで、自分で書いた「今日のこと」（去年の今日の分も）を「（今日のことは隠しています）」にする。設計ページは「スクショで共有できるようにするなら」だが、共有の機能はまだ無いので、スクショを撮る前に自分で切り替える形にした（Claude Code の判断）。覚えておかない（図書館を出ても続くが、読み込み直すと戻る）
 - セーブ：足した項目（`legacy.diary`）は `fillDefaults` が埋めるので版は上げていない
 
 ## 色の見え方が違う人生

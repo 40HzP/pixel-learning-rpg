@@ -1,0 +1,21 @@
+{
+  "name": "deco_flower_summer",
+  "category": "deco",
+  "w": 8,
+  "h": 8,
+  "fps": 1,
+  "frames": [
+    [
+      ".000000.",
+      "0nnnnmm0",
+      "0nn44mm0",
+      ".0nmmm0.",
+      "..0mm0..",
+      "...0i0..",
+      "..0ji0..",
+      "...00..."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

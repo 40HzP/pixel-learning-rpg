@@ -705,6 +705,11 @@ button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 .diary-fold summary { cursor: pointer; padding: 6px 2px; font-size: 15px; }
 .diary-fold summary small { color: var(--muted); font-size: 12px; }
 .diary-fold .diary-page { margin-top: 4px; }
+.diary-hide { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); margin: 0 0 8px; }
+.diary-hidden { font-size: 13px; color: var(--muted); margin: 0; }
+.diary-backup .muted { margin-top: 6px; }
+.diary-backup-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.diary-backup-btns button { font-size: 14px; }
 /* 散歩帳（図書館・月面の書庫）：絵と名前・見つけた世界・解説 */
 .item.walk-page canvas { flex-shrink: 0; align-self: flex-start; }
 .item.field.guided { opacity: .85; border-style: dashed; border-color: var(--good); }

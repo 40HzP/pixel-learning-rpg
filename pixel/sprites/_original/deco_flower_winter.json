@@ -1,0 +1,21 @@
+{
+  "name": "deco_flower_winter",
+  "category": "deco",
+  "w": 8,
+  "h": 8,
+  "fps": 1,
+  "frames": [
+    [
+      "..0000..",
+      ".0eddd0.",
+      "0edggdc0",
+      "0ddggcc0",
+      ".0dccc0.",
+      "0i0000..",
+      "0ji0....",
+      ".00....."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

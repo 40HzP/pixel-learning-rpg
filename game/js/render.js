@@ -1,6 +1,6 @@
 // 冒険画面の描画（90×160 のキャンバス）。攻撃エフェクト・ダメージ数字・HPバーはここで描く。
 import { drawSprite, drawPlaceholder, frameAt, cssColor, drawHalo } from './sprites.js';
-import { heroStats, isInvulnerable, currentStage, partyAllies, gimmickIn, heroLooksOld, MINION_SLOT, PART_SLOT, walkerEntry, isHometown, isReformed, onMoon, weatherOf } from './sim.js';
+import { heroStats, isInvulnerable, currentStage, partyAllies, gimmickIn, heroLooksOld, MINION_SLOT, PART_SLOT, walkerEntry, isHometown, isReformed, onMoon, weatherOf, sceneryOf, passerbyOf } from './sim.js';
 
 export const SCENE_W = 90;
 export const SCENE_H = 160;
@@ -53,6 +53,12 @@ const LOOK_SEC = 1.2;      // 振り返っている秒数
 // 強さには効かない。月面と、屋内・海の中の世界（seasons.json の noWeather）では描かない
 const RAIN_DROPS = 26;
 const SNOW_FLAKES = 20;
+// 七十二候で変わる景色（sim/diary.js の sceneryOf）：背景に候ごとの色合いを重ね、地平線の近くに四季の花（8×8）を咲かせ、
+// 虫（冬はいない）がときどき横切る。人や群れより奥に描く（群れと主人公の立つ所にかからない位置）
+const FLOWERS = [{ x: 3, feet: 106 }, { x: 36, feet: 109 }, { x: 81, feet: 104 }];
+const INSECT = { period: 30, fly: 16, y: 90 }; // 30秒ごとに、16秒かけて右から左へ
+// すれ違うザコ（sim/diary.js の passerbyOf）：道の向こう（地平線のすぐ下）を、右から左へ歩いていく。戦わない
+const PASSER = { period: 50, walk: 14, feet: 103 }; // 50秒ごとに、14秒かけて
 
 // 3×5 のドット数字（ダメージ表示用）
 const DIGITS = {
@@ -241,6 +247,50 @@ export function createRenderer(canvas, app) {
     if (wx.day !== day) { wx.day = day; wx.kind = weatherOf(app.ctx, day).kind; }
     return wx.kind === 'sunny' ? null : wx.kind;
   }
+  /** 七十二候で変わる景色と、すれ違うザコ（屋外の地球だけ。日付が変わったときだけ計算し直す） */
+  const season = { day: null, scenery: null, logged: '' };
+  function drawSeason(state, stage, now) {
+    if (!app.ctx.seasons || !app.today || onMoon(state)) return;
+    if (stage && app.ctx.seasons.noWeather.includes(stage.name)) return;
+    const day = app.today();
+    if (season.day !== day) { season.day = day; season.scenery = sceneryOf(app.ctx, day); }
+    const sc = season.scenery;
+    // 色合い（節気の色を、候ごとの濃さで）
+    g.globalAlpha = sc.tint[1];
+    g.fillStyle = col(sc.tint[0]);
+    g.fillRect(0, 0, SCENE_W, SCENE_H);
+    g.globalAlpha = 1;
+    const sprites = app.seasonSprites || {};
+    // 四季の花
+    const fl = sprites[sc.season.flower];
+    if (fl) for (const f of FLOWERS) drawSprite(g, fl, 0, f.x, f.feet - fl.h);
+    // 虫（ときどき横切る）
+    const bug = sc.season.insect ? sprites[sc.season.insect] : null;
+    const tb = now % INSECT.period;
+    if (bug && tb < INSECT.fly) {
+      const x = SCENE_W + 2 - (tb / INSECT.fly) * (SCENE_W + 12);
+      const y = INSECT.y + Math.round(Math.sin(now * 2.2) * 5);
+      drawSprite(g, bug, frameAt(bug, now), x, y);
+    }
+    // すれ違うザコ
+    const tp = now % PASSER.period;
+    if (tp < PASSER.walk) {
+      const p = passerbyOf(state, app.ctx, day);
+      const sp = p && (app.monsterSprites[p.monster.id] || {}).idle;
+      if (sp) {
+        const x = SCENE_W + 2 - (tp / PASSER.walk) * (SCENE_W + sp.w + 4);
+        const bob = Math.floor(now * 4) % 2;
+        drawSprite(g, sp, frameAt(sp, now), x, PASSER.feet - sp.h - bob, { silhouette: !p.known });
+        // 日記に「道の向こうを◯◯が歩いていった」（1日に1つの世界で1回）
+        const key = `${day}:${stage ? stage.name : ''}:${p.monster.id}`;
+        if (season.logged !== key && tp > PASSER.walk / 2 && app.handleEvents) {
+          season.logged = key;
+          app.handleEvents([{ type: 'passerby', name: p.monster.name, known: p.known }]);
+        }
+      }
+    }
+  }
+
   /** くもり・雨・雪は空を少し暗く、霧は白くかすませる（背景の上、人や物より奥） */
   function drawSky(kind) {
     if (!kind) return;
@@ -371,6 +421,7 @@ export function createRenderer(canvas, app) {
     if (stage && stage.bg) drawSprite(g, stage.bg, 0, 0, 0);
     else { g.fillStyle = col('o', '#a6d8f2'); g.fillRect(0, 0, SCENE_W, SCENE_H); g.fillStyle = col('j', '#6fb042'); g.fillRect(0, 98, SCENE_W, 62); }
     const weather = weatherNow(state, stage);
+    drawSeason(state, stage, now);
     drawSky(weather);
 
     // 前世の石碑（群れの先頭の場所。主人公より奥に描く）

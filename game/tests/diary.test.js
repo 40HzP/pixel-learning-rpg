@@ -6,7 +6,10 @@ import {
   gameDay, jstHour, addDays, daysBetween, dayTitle, koOf, occasion, moonPhase, weatherOf, weatherHere,
   todayRoadsideOf, todayRoadsideFor, markTodayRoadside, roadsideQuestions, moveToFloor,
   diaryPage, diaryDays, diaryVisit, diaryTick, diaryRecord, setDiaryText, diaryView, todayNotice, DIARY_TEXT_MAX,
+  sceneryOf, outdoors, passerbyOf, diaryText, diaryBackup, diaryRestore, raiseZukan,
 } from '../js/sim.js';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { beginRoadside, answerRoadside, createSession, nextQuestion, answer } from '../js/quiz.js';
 import { serialize, deserialize } from '../js/save.js';
 import { balance, makeCtx, newGame, seasons, stages } from './helpers.js';
@@ -215,4 +218,63 @@ test('日記：月面の階層では、世界に入った行を書かない（�
   const notes = diaryPage(s, '2026-11-26').notes;
   assert.deepEqual(notes.filter((n) => n.k === 'world').map((n) => n.name), ['平安京']);
   assert.equal(diaryPage(s, '2026-11-26').floors, 2);
+});
+
+test('七十二候で変わる景色：色合いは候ごとに変わり、花と虫は四季ごと（冬は虫なし）。絵のファイルがある', () => {
+  const ctx = makeCtx();
+  const tints = new Set();
+  for (let i = 0; i < 366; i++) tints.add(JSON.stringify(sceneryOf(ctx, addDays('2026-01-01', i)).tint));
+  assert.ok(tints.size >= 60, `色合いの種類：${tints.size}`);
+  assert.equal(sceneryOf(ctx, '2026-11-26').season.name, '冬'); // 立冬から冬
+  assert.equal(sceneryOf(ctx, '2026-11-26').season.insect, null);
+  assert.equal(sceneryOf(ctx, '2026-05-10').season.name, '夏'); // 立夏から夏
+  const root = fileURLToPath(new URL('../../', import.meta.url));
+  for (const se of seasons.scenery.seasons) {
+    for (const name of [se.flower, se.insect].filter(Boolean)) assert.ok(existsSync(`${root}pixel/sprites/${name}.json`), name);
+  }
+  for (const sk of seasons.sekki) assert.ok(Array.isArray(sk.tint) && sk.tint.length === 2, sk.name);
+  const s = newGame(0);
+  assert.equal(outdoors(s, ctx), true);
+  s.adventure.world = 'moon';
+  assert.equal(outdoors(s, ctx), false);
+});
+
+test('すれ違うザコ：今いる世界のザコから日付で決まる1体。会ったことがなければ影絵。日記には1日1回', () => {
+  const ctx = makeCtx();
+  const s = newGame(0);
+  const p = passerbyOf(s, ctx, '2026-11-26');
+  assert.ok(p && (p.monster.areas || []).includes('はじまりの草原'));
+  assert.equal(passerbyOf(s, ctx, '2026-11-26').monster.id, p.monster.id);
+  assert.equal(p.known, false);
+  raiseZukan(s, p.monster.id, 1, []);
+  assert.equal(passerbyOf(s, ctx, '2026-11-26').known, true);
+  const ev = { type: 'passerby', name: p.monster.name, known: true };
+  diaryRecord(s, ctx, '2026-11-26', [ev]);
+  diaryRecord(s, ctx, '2026-11-26', [ev]);
+  assert.equal(diaryPage(s, '2026-11-26').notes.filter((n) => n.k === 'passerby').length, 1);
+  assert.ok(diaryView(s, ctx, '2026-11-26').lines.some((l) => l.text === `道の向こうを、${p.monster.name}が歩いていった`));
+  diaryRecord(s, ctx, '2026-11-27', [{ type: 'passerby', name: 'だれか', known: false }]);
+  assert.ok(diaryView(s, ctx, '2026-11-27').lines.some((l) => l.text === '道の向こうを、知らないザコが歩いていった'));
+});
+
+test('日記の書き出し：読む用のテキストと、引き継ぎ用（読み込んでも、こちらで書いたことは消さない）', () => {
+  const ctx = makeCtx();
+  const a = newGame(0);
+  diaryVisit(a, '2026-11-25', jst('2026-11-25 20:00'));
+  setDiaryText(a, '2026-11-25', 'むこうで書いた');
+  diaryVisit(a, '2026-11-26', jst('2026-11-26 20:00'));
+  setDiaryText(a, '2026-11-26', 'むこうの今日');
+  const text = diaryText(a, ctx);
+  assert.match(text, /■ 2026年11月25日（水）/);
+  assert.match(text, /今日のこと：むこうで書いた/);
+  assert.ok(text.indexOf('11月25日') < text.indexOf('11月26日')); // 古い日から
+  const b = newGame(0);
+  diaryVisit(b, '2026-11-26', jst('2026-11-26 21:00'));
+  setDiaryText(b, '2026-11-26', 'こちらの今日');
+  const r = diaryRestore(b, diaryBackup(a));
+  assert.deepEqual(r, { ok: true, added: 1, filled: 0 });
+  assert.equal(diaryPage(b, '2026-11-25').text, 'むこうで書いた');
+  assert.equal(diaryPage(b, '2026-11-26').text, 'こちらの今日'); // 消さない
+  assert.equal(diaryRestore(b, 'こわれた').ok, false);
+  assert.equal(diaryRestore(b, JSON.stringify({ kind: 'other', pages: {} })).ok, false);
 });

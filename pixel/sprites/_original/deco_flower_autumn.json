@@ -1,0 +1,21 @@
+{
+  "name": "deco_flower_autumn",
+  "category": "deco",
+  "w": 8,
+  "h": 8,
+  "fps": 1,
+  "frames": [
+    [
+      ".0s00s0.",
+      "0tsffss0",
+      ".0sffs0.",
+      "0ts00ss0",
+      ".00i00..",
+      "..0i0...",
+      ".0ji0...",
+      "..00...."
+    ]
+  ],
+  "edited": false,
+  "note": ""
+}

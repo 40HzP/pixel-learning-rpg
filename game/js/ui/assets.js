@@ -8,7 +8,7 @@ import { MENU_LOOK } from './study.js';
  * 絵をまとめて読む。data は読み込んだデータ（monsters・recruits・items・stages・town・genreGroups・roadside）。
  * 返すもの：palette・魔物と仲間の絵・主人公の絵（heroSets と、装備に合わせて塗り替える heroLooks）・場面の絵・世界の背景・街の絵・アイコン・散歩の要素の絵
  */
-export async function loadAssets(pixelDir, { monsters, recruits, items, stages, town, genreGroups, roadside }) {
+export async function loadAssets(pixelDir, { monsters, recruits, items, stages, town, genreGroups, roadside, seasons }) {
   const palette = await loadPalette(pixelDir + 'palette.json');
   const load = (name) => loadSprite(name, palette, pixelDir + 'sprites/');
   const monsterSprites = {};
@@ -97,6 +97,12 @@ export async function loadAssets(pixelDir, { monsters, recruits, items, stages, 
       ...Object.entries(roadside.items || {}).map(async ([name, sprite]) => { walkSprites.items[name] = await load(sprite); }),
     ]);
   }
+  // 七十二候で変わる景色：四季の花と虫（seasons.json の scenery.seasons に書いた名前だけ読む。無ければ描かない）
+  const seasonSprites = {};
+  if (seasons && seasons.scenery) {
+    const names = seasons.scenery.seasons.flatMap((x) => [x.flower, x.insect]).filter(Boolean);
+    await Promise.all(names.map(async (name) => { seasonSprites[name] = await load(name); }));
+  }
   // 勉強のメニューのボタンのアイコン（study.js の MENU_LOOK に書いた名前だけ読む）
   const menuSprites = {};
   await Promise.all(Object.entries(MENU_LOOK).map(async ([id, m]) => { menuSprites[id] = await load(m.icon); }));
@@ -124,6 +130,6 @@ export async function loadAssets(pixelDir, { monsters, recruits, items, stages, 
   return {
     palette, monsterSprites, recruitSprites, heroSets, heroLooks,
     sceneSprites: { classroom, lectern, launchpad, rocket },
-    stageList, townBg, townSprites, moonBg, moonSprites, genreSprites, itemSprites, menuSprites, roomSprites, walkSprites,
+    stageList, townBg, townSprites, moonBg, moonSprites, genreSprites, itemSprites, menuSprites, roomSprites, walkSprites, seasonSprites,
   };
 }
