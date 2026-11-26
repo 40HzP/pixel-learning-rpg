@@ -170,8 +170,8 @@ async function boot() {
     openDaily: () => runOverlay(() => openDaily(app).then(() => refreshActive(true))), // 今日の1問（冒険画面の札・街の掲示板）
     openFloors: () => runOverlay(() => openFloors(app)), // 階層の移動（冒険画面の「移動」）
     debugDay: null,   // デバッグ画面で選んだ日付（今日の1問をその日の問題で試す）
-    today: () => app.debugDay || gameDay(new Date()), // 日記の日付（日本時間の朝4時で切り替え。日記・七十二候・天気・今日の道端。40HzP の判断 2026-11-26）
-    calendarDay: () => app.debugDay || dayKey(new Date()), // 今日の1問と、小屋でなでる日の日付（端末の時計の0時で切り替え。40HzP の依頼 2026-11-27）
+    today: () => app.debugDay || gameDay(new Date()), // 日記の日付（日本時間の朝4時で切り替え。日記・七十二候・天気・今日の道端・小屋でなでる日。40HzP の判断 2026-11-26）
+    calendarDay: () => app.debugDay || dayKey(new Date()), // 今日の1問の日付（端末の時計の0時で切り替え。日付と意味の結びつきが強いため。40HzP の依頼 2026-11-27）
     tearTest: (teacherId) => runOverlay(() => playTear(app, teacherId)), // テスト用紙を破りすてた（先生が怒る）
     oogiriTest: (teacherId) => runOverlay(() => playOogiri(app, teacherId)), // テストに大喜利を書いて提出した（主人公が赤面する）
     launch: () => scenes.launch(),          // ロケットを打ち上げる（地球 → 月面。失敗することもある）

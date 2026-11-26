@@ -41,7 +41,7 @@ function barnCard(app, a, touch, worst = false) {
   const truthLabel = m.wordType ? '本来の意味' : '本当のこと';
   const flights = a.flights ? `試作機で${a.flights}回飛んで帰ってきた` : '';
   const bar = el('i', { style: { width: `${(aff / b.affinityMax) * 100}%` } });
-  const today = app.calendarDay();
+  const today = app.today();
   const touchText = worst ? TOUCH_TEXT.already
     : touch ? (touch.already ? TOUCH_TEXT.already : touch.gained > 0 ? TOUCH_TEXT.gained(touch.gained) : TOUCH_TEXT.touched)
       : a.touchedOn === today ? TOUCH_TEXT.already : TOUCH_TEXT.ready;
@@ -223,7 +223,7 @@ export function barnPanel(app) {
   const show = (id, touch) => {
     barn.selected = id;
     // 作り直したとき（touch が無い）は、今日なでた結果をそのまま出す
-    if (!touch && lastTouch && lastTouch.id === id && lastTouch.day === app.calendarDay()) touch = lastTouch.touch;
+    if (!touch && lastTouch && lastTouch.id === id && lastTouch.day === app.today()) touch = lastTouch.touch;
     const a = barnAnimals(app.state, app.ctx, world).find((x) => x.id === id);
     if (a) card.replaceChildren(...barnCard(app, a, touch), ...[roomRow(a)].filter(Boolean));
     for (const b of list.querySelectorAll('button[data-id]')) b.classList.toggle('on', b.dataset.id === id);
@@ -231,8 +231,8 @@ export function barnPanel(app) {
   const select = (id) => {
     barnPick = { view, id };
     const ev = [];
-    const touch = touchZako(app.state, app.ctx, id, app.calendarDay(), ev);
-    lastTouch = { id, day: app.calendarDay(), touch };
+    const touch = touchZako(app.state, app.ctx, id, app.today(), ev);
+    lastTouch = { id, day: app.today(), touch };
     if (touch.gained > 0) app.save();
     if (ev.length) app.handleEvents(ev);
     show(id, touch);
