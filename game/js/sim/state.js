@@ -70,6 +70,10 @@ export function createState(balance) {
       author: { code: null, seen: [] },            // 作問：作問者コード（はじめて起動したときに決まる）・もう知らせた採用の問題id
       // 今日の1問（現実の日付ごとに1問）：その日（'YYYY-MM-DD'）・問題id・札を開いて閉じたか・答え（{ correct, chosen, timeout }。まだなら null）
       daily: { day: null, id: null, opened: false, result: null },
+      // 日記（散歩帳の日付の頁。sim/diary.js）：pages は日付（日本時間の朝4時で切り替え）→ { visits（[時, 時刻] 遊びに来た回）, sec（遊んだ秒数）,
+      // gap（前の頁から何日ぶりか）, notes（起きたことのデータ。文章は見るときに作る）, todayRoad（今日の道端のものを出した世界）, floors（歩き切った階層の数）, text（自由入力） }。
+      // lastActive：最後に遊んでいた時刻（別の回に遊んだかを数える）。現実の日付の記録なので、生まれ変わっても残る
+      diary: { pages: {}, lastActive: 0 },
     },
   };
 }

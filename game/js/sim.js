@@ -12,6 +12,7 @@
 //   recruits … data/recruits.json の recruits 配列（酒場で契約できる仲間）
 //   business … data/business.json（会社の業種）
 //   fields   … data/fields.json（学際分野。計算は fields.js）
+//   seasons  … data/seasons.json（七十二候・二十四節気・散歩道の天気・祝日と行事。毎日変わるものと日記は sim/diary.js）
 
 export { HOURS_PER_YEAR, HOURS_PER_MONTH, DEFAULT_HERO_NAME, HERO_NAME_MAX, GENDERS } from './sim/core.js';
 export { createState, sanitizeName, renameHero, setHeroLevel, startGame, honorific, canStartAt } from './sim/state.js';
@@ -35,3 +36,4 @@ export { isMoonItem, transportCost, itemBodyPrice, itemPrice, shopList, buyItem,
 export { FIRST_LIFE_FLOORS, rememberedZako, summonRemembered, zakoZukanCount, lifeBar, expBar, heroSnapshot, compareSnapshots } from './sim/firstrun.js';
 export { visionChances, rollsVision, visionChancesVisible, rollVision, checkVision } from './sim/vision.js';
 export { steles, arriveFloor, walkPause, walkKm, walkedKm, likenDistance, walkFloor, roadsideQuestions, pickRoadside, inWalkBook, addToWalkBook, walkBookPages, walkerEntry, setWalker, isHometown, walkerRemembers, zakoLine, walkerNotice, walkedWithKm } from './sim/walk.js';
+export { gameDay, jstHour, addDays, daysBetween, weekday, dayTitle, sunLongitude, koIndex, koOf, moonAge, moonPhase, occasion, dayRandom, weatherOf, weatherHere, todayRoadsideOf, todayRoadsideFor, markTodayRoadside, diaryPage, diaryDays, diaryVisit, diaryTick, setDiaryText, DIARY_TEXT_MAX, diaryRecord, diaryView, todayNotice } from './sim/diary.js';

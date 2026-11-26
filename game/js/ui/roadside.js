@@ -2,8 +2,10 @@
 // その世界の道端に物が出て、上に「？」が出る（描くのは render.js）。冒険の絵をタップすると、その物にまつわる1問を
 // 前世の記憶をたどると同じ白い紙で出す（ゲームは止めない。主人公は後ろで戦い続ける。攻略を遅らせないため）。
 // 正解すると散歩帳に載る（図書館・月面の書庫で見る）。間違えても罰は無く、載らないだけ。
-// タップしなければ walk.roadsideShowSec 秒で主人公は通り過ぎ、物は消える（取り逃しても損はなく、同じ物はまた道端に出る）
-import { pickRoadside, walkerNotice } from '../sim.js';
+// タップしなければ walk.roadsideShowSec 秒で主人公は通り過ぎ、物は消える（取り逃しても損はなく、同じ物はまた道端に出る）。
+// 今日の道端のもの（設計ページ「毎日変わるものと日記」。sim/diary.js）：世界ごとに日付で決まる1つ（全員同じ）。
+// その日にその世界で初めて次の階層に進んだとき、ふつうの道端の物の代わりに必ず出す（1日1回。印は「今日の」）
+import { pickRoadside, walkerNotice, todayRoadsideFor, markTodayRoadside } from '../sim.js';
 import { beginRoadside, answerRoadside } from '../quiz.js';
 import { el } from './dom.js';
 
@@ -27,17 +29,28 @@ export function init(app, parent) {
 /** 白い紙を出しているか（出している間はステータスを短くし、今日の1問の札を後にする） */
 export const showing = () => !!cur && (cur.phase === 'question' || cur.phase === 'result');
 
-/** 道端に物を出す（question を渡すとその問題。デバッグ用）。出したら true */
-export function show(app, question = null) {
+/**
+ * 道端に物を出す（question を渡すとその問題。デバッグ用。today：今日の道端のものとして出す）。出したら true。
+ * 問題を渡さなければ、今いる世界の今日の道端のもの（今日まだ出していなければ）、無ければふつうの道端の物（確率で）
+ */
+export function show(app, question = null, today = false) {
   if (cur) return false;
-  const q = question || pickRoadside(app.state, app.ctx, app.ctx.rng);
+  let q = question;
+  if (!q) {
+    const todays = todayRoadsideFor(app.state, app.ctx, app.today());
+    const allowed = !!pickRoadside(app.state, app.ctx, () => 0); // 石碑の前・前世の記憶をたどるの間・月面では、今日の道端のものも出さない
+    if (todays && allowed) { q = todays; today = true; }
+    else q = pickRoadside(app.state, app.ctx, app.ctx.rng);
+  }
   if (!q) return false;
-  cur = { question: q, phase: 'shown', remaining: app.ctx.balance.walk.roadsideShowSec };
-  app.walkView.roadside = { sprite: (app.walkSprites.items || {})[q.roadside.name] || null, name: q.roadside.name, t0: performance.now() / 1000, leaveAt: null, opened: false };
-  app.notify(`道端に「${q.roadside.name}」（タップで1問）`);
+  if (today) markTodayRoadside(app.state, app.today(), q.roadside.world);
+  cur = { question: q, phase: 'shown', remaining: app.ctx.balance.walk.roadsideShowSec, today };
+  app.walkView.roadside = { sprite: (app.walkSprites.items || {})[q.roadside.name] || null, name: q.roadside.name, t0: performance.now() / 1000, leaveAt: null, opened: false, today };
+  app.notify(today ? `今日の道端に「${q.roadside.name}」（タップで1問）` : `道端に「${q.roadside.name}」（タップで1問）`, today ? 'good' : '');
   // ザコの散歩：連れているザコが先に駆け寄る（絵は render.js）。その物が自分の俗説に関わるなら、着いたところで一言（誤解か、更生していれば本当のこと）
   const r = walkerNotice(app.state, app.ctx, q.roadside.name);
   if (r && r.kind === 'say') setTimeout(() => app.notify(`${r.monster.name}「${r.line}」`, r.reformed ? 'good' : ''), 600);
+  if (r) app.handleEvents([{ type: 'walkerNoticed', name: r.monster.name, road: q.roadside.name }]); // 日記に「◯◯が先に気づいた」
   return true;
 }
 
@@ -58,6 +71,7 @@ function open(app) {
   if (!cur || cur.phase !== 'shown' || app.overlay) return;
   const session = beginRoadside(app.state, app.ctx, cur.question.id);
   if (!session) { cur = null; passBy(app); return; }
+  session.today = !!cur.today; // 日記に「今日の道端で見つけた」と書く
   Object.assign(cur, { phase: 'question', session, remaining: session.current.timeLimit, shownAt: performance.now() });
   app.walkView.roadside.opened = true;
   render(app);
@@ -108,7 +122,7 @@ function draw(app) {
     return b;
   });
   const parts = [
-    el('div', { class: 'fc-head' }, el('b', {}, `道端の${q.roadside.name}`), el('span', {}, '☆'.repeat(q.difficulty))),
+    el('div', { class: 'fc-head' }, el('b', {}, `${cur.today ? '今日の道端の' : '道端の'}${q.roadside.name}`), el('span', {}, '☆'.repeat(q.difficulty))),
     el('div', { class: 'fc-time' + (cur.phase === 'result' ? ' stop' : '') }, bar),
     el('p', { class: 'fc-q' }, q.question),
     el('div', { class: 'fc-choices' }, choices),

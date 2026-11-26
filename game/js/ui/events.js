@@ -1,5 +1,5 @@
 // ゲームの計算で起きたこと（tick などが返す events）を、知らせ・札・ミニムービーにする。2026-11-09 に main.js から分けた
-import { trackGain, stageFor, ADVISOR_PLACES } from '../sim.js';
+import { trackGain, stageFor, ADVISOR_PLACES, diaryRecord } from '../sim.js';
 import { MAJOR_SLOTS } from '../fields.js';
 import { el, fmt } from './dom.js';
 import { askNande } from './nande.js';
@@ -47,6 +47,7 @@ export function createEventHandler(app, { notify, notifyCard, runOverlay, startM
 
   function handleEvents(events) {
     app.renderer.onEvents(events, performance.now() / 1000);
+    diaryRecord(app.state, ctx, app.today(), events); // 日記（散歩帳の日付の頁）に、起きたことをデータで残す（sim/diary.js）
     roadside.onEvents(app, events); // 次の階層に進んだら、ときどき道端に物が出る（散歩の要素）
     const met = [];
     const found = []; // 新しく解放した学際分野（まとめて知らせる）

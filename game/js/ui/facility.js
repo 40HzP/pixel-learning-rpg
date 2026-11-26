@@ -23,7 +23,7 @@ import { el, fmt } from './dom.js';
 import { root, view, live, setRoot, setView, setLive, setUpdater, note, genreLv, lockText } from './facility/common.js';
 import { shopPanel } from './facility/shop.js';
 import { guildPanel } from './facility/guild.js';
-import { libraryPanel } from './facility/library.js';
+import { libraryPanel, libraryKey } from './facility/library.js';
 import { companyPanel } from './facility/company.js';
 import { rocketPanel } from './facility/rocket.js';
 import { majorPanel } from './facility/major.js';
@@ -169,7 +169,8 @@ const PANELS = {
 // 作り直しの目印を画面ごとに決める施設（ここに無い施設は、下の update の目印をみんなで使う）。
 // 飼育小屋は小屋に関わることが変わったときだけ作り直す（階層が進む・Lvが上がるたびに作り直すと、
 // スマホでスクロールした位置から上に飛ぶことがあったため。40HzP の指摘）
-const PANEL_KEYS = { barn: barnKey, moon_barn: barnKey };
+// 図書館も、日記（散歩帳）に関わることが変わったときだけ（今日のことを書いている途中・前の日の頁を開いている途中に作り直さないように）
+const PANEL_KEYS = { barn: barnKey, moon_barn: barnKey, library: libraryKey, moon_archive: libraryKey };
 // 月の一言（town.json の note）
 const moonNote = (f) => (f && f.note ? el('div', { class: 'moon-note' }, el('b', {}, '月のこと'), f.note) : null);
 
@@ -229,8 +230,8 @@ export function update(app, force) {
     fieldList(s, app.ctx).map((f) => [f.unlocked, f.dormant, f.slot, f.levels]), s.knowledge.radio, rocketSteps(s, app.ctx).map((st) => [st.done, st.active]), (nextBoss(s, app.ctx) || {}).id,
     // 飼育小屋のザコ（懐き度は触るたび・誕生日ごとに変わるので、更生したかだけ）といる部屋、部屋（名前と背景）、試作機の効果
     s.legacy.barn.map((a) => [a.id, !!a.space, (a.affinity || 0) >= app.ctx.balance.barn.affinityMax, a.room || 0]), s.legacy.barnRooms, s.legacy.rocket.flown, s.legacy.rocket.rateBonus]);
-  // 名前を入力している途中と、選ぶ欄（飼育小屋の部屋の背景）を開いている間は作り直さない（入力が消えたり、選ぶ欄が閉じたりしないように）
-  const typing = root.contains(document.activeElement) && ['INPUT', 'SELECT'].includes(document.activeElement.tagName);
+  // 名前・日記を入力している途中と、選ぶ欄（飼育小屋の部屋の背景）を開いている間は作り直さない（入力が消えたり、選ぶ欄が閉じたりしないように）
+  const typing = root.contains(document.activeElement) && ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName);
   if (force || ((k !== key || !live) && !typing)) { key = k; buildPanel(app); }
   const hs = heroStats(s, app.ctx);
   live.gold.textContent = fmt(s.gold);

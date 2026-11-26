@@ -419,7 +419,10 @@ export function answer(state, session, choiceIndex, ctx) {
     k.totalCorrect++;
     // 正解したことがある問題（前世の記憶をたどるで、まだ正解したことのない問題を優先するため）
     if (!k.solved) k.solved = [];
-    if (!k.solved.includes(q.id)) k.solved.push(q.id);
+    if (!k.solved.includes(q.id)) {
+      k.solved.push(q.id);
+      events.push({ type: 'firstSolved', id: q.id }); // 初めて正解した問題（日記の「おぼえたこと」。sim/diary.js）
+    }
     res.levelUp = addProgress(state, q.genre, ctx);
     for (let i = 1; daily && i < qb.dailyProgress; i++) res.levelUp = addProgress(state, q.genre, ctx) || res.levelUp;
     const ri = k.review.indexOf(q.id);
@@ -752,6 +755,8 @@ export function answerRoadside(state, session, choiceIndex, ctx) {
     const added = addToWalkBook(state, q.id);
     const ids = new Set(roadsideQuestions(ctx).map((x) => x.id));
     res.walkBook = { added, count: state.knowledge.walkBook.filter((x) => ids.has(x.id)).length, total: ids.size };
+    // 日記に「見つけた」と書く（sim/diary.js）。today：今日の道端のもの（session.today。ui/roadside.js が付ける）
+    res.events.push({ type: 'walkBook', id: q.id, name: q.roadside.name, world: q.roadside.world, added, today: !!session.today });
   }
   return res;
 }

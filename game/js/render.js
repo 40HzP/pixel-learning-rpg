@@ -1,6 +1,6 @@
 // 冒険画面の描画（90×160 のキャンバス）。攻撃エフェクト・ダメージ数字・HPバーはここで描く。
 import { drawSprite, drawPlaceholder, frameAt, cssColor, drawHalo } from './sprites.js';
-import { heroStats, isInvulnerable, currentStage, partyAllies, gimmickIn, heroLooksOld, MINION_SLOT, PART_SLOT, walkerEntry, isHometown, isReformed } from './sim.js';
+import { heroStats, isInvulnerable, currentStage, partyAllies, gimmickIn, heroLooksOld, MINION_SLOT, PART_SLOT, walkerEntry, isHometown, isReformed, onMoon, weatherOf } from './sim.js';
 
 export const SCENE_W = 90;
 export const SCENE_H = 160;
@@ -40,6 +40,8 @@ const ROADSIDE = { x: 30, feet: 158 };
 const PASS_SEC = 0.7; // 通り過ぎて画面の左へ消えるまでの秒数
 // 「？」の吹き出し（7×9。0＝輪郭、4＝白）と、主人公の頭の上の「！」（1×5）
 const BUBBLE = ['.00000.', '0444440', '0400040', '0444040', '0440440', '0444440', '0440440', '.00000.', '..00...'];
+// 今日の道端のもの（毎日変わるもの。sim/diary.js）は、吹き出しを黄色にする
+const BUBBLE_TODAY = BUBBLE.map((row) => row.replace(/4/g, 'g'));
 // ザコの散歩（sim/walk.js の walkerEntry）：連れているザコは隊列の最後尾（仲間の次の場所。仲間が5人なら WALKER_TAIL）を歩く。
 // 道端の物が出ると先に駆け寄って物の右で立ち止まり（WALKER_SNIFF）、覚えている前世の石碑では石碑の右で座り込む（WALKER_SIT）
 const WALKER_TAIL = { x: 14, feet: 157 };
@@ -47,6 +49,10 @@ const WALKER_SNIFF = { x: 46, feet: 158 };
 const WALKER_SIT = { x: 62, feet: 141 };
 const WALKER_SPEED = 110;  // 駆けるときの速さ（ドット／秒）
 const LOOK_SEC = 1.2;      // 振り返っている秒数
+// 散歩道の天気（sim/diary.js の weatherOf。日付で決まり、全員同じ）：くもりと霧は背景に色を重ね、雨と雪は一番手前に降らせる。
+// 強さには効かない。月面と、屋内・海の中の世界（seasons.json の noWeather）では描かない
+const RAIN_DROPS = 26;
+const SNOW_FLAKES = 20;
 
 // 3×5 のドット数字（ダメージ表示用）
 const DIGITS = {
@@ -226,6 +232,53 @@ export function createRenderer(canvas, app) {
       else drawProp(sp, STELE.x - Math.round(t * (STELE.x + 18)), STELE.feet, now);
     }
   }
+  /** 今の場所の散歩道の天気（kind）。描かない場所・晴れは null。日付が変わったときだけ計算し直す */
+  const wx = { day: null, kind: null };
+  function weatherNow(state, stage) {
+    if (!app.ctx.seasons || !app.today || onMoon(state)) return null;
+    if (stage && app.ctx.seasons.noWeather.includes(stage.name)) return null;
+    const day = app.today();
+    if (wx.day !== day) { wx.day = day; wx.kind = weatherOf(app.ctx, day).kind; }
+    return wx.kind === 'sunny' ? null : wx.kind;
+  }
+  /** くもり・雨・雪は空を少し暗く、霧は白くかすませる（背景の上、人や物より奥） */
+  function drawSky(kind) {
+    if (!kind) return;
+    const tone = { cloudy: ['2', 0.18], rain: ['1', 0.22], snow: ['3', 0.18], fog: ['4', 0.35] }[kind];
+    if (!tone) return;
+    g.globalAlpha = tone[1];
+    g.fillStyle = col(tone[0]);
+    g.fillRect(0, 0, SCENE_W, SCENE_H);
+    g.globalAlpha = 1;
+  }
+  /** 雨（斜めの短い線）と雪（ゆれながら落ちる点）。時刻から位置を決めるので、覚えておくものは無い */
+  function drawFall(kind, now) {
+    if (kind === 'rain') {
+      g.fillStyle = col('o');
+      for (let i = 0; i < RAIN_DROPS; i++) {
+        const y = Math.floor((i * 53 + now * 140) % (SCENE_H + 8)) - 4;
+        const x = Math.floor((i * 37 + 200 - y * 0.25) % SCENE_W);
+        for (let k = 0; k < 3; k++) g.fillRect(x - Math.floor(k / 2), y + k, 1, 1);
+      }
+    } else if (kind === 'snow') {
+      g.fillStyle = col('4');
+      for (let i = 0; i < SNOW_FLAKES; i++) {
+        const y = Math.floor((i * 61 + now * (10 + (i % 4) * 3)) % (SCENE_H + 2)) - 1;
+        const x = Math.floor((i * 41 + Math.sin(now * 1.3 + i) * 2 + SCENE_W) % SCENE_W);
+        g.fillRect(x, y, 1, 1);
+      }
+    } else if (kind === 'fog') {
+      // 地面の近くに、流れる霧の帯
+      g.globalAlpha = 0.25;
+      g.fillStyle = col('4');
+      for (let i = 0; i < 4; i++) {
+        const x = Math.floor(((now * 4 + i * 30) % (SCENE_W + 40)) - 40);
+        g.fillRect(x, 112 + i * 9, 40, 4);
+      }
+      g.globalAlpha = 1;
+    }
+  }
+
   /** 散歩の要素：道端の物（出てくる・「？」の吹き出し・通り過ぎる）と、見つけた主人公の頭の上の「！」 */
   function drawRoadside(now) {
     const v = app.walkView && app.walkView.roadside;
@@ -239,7 +292,7 @@ export function createRenderer(canvas, app) {
     }
     drawProp(v.sprite, x, ROADSIDE.feet, now);
     // 吹き出しは主人公と群れの先頭のすき間（知らせの札に隠れにくい低いところ）
-    if (v.leaveAt == null && !v.opened && enter >= 1) drawPattern(BUBBLE, x + 9, ROADSIDE.feet - 21 + (Math.floor(now * 2) % 2));
+    if (v.leaveAt == null && !v.opened && enter >= 1) drawPattern(v.today ? BUBBLE_TODAY : BUBBLE, x + 9, ROADSIDE.feet - 21 + (Math.floor(now * 2) % 2));
     if (now - v.t0 < 1.2) drawPattern(['0g0', '0g0', '0g0', '000', '0g0', '000'], X.hero + 11, FEET_Y - 28);
   }
 
@@ -317,6 +370,8 @@ export function createRenderer(canvas, app) {
     const { shown: stage, dark } = stageFade(currentStage(state, app.stages), now);
     if (stage && stage.bg) drawSprite(g, stage.bg, 0, 0, 0);
     else { g.fillStyle = col('o', '#a6d8f2'); g.fillRect(0, 0, SCENE_W, SCENE_H); g.fillStyle = col('j', '#6fb042'); g.fillRect(0, 98, SCENE_W, 62); }
+    const weather = weatherNow(state, stage);
+    drawSky(weather);
 
     // 前世の石碑（群れの先頭の場所。主人公より奥に描く）
     drawStele(state, now);
@@ -418,6 +473,8 @@ export function createRenderer(canvas, app) {
     bar(X.hero, FEET_Y - 20, 16, state.hero.hp / hs.maxHp, col('j'));
     // 道端の物（手前の地面。主人公と群れより手前に描く）
     drawRoadside(now);
+    // 雨と雪（いちばん手前）
+    drawFall(weather, now);
 
     // エフェクト
     for (let i = fx.length - 1; i >= 0; i--) {

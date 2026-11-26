@@ -236,6 +236,12 @@ function profProgress(app, genre) {
   return [row, mark];
 }
 
+/** 決まった問題を解き直す（日記の「おぼえたこと」から。過去問復習と同じ出し方）。勉強画面に切り替える */
+export function redo(app, ids) {
+  start(app, 'review', null, ids);
+  app.showTab('study');
+}
+
 function start(app, mode, genre = null, pool = null) {
   view.session = createSession(app.state, mode, app.ctx, genre, pool);
   if (genre) view.genre = genre;

@@ -1,9 +1,9 @@
 // デバッグ画面（URL に ?debug=1 を付けたときだけ出る）
-import { HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel, lifespanOf, ailmentAge, ageYears, zakoPool, rocketSteps, tameZako, worldOf, raiseAffinity, roadsideQuestions, currentStage, setWalker, checkVision } from '../sim.js';
+import { gameDay, diaryVisit, diaryPage, todayNotice, todayRoadsideFor, addDays, HOURS_PER_YEAR, genreState, spawnGroup, setHeroLevel, lifespanOf, ailmentAge, ageYears, zakoPool, rocketSteps, tameZako, worldOf, raiseAffinity, roadsideQuestions, currentStage, setWalker, checkVision } from '../sim.js';
 import { VISION_LABELS } from '../colorsim.js';
 import { SAVE_KEY, serialize, deserialize } from '../save.js';
 import { GENRES } from '../genres.js';
-import { refreshDaily, dayKey } from '../quiz.js';
+import { refreshDaily } from '../quiz.js';
 import { el } from './dom.js';
 import * as roadside from './roadside.js';
 
@@ -31,25 +31,55 @@ export function init(app) {
   const level = el('select', {}, Array.from({ length: 31 }, (_, i) => el('option', { value: i }, `Lv ${i}`)));
   const monster = el('select', {}, ctx.monsters.map((m) => el('option', { value: m.id }, m.name)));
   const text = el('textarea', { placeholder: 'ここにセーブの文字列が出ます／貼り付けて読み込めます' });
-  const dailyDate = el('input', { type: 'date', value: dayKey(new Date()), 'aria-label': '今日の1問の日付' });
+  const dailyDate = el('input', { type: 'date', value: gameDay(new Date()), 'aria-label': '今日の1問の日付' });
 
   root.replaceChildren(
     el('div', { class: 'section' }, el('h2', {}, '時間の速さ'), el('div', {}, speedButtons)),
     el('div', { class: 'section' }, el('h2', {}, 'ゴールド'),
       el('div', {}, el('button', { onclick: () => { app.state.gold += 1000; app.notify('ゴールド +1000'); } }, '+1000G'),
         el('button', { onclick: () => { app.state.gold += 1e11; app.notify('ゴールド +1000億'); } }, '+1000億G'))),
-    // 今日の1問：その日に初めて起動したときと同じにする（札がまた出る）。日付を選ぶと、その日の問題で試せる
-    el('div', { class: 'section' }, el('h2', {}, '今日の1問'),
+    // 今日の1問：その日に初めて起動したときと同じにする（札がまた出る）。日付を選ぶと、その日の問題で試せる。
+    // 選んだ日付は、日記・七十二候・散歩道の天気・今日の道端にも使う（読み込み直すまで続く）
+    el('div', { class: 'section' }, el('h2', {}, '今日の1問・日記の日付'),
       el('div', {}, dailyDate,
         el('button', {
           onclick: () => {
             app.state.legacy.daily.day = null;
-            app.debugDay = dailyDate.value && dailyDate.value !== dayKey(new Date()) ? dailyDate.value : null;
+            app.debugDay = dailyDate.value && dailyDate.value !== gameDay(new Date()) ? dailyDate.value : null;
             refreshDaily(app.state, ctx, app.today());
             app.save();
             app.notify(`今日の1問をやり直す（${app.state.legacy.daily.day}）。冒険画面に札が出る`);
           },
-        }, 'やり直す'))),
+        }, 'やり直す'),
+        el('button', {
+          onclick: () => {
+            // 日記：選んだ日付に来たことにする（頁ができる。今日の道端・天気・七十二候もその日のもの）
+            app.debugDay = dailyDate.value && dailyDate.value !== gameDay(new Date()) ? dailyDate.value : null;
+            diaryVisit(app.state, app.today(), new Date());
+            app.save();
+            app.notify(`日記：${app.today()}に来たことにした\n${todayNotice(ctx, app.today())}`);
+          },
+        }, 'この日に来たことにする'),
+        el('button', {
+          onclick: () => {
+            // 去年の今日を試す：去年の同じ日の頁を作る（自由入力に見本の文）
+            const last = `${Number(app.today().slice(0, 4)) - 1}${app.today().slice(4)}`;
+            const page = diaryPage(app.state, last);
+            if (!page.visits.length) page.visits.push([21, Date.now()]);
+            if (!page.text) page.text = '（デバッグ）去年の今日の日記の見本';
+            app.save();
+            app.notify(`日記：去年の今日（${last}）の頁を作った（図書館の散歩帳）`);
+          },
+        }, '去年の今日の頁を作る'),
+        el('button', {
+          onclick: () => {
+            // 今日の道端のもの：今いる世界で、今日まだ出していなければ出す
+            const q = todayRoadsideFor(app.state, ctx, app.today());
+            app.showTab('adventure');
+            if (!q || !roadside.show(app, q, true)) app.notify('今日の道端のものを出せなかった（今日はもう出した・月面・道端の物が無い世界）', 'bad');
+          },
+        }, '今日の道端のものを出す'),
+        el('button', { onclick: () => { app.debugDay = addDays(app.today(), 1); dailyDate.value = app.debugDay; app.notify(`日付を1日進めた（${app.debugDay}）`); } }, '日付を1日進める'))),
     el('div', { class: 'section' }, el('h2', {}, '主人公のレベル'),
       el('div', {}, 'Lv', heroLevel,
         el('button', { onclick: () => changeLevel(heroLevel.value) }, '設定'),

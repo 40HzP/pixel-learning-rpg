@@ -680,6 +680,31 @@ button.danger { background: #c4313b; border-color: #6e1f2e; color: #fbfaf4; }
 .item .btns button { padding: 4px 8px; font-size: 14px; line-height: 1.3; }
 .item.field.on { border-color: var(--good); }
 .item.on { border-color: var(--good); }
+/* 散歩帳の日記（図書館・月面の書庫。ui/facility/library.js）：自動の行はドット文字、自分で書いた「今日のこと」は手書きの字（Klee One）。
+   ゲームの記録と現実の記録が混ざって見えないように、見た目で分ける */
+.diary-page { background: var(--panel); border: 1px solid var(--line); padding: 10px 12px; margin: 0 0 10px; }
+.diary-page.today { border: 2px solid var(--accent-bg); }
+.diary-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 10px; border-bottom: 1px dashed var(--line); padding-bottom: 6px; margin-bottom: 6px; }
+.diary-head b { font-size: 17px; }
+.diary-ko { font-size: 13px; color: var(--muted); }
+.diary-lines { list-style: none; padding: 0; margin: 0 0 8px; }
+.diary-lines li { font-size: 14px; line-height: 1.6; padding: 2px 0 2px 14px; position: relative; }
+.diary-lines li::before { content: '・'; position: absolute; left: 0; color: var(--muted); }
+.diary-lines li.real { color: var(--muted); }
+.diary-redo { all: unset; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.diary-redo small { color: var(--info); font-size: 12px; text-decoration: none; }
+.diary-text, .diary-written { font-family: 'Klee One', 'UD デジタル 教科書体 N-R', 'UD Digi Kyokasho N-R', 'DotGothic16', sans-serif; }
+.diary-text { box-sizing: border-box; width: 100%; font-size: 16px; line-height: 1.6; padding: 6px 8px; resize: vertical;
+  background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 0; }
+.diary-lastyear { margin-top: 10px; padding: 8px 10px; border-left: 4px solid var(--line); background: var(--panel2); }
+.diary-lastyear b { font-size: 13px; color: var(--muted); }
+.diary-lastyear .diary-lines { margin: 4px 0 0; }
+.diary-written { margin: 4px 0 0; font-size: 15px; white-space: pre-wrap; }
+.diary-past { margin: 0 0 12px; }
+.diary-fold { margin: 0 0 6px; }
+.diary-fold summary { cursor: pointer; padding: 6px 2px; font-size: 15px; }
+.diary-fold summary small { color: var(--muted); font-size: 12px; }
+.diary-fold .diary-page { margin-top: 4px; }
 /* 散歩帳（図書館・月面の書庫）：絵と名前・見つけた世界・解説 */
 .item.walk-page canvas { flex-shrink: 0; align-self: flex-start; }
 .item.field.guided { opacity: .85; border-style: dashed; border-color: var(--good); }

@@ -4,9 +4,10 @@
 import {
   createState, tick, clockFrame, createClock, HOURS_PER_YEAR,
   createRateTracker, trackTime, moveToFloor, birthday, fitParty, heroStats, forgetPastLifeBosses,
+  gameDay, diaryVisit, diaryTick, todayNotice,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
-import { forgetMissingQuestions, ensureAuthorCode, takeNewAdoptions, refreshDaily, dayKey, beginRecall } from './quiz.js';
+import { forgetMissingQuestions, ensureAuthorCode, takeNewAdoptions, refreshDaily, beginRecall } from './quiz.js';
 import { createRenderer, SCENE_W, SCENE_H } from './render.js';
 import * as adventure from './ui/adventure.js';
 import * as study from './ui/study.js';
@@ -32,7 +33,8 @@ const PIXEL = '../pixel/';
 const AUTOSAVE_MS = 10_000;
 const UI_MS = 200;
 const UPDATE_CHECK_MS = 3 * 60_000;
-const DAY_CHECK_MS = 30_000; // 日付が変わったか（今日の1問）を見る間隔
+const DAY_CHECK_MS = 30_000; // 日付が変わったか（今日の1問・日記）を見る間隔
+const DIARY_TICK_MS = 5_000; // 日記に遊んだ時間を足す間隔
 const FONT_WAIT_MS = 3000;
 // ほかのアプリなどに切り替えて10分以上たってから戻ってきたら、起動し直したことにする（起動から3分の比較を数え直す。ui/cards.js）
 const AWAY_RELAUNCH_MS = 10 * 60_000;
@@ -72,9 +74,9 @@ const cryptoRng = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
 
 async function boot() {
   const params = new URLSearchParams(location.search);
-  let balance, monsters, items, questions, recruits, town, stages, business, fields, submit, genreGroups, firstCheck, roadside;
+  let balance, monsters, items, questions, recruits, town, stages, business, fields, submit, genreGroups, firstCheck, roadside, seasons;
   try {
-    [balance, { monsters }, { items }, { questions }, { recruits }, town, { stages }, business, fields, submit, { groups: genreGroups }, { questions: firstCheck }, roadside] = await Promise.all([
+    [balance, { monsters }, { items }, { questions }, { recruits }, town, { stages }, business, fields, submit, { groups: genreGroups }, { questions: firstCheck }, roadside, seasons] = await Promise.all([
       fetchJSON('data/balance.json'), fetchJSON('data/monsters.json'),
       fetchJSON('data/items.json'), fetchJSON('data/questions.json'),
       fetchJSON('data/recruits.json'), fetchJSON('data/town.json'),
@@ -83,6 +85,7 @@ async function boot() {
       fetchJSON('data/genre-groups.json'),
       fetchJSON('data/first-check.json'), // 前世の記憶をたどる（最初の3分）の問題の候補
       fetchJSON('data/roadside.json'),    // 散歩の要素：前世の足跡の石碑と、道端の物の絵の名前
+      fetchJSON('data/seasons.json'),     // 毎日変わるものと日記：七十二候・二十四節気・散歩道の天気・祝日と行事
     ]);
   } catch (e) {
     document.querySelector('#loading .dialog').textContent = 'ゲームのデータを読めませんでした。\n' + e.message;
@@ -98,7 +101,8 @@ async function boot() {
   // radio：月面の街の裏側の電波望遠鏡で開く図鑑の頁（town.json の moon.radio）。firstCheck：前世の記憶をたどる問題の候補（data/first-check.json）
   // barnRooms：飼育小屋の部屋の背景の一覧（town.json の barnRooms）
   // roadside：散歩の要素の絵の名前と、道端の物で一言いうザコ（data/roadside.json の zako。ザコの散歩）
-  const ctx = { balance, monsters, items, questions, recruits, business, fields, stages, radio: town.moon.radio, barnRooms: town.barnRooms, firstCheck, roadside, rng: Math.random };
+  // seasons：七十二候・二十四節気・散歩道の天気・祝日と行事（data/seasons.json。毎日変わるものと日記は sim/diary.js）
+  const ctx = { balance, monsters, items, questions, recruits, business, fields, stages, radio: town.moon.radio, barnRooms: town.barnRooms, firstCheck, roadside, seasons, rng: Math.random };
   const app = {
     ctx, palette, monsterSprites, recruitSprites,
     submit,           // 作問フォーム（data/submit.json）
@@ -165,7 +169,7 @@ async function boot() {
     openDaily: () => runOverlay(() => openDaily(app).then(() => refreshActive(true))), // 今日の1問（冒険画面の札・街の掲示板）
     openFloors: () => runOverlay(() => openFloors(app)), // 階層の移動（冒険画面の「移動」）
     debugDay: null,   // デバッグ画面で選んだ日付（今日の1問をその日の問題で試す）
-    today: () => app.debugDay || dayKey(new Date()), // 今日の1問の日付（端末の時計の日付）
+    today: () => app.debugDay || gameDay(new Date()), // 今日の日付（日本時間の朝4時で切り替え。今日の1問・日記・今日の道端。40HzP の判断 2026-11-26）
     tearTest: (teacherId) => runOverlay(() => playTear(app, teacherId)), // テスト用紙を破りすてた（先生が怒る）
     oogiriTest: (teacherId) => runOverlay(() => playOogiri(app, teacherId)), // テストに大喜利を書いて提出した（主人公が赤面する）
     launch: () => scenes.launch(),          // ロケットを打ち上げる（地球 → 月面。失敗することもある）
@@ -191,6 +195,7 @@ async function boot() {
   const adoptedOnLoad = takeNewAdoptions(app.state, ctx); // 採用された問題があれば、起動したときに一度だけ知らせる
   forgetMissingQuestions(app.state, ctx); // 同期で外した問題が過去問復習に残らないように
   refreshDaily(app.state, ctx, app.today()); // その日に初めて起動したら、今日の1問の札を冒険画面に出す
+  const freshDay = diaryVisit(app.state, app.today(), new Date()).fresh; // 日記：遊びに来た（その日初めてなら頁ができる）
   forgetPastLifeBosses(app.state, ctx); // 前の版のセーブで、前世で倒したボスにもまた会えるように
   const benchedOnLoad = fitParty(app.state, ctx); // パーティーは5人まで（前のセーブで超えていたら控えに回す）
   // 伸び率を変えた版では、前のセーブのHP・MPが今の最大を超えていることがある
@@ -205,6 +210,8 @@ async function boot() {
     setTimeout(() => notify(`あなたが作った問題が採用された！（${adoptedOnLoad.length}問）\n${adoptedOnLoad.slice(0, 3).map((q) => `「${q.question.length > 24 ? q.question.slice(0, 24) + '…' : q.question}」`).join('\n')}\n勉強の「作問」で見られる`, 'good'), 1200);
     saveNow();
   }
+  // その日初めて開いたら、今日の候と散歩道の天気を知らせる（毎日変わるもの。前世の最期から始まる初めての起動では出さない）
+  if (freshDay && !firstLaunch) setTimeout(() => notify(todayNotice(ctx, app.today())), 2500);
   if (benchedOnLoad.length) setTimeout(() => notify(`パーティーは${ctx.balance.ally.partyMax}人までになった。${benchedOnLoad.join('・')}を控えに回した（酒場で入れ替えられる）`), 1500);
 
   /* ---------- セーブ ---------- */
@@ -277,8 +284,11 @@ async function boot() {
 
   /* ---------- 今日の1問：遊んでいる途中で日付が変わったら、次の日の札を出す ---------- */
   function checkDay() {
-    if (!refreshDaily(app.state, ctx, app.today())) return;
-    notify('日付が変わった。今日の1問が届いた（冒険画面の札）', 'good');
+    // 日記：遊びに来た（離れていた後なら別の回）。画面を見ていない間（裏に回している間）は数えない
+    const fresh = document.visibilityState === 'visible' && diaryVisit(app.state, app.today(), new Date()).fresh;
+    const daily = refreshDaily(app.state, ctx, app.today());
+    if (!daily && !fresh) return;
+    notify(daily ? `日付が変わった。今日の1問が届いた（冒険画面の札）\n${todayNotice(ctx, app.today())}` : todayNotice(ctx, app.today()), 'good');
     saveNow();
     refreshActive(true);
   }
@@ -287,6 +297,7 @@ async function boot() {
   /* ---------- ループ ---------- */
   const clock = createClock();
   let lastUi = 0, lastSave = performance.now();
+  let diarySec = 0, lastDiary = performance.now(); // 日記に足す、遊んだ秒数（画面を見ている間）
   let hiddenAt = 0;
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') {
@@ -320,6 +331,8 @@ async function boot() {
     scenes.releaseHeldMovies();
     syncVision(app); // 色の見え方が違う人生：画面全体の色のフィルタ（変わったときだけ書き換える）
     if (nowMs - lastUi > UI_MS) { lastUi = nowMs; refreshActive(false); }
+    if (visible && app.state.meta.startAge != null) diarySec += realDt;
+    if (nowMs - lastDiary > DIARY_TICK_MS) { lastDiary = nowMs; if (diarySec > 0) { diaryTick(app.state, app.today(), diarySec, new Date()); diarySec = 0; } }
     if (nowMs - lastSave > AUTOSAVE_MS) { lastSave = nowMs; saveNow(); }
     requestAnimationFrame(frame);
   }
