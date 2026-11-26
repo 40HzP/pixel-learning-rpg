@@ -46,7 +46,7 @@ export function init(app) {
           onclick: () => {
             app.state.legacy.daily.day = null;
             app.debugDay = dailyDate.value && dailyDate.value !== gameDay(new Date()) ? dailyDate.value : null;
-            refreshDaily(app.state, ctx, app.today());
+            refreshDaily(app.state, ctx, app.calendarDay());
             app.save();
             app.notify(`今日の1問をやり直す（${app.state.legacy.daily.day}）。冒険画面に札が出る`);
           },

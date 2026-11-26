@@ -7,7 +7,7 @@ import {
   gameDay, diaryVisit, diaryTick, todayNotice,
 } from './sim.js';
 import { SAVE_KEY, serialize, deserialize } from './save.js';
-import { forgetMissingQuestions, ensureAuthorCode, takeNewAdoptions, refreshDaily, beginRecall } from './quiz.js';
+import { forgetMissingQuestions, ensureAuthorCode, takeNewAdoptions, refreshDaily, dayKey, beginRecall } from './quiz.js';
 import { createRenderer, SCENE_W, SCENE_H } from './render.js';
 import * as adventure from './ui/adventure.js';
 import * as study from './ui/study.js';
@@ -130,7 +130,7 @@ async function boot() {
     // 公開した版（GitHub Actions が index.html に書き込む。手元で動かしているときは dev）
     version: (document.querySelector('meta[name="app-version"]') || {}).content || 'dev',
     // notify・handleEvents・save は、下で知らせとミニムービーの関数を作ってから入れる
-    replaceState(next) { app.state = next; ensureAuthorCode(next, cryptoRng); refreshDaily(next, ctx, app.today()); forgetMissingQuestions(next, ctx); forgetPastLifeBosses(next, ctx); fitParty(next, ctx); app.rate = createRateTracker(); for (const s of Object.values(screens)) s.reset && s.reset(app); refreshActive(true); },
+    replaceState(next) { app.state = next; ensureAuthorCode(next, cryptoRng); refreshDaily(next, ctx, app.calendarDay()); forgetMissingQuestions(next, ctx); forgetPastLifeBosses(next, ctx); fitParty(next, ctx); app.rate = createRateTracker(); for (const s of Object.values(screens)) s.reset && s.reset(app); refreshActive(true); },
     // 階層の移動（冒険画面の「階層を移動」）：この人生で到達した階層（今いる世界）へ
     moveFloor(floor) {
       const r = moveToFloor(app.state, ctx, floor);
@@ -170,7 +170,8 @@ async function boot() {
     openDaily: () => runOverlay(() => openDaily(app).then(() => refreshActive(true))), // 今日の1問（冒険画面の札・街の掲示板）
     openFloors: () => runOverlay(() => openFloors(app)), // 階層の移動（冒険画面の「移動」）
     debugDay: null,   // デバッグ画面で選んだ日付（今日の1問をその日の問題で試す）
-    today: () => app.debugDay || gameDay(new Date()), // 今日の日付（日本時間の朝4時で切り替え。今日の1問・日記・今日の道端。40HzP の判断 2026-11-26）
+    today: () => app.debugDay || gameDay(new Date()), // 日記の日付（日本時間の朝4時で切り替え。日記・七十二候・天気・今日の道端。40HzP の判断 2026-11-26）
+    calendarDay: () => app.debugDay || dayKey(new Date()), // 今日の1問と、小屋でなでる日の日付（端末の時計の0時で切り替え。40HzP の依頼 2026-11-27）
     tearTest: (teacherId) => runOverlay(() => playTear(app, teacherId)), // テスト用紙を破りすてた（先生が怒る）
     oogiriTest: (teacherId) => runOverlay(() => playOogiri(app, teacherId)), // テストに大喜利を書いて提出した（主人公が赤面する）
     launch: () => scenes.launch(),          // ロケットを打ち上げる（地球 → 月面。失敗することもある）
@@ -195,7 +196,7 @@ async function boot() {
   ensureAuthorCode(app.state, cryptoRng); // 作問者コード（作った問題が採用されたら知らせるため）
   const adoptedOnLoad = takeNewAdoptions(app.state, ctx); // 採用された問題があれば、起動したときに一度だけ知らせる
   forgetMissingQuestions(app.state, ctx); // 同期で外した問題が過去問復習に残らないように
-  refreshDaily(app.state, ctx, app.today()); // その日に初めて起動したら、今日の1問の札を冒険画面に出す
+  refreshDaily(app.state, ctx, app.calendarDay()); // その日に初めて起動したら、今日の1問の札を冒険画面に出す
   const freshDay = diaryVisit(app.state, app.today(), new Date()).fresh; // 日記：遊びに来た（その日初めてなら頁ができる）
   forgetPastLifeBosses(app.state, ctx); // 前の版のセーブで、前世で倒したボスにもまた会えるように
   const benchedOnLoad = fitParty(app.state, ctx); // パーティーは5人まで（前のセーブで超えていたら控えに回す）
@@ -287,9 +288,11 @@ async function boot() {
   function checkDay() {
     // 日記：遊びに来た（離れていた後なら別の回）。画面を見ていない間（裏に回している間）は数えない
     const fresh = document.visibilityState === 'visible' && diaryVisit(app.state, app.today(), new Date()).fresh;
-    const daily = refreshDaily(app.state, ctx, app.today());
+    const daily = refreshDaily(app.state, ctx, app.calendarDay());
     if (!daily && !fresh) return;
-    notify(daily ? `日付が変わった。今日の1問が届いた（冒険画面の札）\n${todayNotice(ctx, app.today())}` : todayNotice(ctx, app.today()), 'good');
+    // 今日の1問は0時、日記（候と天気）は朝4時に切り替わるので、別々に知らせる
+    const lines = [daily ? '日付が変わった。今日の1問が届いた（冒険画面の札）' : null, fresh ? todayNotice(ctx, app.today()) : null].filter(Boolean);
+    notify(lines.join('\n'), 'good');
     saveNow();
     refreshActive(true);
   }
